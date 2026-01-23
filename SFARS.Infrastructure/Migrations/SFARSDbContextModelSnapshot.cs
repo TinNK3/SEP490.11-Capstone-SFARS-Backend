@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using NetTopologySuite.Geometries;
 using SFARS.Infrastructure.Data.Context;
 
 #nullable disable
@@ -21,6 +22,533 @@ namespace SFARS.Infrastructure.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("SFARS.Domain.Entities.ContentPost", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("author_id");
+
+                    b.Property<string>("BodyContent")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("body_content");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_published");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)")
+                        .HasColumnName("slug");
+
+                    b.Property<string>("ThumbnailUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("thumbnail_url");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("PK_ContentPost_Id");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ContentPost_Slug");
+
+                    b.ToTable("ContentPost", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.FirstAidDetail", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ContentMarkdown")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("content_markdown");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("image_url");
+
+                    b.Property<string>("LanguageCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("language_code");
+
+                    b.Property<Guid>("SnakeId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("snake_id");
+
+                    b.Property<int>("StepOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("step_order");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("PK_FirstAidDetail_Id");
+
+                    b.HasIndex("SnakeId");
+
+                    b.ToTable("FirstAidDetail", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.Incident", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AddressString")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("address_string");
+
+                    b.Property<double?>("AiConfidenceScore")
+                        .HasColumnType("float")
+                        .HasColumnName("ai_confidence_score");
+
+                    b.Property<string>("AiPredictionResult")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("ai_prediction_result");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("CurrentStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("current_status");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("description");
+
+                    b.Property<Point>("Location")
+                        .IsRequired()
+                        .HasColumnType("geography")
+                        .HasColumnName("location");
+
+                    b.Property<string>("PriorityLevel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("priority_level");
+
+                    b.Property<Guid?>("SnakeId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("snake_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid>("VictimId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("victim_id");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Incident_Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Incident_Code");
+
+                    b.HasIndex("SnakeId");
+
+                    b.HasIndex("VictimId");
+
+                    b.ToTable("Incident", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.IncidentMedia", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("IncidentId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("incident_id");
+
+                    b.Property<string>("MediaType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("media_type");
+
+                    b.Property<string>("MediaUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("media_url");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("PK_IncidentMedia_Id");
+
+                    b.HasIndex("IncidentId");
+
+                    b.ToTable("IncidentMedia", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.IncidentStatusHistory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ChangeReason")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("change_reason");
+
+                    b.Property<Guid>("ChangedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("changed_by");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("IncidentId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("incident_id");
+
+                    b.Property<string>("StatusFrom")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("status_from");
+
+                    b.Property<string>("StatusTo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("status_to");
+
+                    b.HasKey("Id")
+                        .HasName("PK_IncidentStatusHistory_Id");
+
+                    b.HasIndex("IncidentId");
+
+                    b.ToTable("IncidentStatusHistory", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.MedicalFacility", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("address");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_active");
+
+                    b.Property<Point>("Location")
+                        .IsRequired()
+                        .HasColumnType("geography")
+                        .HasColumnName("location");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("OperatingHours")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("operating_hours");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("phone_number");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("PK_MedicalFacility_Id");
+
+                    b.ToTable("MedicalFacility", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.NotificationLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_read");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("message");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("sent_at");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("type");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("PK_NotificationLog_Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("NotificationLog", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.PointTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ActivityType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("activity_type");
+
+                    b.Property<int>("Amount")
+                        .HasColumnType("int")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("description");
+
+                    b.Property<Guid?>("ReferenceId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("reference_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("PK_PointTransaction_Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PointTransaction", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.Quiz", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("DifficultyLevel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("difficulty_level");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_active");
+
+                    b.Property<int>("PointsReward")
+                        .HasColumnType("int")
+                        .HasColumnName("points_reward");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Quiz_Id");
+
+                    b.ToTable("Quiz", (string)null);
+                });
 
             modelBuilder.Entity("SFARS.Domain.Entities.RefreshToken", b =>
                 {
@@ -76,74 +604,496 @@ namespace SFARS.Infrastructure.Migrations
                     b.ToTable("RefreshToken", (string)null);
                 });
 
+            modelBuilder.Entity("SFARS.Domain.Entities.RescueMission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("ArrivedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("arrived_at");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("IncidentId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("incident_id");
+
+                    b.Property<string>("PatientConditionAtHandover")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("patient_condition_at_handover");
+
+                    b.Property<Guid>("RescuerId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("rescuer_id");
+
+                    b.Property<string>("RescuerNotes")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("rescuer_notes");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("PK_RescueMission_Id");
+
+                    b.HasIndex("IncidentId");
+
+                    b.HasIndex("RescuerId");
+
+                    b.ToTable("RescueMission", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.RescueTrackingLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<double?>("AccuracyMeters")
+                        .HasColumnType("float")
+                        .HasColumnName("accuracy_meters");
+
+                    b.Property<int?>("BatteryLevel")
+                        .HasColumnType("int")
+                        .HasColumnName("battery_level");
+
+                    b.Property<Point>("Location")
+                        .IsRequired()
+                        .HasColumnType("geography")
+                        .HasColumnName("location");
+
+                    b.Property<DateTime>("LoggedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("logged_at");
+
+                    b.Property<Guid>("MissionId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("mission_id");
+
+                    b.Property<Guid>("RescuerId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("rescuer_id");
+
+                    b.Property<double?>("SpeedKMH")
+                        .HasColumnType("float")
+                        .HasColumnName("speed_kmh");
+
+                    b.HasKey("Id")
+                        .HasName("PK_RescueTrackingLog_Id");
+
+                    b.HasIndex("MissionId");
+
+                    b.ToTable("RescueTrackingLog", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.RescuerProfile", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("user_id");
+
+                    b.Property<Guid?>("ApprovedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("approved_by");
+
+                    b.Property<double>("CoverageRadiusKM")
+                        .HasColumnType("float")
+                        .HasColumnName("coverage_radius_km");
+
+                    b.Property<int>("ExperienceYears")
+                        .HasColumnType("int")
+                        .HasColumnName("experience_years");
+
+                    b.Property<bool>("IsVerified")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_verified");
+
+                    b.Property<string>("LicensePlate")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("license_plate");
+
+                    b.Property<string>("VehicleType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("vehicle_type");
+
+                    b.HasKey("UserId")
+                        .HasName("PK_RescuerProfile_UserId");
+
+                    b.ToTable("RescuerProfile", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.Review", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("comment");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("MissionId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("mission_id");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int")
+                        .HasColumnName("rating");
+
+                    b.Property<Guid>("ReviewerId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("reviewer_id");
+
+                    b.Property<Guid?>("TargetId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("target_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Review_Id");
+
+                    b.HasIndex("MissionId")
+                        .IsUnique();
+
+                    b.HasIndex("ReviewerId");
+
+                    b.HasIndex("TargetId");
+
+                    b.ToTable("Review", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.Role", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("RoleName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("role_name");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Role_Id");
+
+                    b.HasIndex("RoleName")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Role_RoleName");
+
+                    b.ToTable("Role", (string)null);
+                });
+
             modelBuilder.Entity("SFARS.Domain.Entities.Snake", b =>
                 {
-                    b.Property<int>("SnakeId")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("snake_id");
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SnakeId"));
-
-                    b.Property<string>("Name")
+                    b.Property<string>("CommonName")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)")
-                        .HasColumnName("name");
+                        .HasColumnName("common_name");
 
-                    b.HasKey("SnakeId")
-                        .HasName("PK_Snake_SnakeId");
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
 
-                    b.HasIndex("Name")
-                        .HasDatabaseName("IX_Snake_Name");
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Habitat")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("habitat");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("ScientificName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("scientific_name");
+
+                    b.Property<string>("ToxicityLevel")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("toxicity_level");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Snake_Id");
 
                     b.ToTable("Snake", (string)null);
                 });
 
+            modelBuilder.Entity("SFARS.Domain.Entities.SnakeHotspot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Point>("Location")
+                        .IsRequired()
+                        .HasColumnType("geography")
+                        .HasColumnName("location");
+
+                    b.Property<Guid>("ReporterId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("reporter_id");
+
+                    b.Property<string>("RiskLevel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("risk_level");
+
+                    b.Property<Guid?>("SnakeId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("snake_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("Upvotes")
+                        .HasColumnType("int")
+                        .HasColumnName("upvotes");
+
+                    b.Property<bool>("VerifiedByExpert")
+                        .HasColumnType("bit")
+                        .HasColumnName("verified_by_expert");
+
+                    b.HasKey("Id")
+                        .HasName("PK_SnakeHotspot_Id");
+
+                    b.HasIndex("ReporterId");
+
+                    b.HasIndex("SnakeId");
+
+                    b.ToTable("SnakeHotspot", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.SnakeImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("image_url");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_primary");
+
+                    b.Property<Guid>("SnakeId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("snake_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("PK_SnakeImage_Id");
+
+                    b.HasIndex("SnakeId");
+
+                    b.ToTable("SnakeImage", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.SystemConfig", b =>
+                {
+                    b.Property<string>("ConfigKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("config_key");
+
+                    b.Property<string>("ConfigValue")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("config_value");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("description");
+
+                    b.HasKey("ConfigKey")
+                        .HasName("PK_SystemConfig_ConfigKey");
+
+                    b.ToTable("SystemConfig", (string)null);
+                });
+
             modelBuilder.Entity("SFARS.Domain.Entities.SystemMessage", b =>
                 {
-                    b.Property<string>("MsgId")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .HasColumnName("msg_id");
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
 
-                    b.Property<string>("CreateBy")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("create_by");
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
 
-                    b.Property<DateTime>("CreateDate")
-                        .HasColumnType("datetime")
-                        .HasColumnName("create_date");
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
 
                     b.Property<string>("En")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)")
-                        .HasColumnName("english_message");
-
-                    b.Property<string>("ModifiedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("modified_by");
-
-                    b.Property<DateTime?>("ModifiedDate")
-                        .HasColumnType("datetime")
-                        .HasColumnName("modified_date");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("en");
 
                     b.Property<string>("MsgContent")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
                         .HasColumnName("msg_content");
 
-                    b.Property<string>("Vi")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)")
-                        .HasColumnName("vietnamese_message");
+                    b.Property<string>("MsgId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("msg_id");
 
-                    b.HasKey("MsgId")
-                        .HasName("PK_SystemMessage_MsgId");
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("Vi")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("vi");
+
+                    b.HasKey("Id")
+                        .HasName("PK_SystemMessage_Id");
 
                     b.HasIndex("MsgId")
                         .IsUnique()
@@ -152,13 +1102,90 @@ namespace SFARS.Infrastructure.Migrations
                     b.ToTable("SystemMessage", (string)null);
                 });
 
-            modelBuilder.Entity("SFARS.Domain.Entities.User", b =>
+            modelBuilder.Entity("SFARS.Domain.Entities.Transaction", b =>
                 {
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
-                        .HasColumnName("user_id")
-                        .HasDefaultValueSql("(newsequentialid())");
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("GatewayTransactionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("gateway_transaction_id");
+
+                    b.Property<Guid?>("MissionId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("PaymentGateway")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("payment_gateway");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("PK_Transaction_Id");
+
+                    b.HasIndex("MissionId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Transaction", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.User", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
 
                     b.Property<string>("Address")
                         .HasMaxLength(500)
@@ -166,35 +1193,31 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnName("address");
 
                     b.Property<string>("Avatar")
-                        .HasMaxLength(2048)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(2048)")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
                         .HasColumnName("avatar");
 
-                    b.Property<DateTime>("CreateDate")
-                        .HasColumnType("datetime")
-                        .HasColumnName("create_date");
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<Point>("CurrentLocation")
+                        .HasColumnType("geography")
+                        .HasColumnName("current_location");
 
                     b.Property<DateTime?>("Dob")
-                        .HasColumnType("datetime")
+                        .HasColumnType("datetime2")
                         .HasColumnName("dob");
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
                         .HasColumnName("email");
-
-                    b.Property<bool>("EmailConfirmed")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false)
-                        .HasColumnName("email_confirmed");
-
-                    b.Property<string>("EmailVerificationCode")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasColumnName("email_verification_code");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
@@ -203,21 +1226,17 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnName("first_name");
 
                     b.Property<string>("Gender")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
                         .HasColumnName("gender");
 
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
+                    b.Property<bool>("IsOnline")
                         .HasColumnType("bit")
-                        .HasDefaultValue(true)
-                        .HasColumnName("is_active");
+                        .HasColumnName("is_online");
 
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_deleted");
+                    b.Property<DateTime?>("LastActiveAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("last_active_at");
 
                     b.Property<string>("LastName")
                         .IsRequired()
@@ -225,18 +1244,9 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(100)")
                         .HasColumnName("last_name");
 
-                    b.Property<string>("ModifiedBy")
-                        .HasMaxLength(155)
-                        .HasColumnType("nvarchar(155)")
-                        .HasColumnName("modified_by");
-
-                    b.Property<DateTime?>("ModifiedDate")
-                        .HasColumnType("datetime")
-                        .HasColumnName("modified_date");
-
                     b.Property<string>("PasswordHash")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("password_hash");
 
                     b.Property<string>("Phone")
@@ -244,43 +1254,22 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(20)")
                         .HasColumnName("phone");
 
-                    b.Property<bool>("PhoneNumberConfirmed")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false)
-                        .HasColumnName("phone_number_confirmed");
-
-                    b.Property<string>("PhoneVerificationCode")
+                    b.Property<string>("Status")
+                        .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)")
-                        .HasColumnName("phone_verification_code");
+                        .HasColumnName("status");
 
-                    b.Property<DateTime?>("PhoneVerificationExpiry")
-                        .HasColumnType("datetime")
-                        .HasColumnName("phone_verification_expiry");
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
 
-                    b.Property<int>("RoleId")
-                        .HasColumnType("int")
-                        .HasColumnName("role_id");
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
 
-                    b.PrimitiveCollection<string>("TwoFactorBackupCodes")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
-                        .HasColumnName("two_factor_backup_codes");
-
-                    b.Property<bool>("TwoFactorEnabled")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false)
-                        .HasColumnName("two_factor_enabled");
-
-                    b.Property<string>("TwoFactorSecretKey")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
-                        .HasColumnName("two_factor_secret_key");
-
-                    b.HasKey("UserId")
-                        .HasName("PK_User_UserId");
+                    b.HasKey("Id")
+                        .HasName("PK_User_Id");
 
                     b.HasIndex("Email")
                         .IsUnique()
@@ -290,6 +1279,234 @@ namespace SFARS.Infrastructure.Migrations
                         .HasDatabaseName("IX_User_Phone");
 
                     b.ToTable("User", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.UserDevice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("DeviceToken")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("device_token");
+
+                    b.Property<DateTime>("LastLoginAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("last_login_at");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("platform");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("PK_UserDevice_Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserDevice", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.UserLoginHistory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("IPAddress")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<DateTime>("LoginAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("login_at");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("user_agent");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("PK_UserLoginHistory_Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserLoginHistory", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.UserPoint", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("user_id");
+
+                    b.Property<int>("CurrentPoints")
+                        .HasColumnType("int")
+                        .HasColumnName("current_points");
+
+                    b.Property<string>("CurrentRank")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("current_rank");
+
+                    b.Property<int>("LifetimePoints")
+                        .HasColumnType("int")
+                        .HasColumnName("lifetime_points");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("UserId")
+                        .HasName("PK_UserPoint_UserId");
+
+                    b.ToTable("UserPoint", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.UserRole", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("user_id");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("role_id");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("assigned_at");
+
+                    b.HasKey("UserId", "RoleId")
+                        .HasName("PK_UserRole_UserId_RoleId");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("UserRole", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.ContentPost", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.User", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_ContentPost_User_AuthorId");
+
+                    b.Navigation("Author");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.FirstAidDetail", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.Snake", "Snake")
+                        .WithMany("FirstAidDetails")
+                        .HasForeignKey("SnakeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_FirstAidDetail_Snake_SnakeId");
+
+                    b.Navigation("Snake");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.Incident", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.Snake", "Snake")
+                        .WithMany()
+                        .HasForeignKey("SnakeId")
+                        .HasConstraintName("FK_Incident_Snake_SnakeId");
+
+                    b.HasOne("SFARS.Domain.Entities.User", "Victim")
+                        .WithMany()
+                        .HasForeignKey("VictimId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Incident_User_VictimId");
+
+                    b.Navigation("Snake");
+
+                    b.Navigation("Victim");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.IncidentMedia", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.Incident", "Incident")
+                        .WithMany("Medias")
+                        .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_IncidentMedia_Incident_IncidentId");
+
+                    b.Navigation("Incident");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.IncidentStatusHistory", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.Incident", "Incident")
+                        .WithMany("StatusHistories")
+                        .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_IncidentStatusHistory_Incident_IncidentId");
+
+                    b.Navigation("Incident");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.NotificationLog", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.User", "User")
+                        .WithMany("NotificationLogs")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_NotificationLog_User_UserId");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.PointTransaction", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.User", "User")
+                        .WithMany("PointTransactions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_PointTransaction_User_UserId");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.RefreshToken", b =>
@@ -304,9 +1521,236 @@ namespace SFARS.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("SFARS.Domain.Entities.RescueMission", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.Incident", "Incident")
+                        .WithMany("Missions")
+                        .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_RescueMission_Incident_IncidentId");
+
+                    b.HasOne("SFARS.Domain.Entities.User", "Rescuer")
+                        .WithMany()
+                        .HasForeignKey("RescuerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_RescueMission_User_RescuerId");
+
+                    b.Navigation("Incident");
+
+                    b.Navigation("Rescuer");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.RescueTrackingLog", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.RescueMission", "Mission")
+                        .WithMany("TrackingLogs")
+                        .HasForeignKey("MissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_RescueTrackingLog_RescueMission_MissionId");
+
+                    b.Navigation("Mission");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.RescuerProfile", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.User", "User")
+                        .WithOne("RescuerProfile")
+                        .HasForeignKey("SFARS.Domain.Entities.RescuerProfile", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_RescuerProfile_User_UserId");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.Review", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.RescueMission", "Mission")
+                        .WithOne("Review")
+                        .HasForeignKey("SFARS.Domain.Entities.Review", "MissionId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_Review_RescueMission_MissionId");
+
+                    b.HasOne("SFARS.Domain.Entities.User", "Reviewer")
+                        .WithMany()
+                        .HasForeignKey("ReviewerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Review_User_ReviewerId");
+
+                    b.HasOne("SFARS.Domain.Entities.User", "Target")
+                        .WithMany()
+                        .HasForeignKey("TargetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Review_User_TargetId");
+
+                    b.Navigation("Mission");
+
+                    b.Navigation("Reviewer");
+
+                    b.Navigation("Target");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.SnakeHotspot", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.User", "Reporter")
+                        .WithMany()
+                        .HasForeignKey("ReporterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_SnakeHotspot_User_ReporterId");
+
+                    b.HasOne("SFARS.Domain.Entities.Snake", "Snake")
+                        .WithMany()
+                        .HasForeignKey("SnakeId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("FK_SnakeHotspot_Snake_SnakeId");
+
+                    b.Navigation("Reporter");
+
+                    b.Navigation("Snake");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.SnakeImage", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.Snake", "Snake")
+                        .WithMany("SnakeImages")
+                        .HasForeignKey("SnakeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_SnakeImage_Snake_SnakeId");
+
+                    b.Navigation("Snake");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.Transaction", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.RescueMission", "Mission")
+                        .WithMany()
+                        .HasForeignKey("MissionId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("FK_Transaction_RescueMission_MissionId");
+
+                    b.HasOne("SFARS.Domain.Entities.User", "User")
+                        .WithMany("Transactions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Transaction_User_UserId");
+
+                    b.Navigation("Mission");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.UserDevice", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.User", "User")
+                        .WithMany("UserDevices")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_UserDevice_User_UserId");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.UserLoginHistory", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.User", "User")
+                        .WithMany("LoginHistories")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_UserLoginHistory_User_UserId");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.UserPoint", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.User", "User")
+                        .WithOne("UserPoint")
+                        .HasForeignKey("SFARS.Domain.Entities.UserPoint", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_UserPoint_User_UserId");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.UserRole", b =>
+                {
+                    b.HasOne("SFARS.Domain.Entities.Role", "Role")
+                        .WithMany("UserRoles")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_UserRole_Role_RoleId");
+
+                    b.HasOne("SFARS.Domain.Entities.User", "User")
+                        .WithMany("UserRoles")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_UserRole_User_UserId");
+
+                    b.Navigation("Role");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.Incident", b =>
+                {
+                    b.Navigation("Medias");
+
+                    b.Navigation("Missions");
+
+                    b.Navigation("StatusHistories");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.RescueMission", b =>
+                {
+                    b.Navigation("Review");
+
+                    b.Navigation("TrackingLogs");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.Role", b =>
+                {
+                    b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.Snake", b =>
+                {
+                    b.Navigation("FirstAidDetails");
+
+                    b.Navigation("SnakeImages");
+                });
+
             modelBuilder.Entity("SFARS.Domain.Entities.User", b =>
                 {
+                    b.Navigation("LoginHistories");
+
+                    b.Navigation("NotificationLogs");
+
+                    b.Navigation("PointTransactions");
+
                     b.Navigation("RefreshTokens");
+
+                    b.Navigation("RescuerProfile");
+
+                    b.Navigation("Transactions");
+
+                    b.Navigation("UserDevices");
+
+                    b.Navigation("UserPoint");
+
+                    b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618
         }

@@ -1,14 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using SFARS.Domain.Common.Enum;
+using SFARS.Domain.Entities.Base;
 
-namespace SFARS.Domain.Entities
+namespace SFARS.Domain.Entities;
+
+public class Snake : BaseEntity
 {
-    public class Snake
-    {
-        public int SnakeId { get; set; }
-        public string Name { get; set; } = null!;
-    }
+    public string ScientificName { get; set; } = null!;
+    public string CommonName { get; set; } = null!;
+    public SnakeRiskLevel ToxicityLevel { get; set; }
+    public string? Description { get; set; }
+    public string? Habitat { get; set; }
+    public bool IsActive { get; set; } = true;
+
+    public virtual ICollection<SnakeImage> SnakeImages { get; set; } = new List<SnakeImage>();
+    public virtual ICollection<FirstAidDetail> FirstAidDetails { get; set; } = new List<FirstAidDetail>();
 }

@@ -6,6 +6,7 @@ using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Domain.Specifications;
 
 namespace SFARS.Application.Services
 {
@@ -30,8 +31,9 @@ namespace SFARS.Application.Services
             try
             {
                 // Try to get system message from memory cache, create new if not exist
-                var msgEntity = await _unitOfWork.Repository<SystemMessage, string>()
-                    .GetByIdAsync(msgId);
+                var spec = new BaseSpecification<SystemMessage>(x => x.MsgId == msgId);
+                var msgEntity = await _unitOfWork.Repository<SystemMessage, Guid>()
+                    .GetWithSpecAsync(spec);
 
                 // Retrieve global language
                 var langStr = LanguageContext.CurrentLanguage;

@@ -1,17 +1,12 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using SFARS.Domain.Entities.Base;
 
 namespace SFARS.Domain.Entities
 {
-    public class SystemMessage
+    public class SystemMessage : BaseEntity
     {
-        [Key]
-        public string MsgId { get; set; } = null!;
+        public string MsgId { get; set; } = null!; // Logical Key (Code)
         public string MsgContent { get; set; } = null!;
-        public string? Vi { get; set; } // Vietnamese
-        public string? En { get; set; } // English
-        public DateTime CreateDate { get; set; }
-        public string CreateBy { get; set; } = null!;
-        public DateTime? ModifiedDate { get; set; }
-        public string? ModifiedBy { get; set; }
+        public string? Vi { get; set; } 
+        public string? En { get; set; }
     }
 }

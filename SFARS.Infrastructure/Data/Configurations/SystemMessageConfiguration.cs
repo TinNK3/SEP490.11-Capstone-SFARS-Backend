@@ -2,61 +2,42 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SFARS.Domain.Entities;
 
-namespace SFARS.Infrastructure.Data.Configurations
+namespace SFARS.Infrastructure.Data.Configurations;
+
+public class SystemMessageConfiguration : IEntityTypeConfiguration<SystemMessage>
 {
-    /// <summary>
-    /// Entity Type Configuration for SystemMessage entity
-    /// </summary>
-    public class SystemMessageConfiguration : IEntityTypeConfiguration<SystemMessage>
+    public void Configure(EntityTypeBuilder<SystemMessage> builder)
     {
-        public void Configure(EntityTypeBuilder<SystemMessage> builder)
-        {
-            // Primary Key with named constraint
-            builder.HasKey(e => e.MsgId).HasName("PK_SystemMessage_MsgId");
+        builder.ToTable("SystemMessage");
+        builder.HasKey(e => e.Id).HasName("PK_SystemMessage_Id");
 
-            // Table name - using singular form
-            builder.ToTable("SystemMessage");
+        builder.Property(e => e.Id).HasColumnName("id");
 
-            // Properties configuration with explicit column names (snake_case)
-            builder.Property(e => e.MsgId)
-                .IsRequired()
-                .HasMaxLength(50)
-                .HasColumnName("msg_id");
+        builder.Property(e => e.MsgId)
+            .IsRequired()
+            .HasMaxLength(100)
+            .HasColumnName("msg_id");
 
-            builder.Property(e => e.MsgContent)
-                .IsRequired()
-                .HasMaxLength(1000)
-                .HasColumnName("msg_content");
+        builder.Property(e => e.MsgContent)
+            .IsRequired()
+            .HasMaxLength(2000)
+            .HasColumnName("msg_content");
 
-            builder.Property(e => e.Vi)
-                .HasMaxLength(1000)
-                .HasColumnName("vietnamese_message");
+        builder.Property(e => e.Vi)
+            .HasMaxLength(2000)
+            .HasColumnName("vi");
 
-            builder.Property(e => e.En)
-                .HasMaxLength(1000)
-                .HasColumnName("english_message");
+        builder.Property(e => e.En)
+            .HasMaxLength(2000)
+            .HasColumnName("en");
+            
+        builder.Property(e => e.CreatedAt).HasColumnName("created_at");
+        builder.Property(e => e.CreatedBy).HasColumnName("created_by");
+        builder.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+        builder.Property(e => e.UpdatedBy).HasColumnName("updated_by");
 
-            builder.Property(e => e.CreateBy)
-                .IsRequired()
-                .HasMaxLength(100)
-                .HasColumnName("create_by");
-
-            builder.Property(e => e.ModifiedBy)
-                .HasMaxLength(100)
-                .HasColumnName("modified_by");
-
-            builder.Property(e => e.CreateDate)
-                .HasColumnType("datetime")
-                .HasColumnName("create_date");
-
-            builder.Property(e => e.ModifiedDate)
-                .HasColumnType("datetime")
-                .HasColumnName("modified_date");
-
-            // Index
-            builder.HasIndex(e => e.MsgId)
-                .IsUnique()
-                .HasDatabaseName("IX_SystemMessage_MsgId");
-        }
+        builder.HasIndex(e => e.MsgId)
+            .IsUnique()
+            .HasDatabaseName("IX_SystemMessage_MsgId");
     }
 }

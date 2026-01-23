@@ -1,15 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.ComponentModel;
 
 namespace SFARS.Domain.Common.Enum
 {
     public enum SnakeRiskLevel
     {
+        [Description("Không độc")]
         NonVenomous,
+        [Description("Độc nhẹ")]
         MildlyVenomous,
-        HighlyVenomous
+        [Description("Độc cao")]
+        HighlyVenomous,
+        [Description("Cực độc")]
+        Deadly
     }
 }
