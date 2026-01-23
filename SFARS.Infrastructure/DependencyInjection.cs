@@ -20,7 +20,7 @@ public static class DependencyInjection
             var connectionString = configuration.GetConnectionString("DefaultConnection");
 
             // Add application DbContext 
-            services.AddDbContext<SFARSDbContext>(options => options.UseSqlServer(connectionString));
+            services.AddDbContext<SFARSDbContext>(options => options.UseSqlServer(connectionString, x => x.UseNetTopologySuite()));
 
             // Register DI 
             services.AddScoped<IDatabaseInitializer, DatabaseInitializer>();

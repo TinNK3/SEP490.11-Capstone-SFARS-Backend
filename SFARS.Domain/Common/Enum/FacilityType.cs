@@ -1,14 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.ComponentModel;
 
 namespace SFARS.Domain.Common.Enum
 {
     public enum FacilityType
     {
+        [Description("Bệnh viện")]
         Hospital,
-        Clinic
+        [Description("Phòng khám")]
+        Clinic,
+        [Description("Trung tâm y tế")]
+        HealthCenter,
+        [Description("Nhà thuốc")]
+        Pharmacy
     }
 }

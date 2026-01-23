@@ -13,27 +13,27 @@ namespace SFARS.Domain.Specifications
         /// </summary>
         public SnakeSpecification() : base()
         {
-            AddOrderBy(s => s.Name);
+            AddOrderBy(s => s.CommonName);
         }
 
         /// <summary>
         /// Get snake by ID
         /// </summary>
-        public SnakeSpecification(int snakeId) : base(s => s.SnakeId == snakeId)
+        public SnakeSpecification(Guid id) : base(s => s.Id == id)
         {
         }
 
         /// <summary>
-        /// Search snakes by name (contains)
+        /// Search snakes by name (contains CommonName or ScientificName)
         /// </summary>
         public static SnakeSpecification ByNameContains(string searchTerm)
         {
             var spec = new SnakeSpecification();
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                spec.AddFilter(s => s.Name.Contains(searchTerm));
+                spec.AddFilter(s => s.CommonName.Contains(searchTerm) || s.ScientificName.Contains(searchTerm));
             }
-            spec.AddOrderBy(s => s.Name);
+            spec.AddOrderBy(s => s.CommonName);
             return spec;
         }
 
@@ -44,7 +44,7 @@ namespace SFARS.Domain.Specifications
         {
             var spec = new SnakeSpecification();
             spec.ApplyPaging(pageSize, pageIndex * pageSize);
-            spec.AddOrderBy(s => s.Name);
+            spec.AddOrderBy(s => s.CommonName);
             return spec;
         }
 
@@ -57,11 +57,11 @@ namespace SFARS.Domain.Specifications
             
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                spec.AddFilter(s => s.Name.Contains(searchTerm));
+                spec.AddFilter(s => s.CommonName.Contains(searchTerm) || s.ScientificName.Contains(searchTerm));
             }
             
             spec.ApplyPaging(pageSize, pageIndex * pageSize);
-            spec.AddOrderBy(s => s.Name);
+            spec.AddOrderBy(s => s.CommonName);
             
             return spec;
         }

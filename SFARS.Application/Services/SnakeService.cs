@@ -10,7 +10,7 @@ using SFARS.Domain.Specifications;
 
 namespace SFARS.Application.Services
 {
-    public class SnakeService : GenericService<Snake, SnakeDto, int>, ISnakeService<SnakeDto>
+    public class SnakeService : GenericService<Snake, SnakeDto, Guid>, ISnakeService<SnakeDto>
     {
         public SnakeService(
             ISystemMessageService msgService, 
@@ -24,7 +24,7 @@ namespace SFARS.Application.Services
         /// <summary>
         /// Get snake by ID
         /// </summary>
-        public async Task<IServiceResult> GetSnakeById(int id)
+        public async Task<IServiceResult> GetSnakeById(Guid id)
         {
             try
             {
@@ -52,36 +52,35 @@ namespace SFARS.Application.Services
         /// <summary>
         /// Create a new snake
         /// </summary>
-        public async Task<IServiceResult> CreateSnake(SnakeDto dto)
+        public override async Task<IServiceResult> CreateAsync(SnakeDto dto)
         {
             try
             {
                 // Validate
-                if (string.IsNullOrWhiteSpace(dto.Name))
+                if (string.IsNullOrWhiteSpace(dto.CommonName))
                 {
                     return new ServiceResult(
                         ResultCodeConst.SYS_Warning0001,
-                        "Snake name is required");
+                        "Snake common name is required");
                 }
 
                 // Check if snake with same name already exists
-                var existingSpec = SnakeSpecification.ByNameContains(dto.Name);
+                var existingSpec = SnakeSpecification.ByNameContains(dto.CommonName);
                 var existing = await GetAllWithSpecAsync(existingSpec);
                 
-                if (existing.Data != null && ((System.Collections.IEnumerable)existing.Data).Cast<object>().Any())
+                if (existing.Data != null && ((System.Collections.IEnumerable)existing.Data).Cast<SnakeDto>().Any(x => x.CommonName == dto.CommonName))
                 {
                     return new ServiceResult(
                         ResultCodeConst.SYS_Warning0003,
-                        $"A snake with name '{dto.Name}' already exists");
+                        $"A snake with name '{dto.CommonName}' already exists");
                 }
 
                 // Create
-                var result = await CreateAsync(dto);
-                return result;
+                return await base.CreateAsync(dto);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating snake: {SnakeName}", dto.Name);
+                _logger.LogError(ex, "Error creating snake: {SnakeName}", dto.CommonName);
                 return new ServiceResult(
                     ResultCodeConst.SYS_Fail0001,
                     $"Error creating snake: {ex.Message} {ex.InnerException?.Message}");
@@ -91,7 +90,7 @@ namespace SFARS.Application.Services
         /// <summary>
         /// Delete snake by ID
         /// </summary>
-        public async Task<IServiceResult> DeleteSnake(int id)
+        public async Task<IServiceResult> DeleteSnake(Guid id)
         {
             try
             {
@@ -157,6 +156,12 @@ namespace SFARS.Application.Services
                     ResultCodeConst.SYS_Fail0002,
                     "Error retrieving snakes");
             }
+        }
+        
+        // Compatibility method if interface requires original CreateSnake (which was just CreateAsync with checks)
+        public async Task<IServiceResult> CreateSnake(SnakeDto dto)
+        {
+            return await CreateAsync(dto);
         }
     }
 }

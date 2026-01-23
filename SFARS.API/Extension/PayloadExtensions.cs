@@ -11,7 +11,12 @@ namespace SFARS.API.Extension
         {
             return new SnakeDto
             {
-                Name = req.Name
+                CommonName = req.CommonName,
+                ScientificName = req.ScientificName,
+                ToxicityLevel = req.ToxicityLevel,
+                Description = req.Description,
+                Habitat = req.Habitat,
+                IsActive = true
             };
         }
 
@@ -20,7 +25,12 @@ namespace SFARS.API.Extension
         {
             return new SnakeDto
             {
-                Name = req.Name
+                CommonName = req.CommonName,
+                ScientificName = req.ScientificName,
+                ToxicityLevel = req.ToxicityLevel,
+                Description = req.Description,
+                Habitat = req.Habitat,
+                IsActive = req.IsActive
             };
         }
         #endregion

@@ -65,7 +65,11 @@ public class SFARSDbContextFactory : IDesignTimeDbContextFactory<SFARSDbContext>
         // Create DbContextOptions
         var optionsBuilder = new DbContextOptionsBuilder<SFARSDbContext>();
         optionsBuilder.UseSqlServer(connectionString, 
-            sqlServerOptions => sqlServerOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
+            sqlServerOptions => 
+            {
+                sqlServerOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+                sqlServerOptions.UseNetTopologySuite();
+            });
 
         return new SFARSDbContext(optionsBuilder.Options);
     }

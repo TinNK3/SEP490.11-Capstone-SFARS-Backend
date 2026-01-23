@@ -2,33 +2,45 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SFARS.Domain.Entities;
 
-namespace SFARS.Infrastructure.Data.Configurations
+namespace SFARS.Infrastructure.Data.Configurations;
+
+public class SnakeConfiguration : IEntityTypeConfiguration<Snake>
 {
-    /// <summary>
-    /// Entity Type Configuration for Snake entity
-    /// </summary>
-    public class SnakeConfiguration : IEntityTypeConfiguration<Snake>
+    public void Configure(EntityTypeBuilder<Snake> builder)
     {
-        public void Configure(EntityTypeBuilder<Snake> builder)
-        {
-            // Primary Key with named constraint
-            builder.HasKey(e => e.SnakeId).HasName("PK_Snake_SnakeId");
+        builder.ToTable("Snake");
+        builder.HasKey(e => e.Id).HasName("PK_Snake_Id");
 
-            // Table name - using singular form
-            builder.ToTable("Snake");
+        builder.Property(e => e.Id).HasColumnName("id");
 
-            // Properties configuration with explicit column names (snake_case)
-            builder.Property(e => e.SnakeId)
-                .HasColumnName("snake_id");
+        builder.Property(e => e.ScientificName)
+            .IsRequired()
+            .HasMaxLength(200)
+            .HasColumnName("scientific_name");
 
-            builder.Property(e => e.Name)
-                .IsRequired()
-                .HasMaxLength(200)
-                .HasColumnName("name");
+        builder.Property(e => e.CommonName)
+            .IsRequired()
+            .HasMaxLength(200)
+            .HasColumnName("common_name");
 
-            // Index for searching by name
-            builder.HasIndex(e => e.Name)
-                .HasDatabaseName("IX_Snake_Name");
-        }
+        builder.Property(e => e.ToxicityLevel)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .HasColumnName("toxicity_level");
+
+        builder.Property(e => e.Description)
+             .HasColumnName("description");
+
+        builder.Property(e => e.Habitat)
+             .HasColumnName("habitat");
+
+        builder.Property(e => e.IsActive)
+             .HasColumnName("is_active");
+
+        builder.Property(e => e.CreatedAt).HasColumnName("created_at");
+        builder.Property(e => e.CreatedBy).HasColumnName("created_by");
+        builder.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+        builder.Property(e => e.UpdatedBy).HasColumnName("updated_by");
     }
 }

@@ -1,6 +1,6 @@
 ﻿namespace SFARS.Domain.Entities.Base;
 
-public class BaseUser : IBaseUser
+public class BaseUser
 {
     // Basic user information
     public string Email { get; set; } = null!;

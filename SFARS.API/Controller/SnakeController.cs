@@ -31,7 +31,7 @@ public class SnakeController : ControllerBase
     /// Retrieves a snake by its ID
     /// </summary>
     [HttpGet(APIRoute.Snake.GetById, Name = "GetSnakeById")]
-    public async Task<IActionResult> GetByIdAsync(int id)
+    public async Task<IActionResult> GetByIdAsync(Guid id)
     {
         return Ok(await _snakeService.GetSnakeById(id));
     }
@@ -58,7 +58,7 @@ public class SnakeController : ControllerBase
     /// Updates an existing snake entity asynchronously.
     /// </summary>
     [HttpPut(APIRoute.Snake.Update, Name= nameof(UpdateAsync))]
-    public async Task<IActionResult> UpdateAsync([FromRoute] int id, [FromBody] UpdateSnakeRequest req)
+    public async Task<IActionResult> UpdateAsync([FromRoute] Guid id, [FromBody] UpdateSnakeRequest req)
     {
        return Ok(await _snakeService.UpdateAsync(id, req.ToSnakeForUpdate()));
     }
@@ -67,7 +67,7 @@ public class SnakeController : ControllerBase
     /// Deletes a snake entity asynchronously.
     /// </summary>
     [HttpDelete(APIRoute.Snake.Delete, Name = "DeleteSnake")]
-    public async Task<IActionResult> DeleteAsync(int id)
+    public async Task<IActionResult> DeleteAsync(Guid id)
     {
         return Ok(await _snakeService.DeleteSnake(id));
     }
