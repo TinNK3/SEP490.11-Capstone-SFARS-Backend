@@ -26,27 +26,17 @@ namespace SFARS.Application.Services
         /// </summary>
         public async Task<IServiceResult> GetSnakeById(Guid id)
         {
-            try
+            var spec = new SnakeSpecification(id);
+            var result = await GetWithSpecAsync(spec);
+            
+            if (result.Data == null)
             {
-                var spec = new SnakeSpecification(id);
-                var result = await GetWithSpecAsync(spec);
-                
-                if (result.Data == null)
-                {
-                    return new ServiceResult(
-                        ResultCodeConst.SYS_Warning0004,
-                        "Snake not found");
-                }
-                
-                return result;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting snake by ID: {SnakeId}", id);
                 return new ServiceResult(
-                    ResultCodeConst.SYS_Fail0002,
-                    $"Error retrieving snake: {ex.Message}");
+                    ResultCodeConst.SYS_Warning0004,
+                    "Snake not found");
             }
+            
+            return result;
         }
 
         /// <summary>
@@ -54,37 +44,27 @@ namespace SFARS.Application.Services
         /// </summary>
         public override async Task<IServiceResult> CreateAsync(SnakeDto dto)
         {
-            try
+            // Validate
+            if (string.IsNullOrWhiteSpace(dto.CommonName))
             {
-                // Validate
-                if (string.IsNullOrWhiteSpace(dto.CommonName))
-                {
-                    return new ServiceResult(
-                        ResultCodeConst.SYS_Warning0001,
-                        "Snake common name is required");
-                }
-
-                // Check if snake with same name already exists
-                var existingSpec = SnakeSpecification.ByNameContains(dto.CommonName);
-                var existing = await GetAllWithSpecAsync(existingSpec);
-                
-                if (existing.Data != null && ((System.Collections.IEnumerable)existing.Data).Cast<SnakeDto>().Any(x => x.CommonName == dto.CommonName))
-                {
-                    return new ServiceResult(
-                        ResultCodeConst.SYS_Warning0003,
-                        $"A snake with name '{dto.CommonName}' already exists");
-                }
-
-                // Create
-                return await base.CreateAsync(dto);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating snake: {SnakeName}", dto.CommonName);
                 return new ServiceResult(
-                    ResultCodeConst.SYS_Fail0001,
-                    $"Error creating snake: {ex.Message} {ex.InnerException?.Message}");
+                    ResultCodeConst.SYS_Warning0001,
+                    "Snake common name is required");
             }
+
+            // Check if snake with same name already exists
+            var existingSpec = SnakeSpecification.ByNameContains(dto.CommonName);
+            var existing = await GetAllWithSpecAsync(existingSpec);
+            
+            if (existing.Data != null && ((System.Collections.IEnumerable)existing.Data).Cast<SnakeDto>().Any(x => x.CommonName == dto.CommonName))
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0003,
+                    $"A snake with name '{dto.CommonName}' already exists");
+            }
+
+            // Create
+            return await base.CreateAsync(dto);
         }
 
         /// <summary>
@@ -92,30 +72,20 @@ namespace SFARS.Application.Services
         /// </summary>
         public async Task<IServiceResult> DeleteSnake(Guid id)
         {
-            try
+            // Check if snake exists
+            var spec = new SnakeSpecification(id);
+            var existing = await GetWithSpecAsync(spec);
+            
+            if (existing.Data == null)
             {
-                // Check if snake exists
-                var spec = new SnakeSpecification(id);
-                var existing = await GetWithSpecAsync(spec);
-                
-                if (existing.Data == null)
-                {
-                    return new ServiceResult(
-                        ResultCodeConst.SYS_Warning0004,
-                        "Snake not found");
-                }
-
-                // Delete
-                var result = await DeleteAsync(id);
-                return result;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting snake: {SnakeId}", id);
                 return new ServiceResult(
-                    ResultCodeConst.SYS_Fail0004,
-                    "Error deleting snake");
+                    ResultCodeConst.SYS_Warning0004,
+                    "Snake not found");
             }
+
+            // Delete
+            var result = await DeleteAsync(id);
+            return result;
         }
 
         /// <summary>
@@ -123,19 +93,9 @@ namespace SFARS.Application.Services
         /// </summary>
         public async Task<IServiceResult> SearchSnakes(string? searchTerm, int pageIndex = 0, int pageSize = 10)
         {
-            try
-            {
-                var spec = SnakeSpecification.SearchWithPagination(searchTerm, pageIndex, pageSize);
-                var result = await GetAllWithSpecAsync(spec);
-                return result;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error searching snakes");
-                return new ServiceResult(
-                    ResultCodeConst.SYS_Fail0002,
-                    "Error searching snakes");
-            }
+            var spec = SnakeSpecification.SearchWithPagination(searchTerm, pageIndex, pageSize);
+            var result = await GetAllWithSpecAsync(spec);
+            return result;
         }
 
         /// <summary>
@@ -143,19 +103,9 @@ namespace SFARS.Application.Services
         /// </summary>
         public async Task<IServiceResult> GetAllSnakesPaginated(int pageIndex = 0, int pageSize = 10)
         {
-            try
-            {
-                var spec = SnakeSpecification.WithPagination(pageIndex, pageSize);
-                var result = await GetAllWithSpecAsync(spec);
-                return result;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting paginated snakes");
-                return new ServiceResult(
-                    ResultCodeConst.SYS_Fail0002,
-                    "Error retrieving snakes");
-            }
+            var spec = SnakeSpecification.WithPagination(pageIndex, pageSize);
+            var result = await GetAllWithSpecAsync(spec);
+            return result;
         }
         
         // Compatibility method if interface requires original CreateSnake (which was just CreateAsync with checks)
