@@ -9,11 +9,16 @@
         /// </summary>
         public static class Authentication
         {
+            // [GET]
+
+            // [POST]
+            public const string SignInWithPassword = Base + "/auth/sign-in/password-method";
+            public const string SignUp = Base + "/auth/sign-up";
 
         }
 
         /// <summary>
-        /// Book endpoints
+        /// Snake endpoints
         /// </summary>
         public static class Snake
         {

@@ -1,10 +1,35 @@
-﻿using SFARS.API.Payloads.Request.Snake;
+﻿using SFARS.API.Payloads.Request.Auth;
+using SFARS.API.Payloads.Request.Snake;
 using SFARS.Application.Dtos;
+using SFARS.Application.Dtos.Auth;
 
 namespace SFARS.API.Extension
 {
     public static class PayloadExtensions
     {
+        #region Auth
+        // Mapping from typeof(SignInWithPasswordRequest) to typeof(AuthenticateUserDto)
+        public static AuthenticateUserDto ToAuthenticatedUser(this SignInWithPasswordRequest req)
+            => new AuthenticateUserDto
+            {
+                Email = req.Email,
+                Password = req.Password
+            };
+
+        // Mapping from typeof(SignUpRequest) to typeof(AuthenticateUserDto)
+        public static AuthenticateUserDto ToAuthenticatedUser(this SignUpRequest req)
+            => new AuthenticateUserDto
+            {
+                UserCode = req.UserCode,
+                Email = req.Email,
+                FirstName = req.FirstName,
+                LastName = req.LastName,
+                Password = req.Password,
+                IsRescuer = false
+            };
+        #endregion
+
+
         #region Snake
         // Mpapping from typeof(CreatSnakeRequest) to typeof(SnakeDto)
         public static SnakeDto ToSnake(this CreateSnakeRequest req)

@@ -1,9 +1,13 @@
-﻿using Mapster;
+﻿using FluentValidation;
+using Mapster;
 using MapsterMapper;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SFARS.Application.Dtos;
+using SFARS.Application.Dtos.Auth;
+using SFARS.Application.Dtos.User;
 using SFARS.Application.Services;
+using SFARS.Application.Services.Auth;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using System.Reflection;
@@ -21,6 +25,14 @@ public static class DependencyInjection
         services.AddScoped(typeof(IGenericService<,,>), typeof(GenericService<,,>));
         services.AddScoped(typeof(IReadOnlyService<,,>), typeof(ReadOnlyService<,,>));
         services.AddScoped<ISnakeService<SnakeDto>, SnakeService>();
+
+        // Auth services
+        services.AddScoped<IUserService<UserDto>, UserService>();
+        services.AddScoped<IRefreshTokenService<RefreshTokenDto>, RefreshTokenService>();
+        services.AddScoped<IAuthenticationService<AuthenticateUserDto>, AuthenticationService>();
+
+        // Register all validators from this assembly
+        services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
         services.ConfigureMapster();
 
