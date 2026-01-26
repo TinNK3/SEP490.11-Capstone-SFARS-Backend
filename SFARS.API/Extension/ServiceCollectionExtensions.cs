@@ -1,8 +1,11 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Data.SqlClient;
+using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using SFARS.Application.Configurations;
 using SFARS.Application.HealthChecks;
 using System.Data.Common;
+using System.Text;
 
 namespace SFARS.API.Extension
 {
@@ -53,6 +56,9 @@ namespace SFARS.API.Extension
         {
             // Configure AppSettings
             services.Configure<AppSettings>(configuration.GetSection("AppSettings"));
+            
+            // Configure WebTokenSettings for JWT
+            services.Configure<WebTokenSettings>(configuration.GetSection("WebTokenSettings"));
 
             #region Development stage
             if (env.IsDevelopment()) // Is Development env
@@ -72,6 +78,43 @@ namespace SFARS.API.Extension
 
             }
             #endregion
+
+            return services;
+        }
+
+        public static IServiceCollection ConfigureJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
+        {
+            var webTokenSettings = configuration.GetSection("WebTokenSettings").Get<WebTokenSettings>();
+            
+            if (webTokenSettings == null)
+            {
+                throw new InvalidOperationException("WebTokenSettings is not configured properly in appsettings.json");
+            }
+
+            services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                options.SaveToken = true;
+                options.RequireHttpsMetadata = false;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = webTokenSettings.ValidateIssuerSigningKey,
+                    IssuerSigningKey = new SymmetricSecurityKey(
+                        Encoding.UTF8.GetBytes(webTokenSettings.IssuerSigningKey)),
+                    ValidateIssuer = webTokenSettings.ValidateIssuer,
+                    ValidIssuer = webTokenSettings.ValidIssuer,
+                    ValidateAudience = webTokenSettings.ValidateAudience,
+                    ValidAudience = webTokenSettings.ValidAudience,
+                    ValidateLifetime = webTokenSettings.ValidateLifetime,
+                    RequireExpirationTime = webTokenSettings.RequireExpirationTime,
+                    ClockSkew = TimeSpan.Zero
+                };
+            });
 
             return services;
         }

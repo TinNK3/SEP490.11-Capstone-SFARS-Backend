@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using SFARS.Application.Common;
 using SFARS.Application.Dtos;
 using SFARS.Application.Extensions;
 using SFARS.Domain.Common.Enum;
@@ -7,8 +8,10 @@ namespace SFARS.Application.Validations
 {
     public class SnakeDtoValidator : AbstractValidator<SnakeDto>
     {
-        public SnakeDtoValidator(string langContext)
+        public SnakeDtoValidator()
         {
+            // Get language from static context (set by middleware/request)
+            var langContext = LanguageContext.CurrentLanguage ?? "en";
             var langEnum =
                 (SystemLanguage?)EnumExtensions.GetValueFromDescription<SystemLanguage>(langContext);
             var isVi = langEnum == SystemLanguage.Vietnamese;

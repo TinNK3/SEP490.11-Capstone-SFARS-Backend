@@ -14,7 +14,8 @@ builder.Services
     .ConfigureServices(builder.Configuration)
     .ConfigureSerilog(builder)
     .ConfigureAppSettings(builder.Configuration, builder.Environment)
-    .ConfigureHealthCheckServices(builder.Configuration);
+    .ConfigureHealthCheckServices(builder.Configuration)
+    .ConfigureJwtAuthentication(builder.Configuration);
 
 // Configure infrastructure services
 builder.Services
@@ -25,11 +26,8 @@ var app = builder.Build();
 
 //app.UseHealthChecks();
 
-// Register database initializer
-app.Lifetime.ApplicationStarted.Register(() => Task.Run(async () =>
-{
-    await app.InitializeDatabaseAsync();
-}));
+// Initialize database synchronously before app starts serving requests
+await app.InitializeDatabaseAsync();
 
 // Configure swagger settings
 if (app.Environment.IsDevelopment())
