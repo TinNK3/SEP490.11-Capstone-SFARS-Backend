@@ -31,16 +31,30 @@ namespace SFARS.Domain.Interfaces.Repositories.Base
 
         #region WRITE DATA
 
-        /// Synchronous operation
+        /// Synchronous operations (for simple non-async scenarios)
         void Add(TEntity entity);
         void AddRange(IEnumerable<TEntity> entities);
-        void Delete(TKey id);
         void Update(TEntity entity);
 
-        /// Asyncronous operation
+        /// Asynchronous operations (recommended)
         Task AddAsync(TEntity entity);
         Task AddRangeAsync(IEnumerable<TEntity> entities);
-        Task DeleteAsync(TKey id);
+        
+        /// <summary>
+        /// Deletes entity by ID. Returns number of affected rows.
+        /// </summary>
+        Task<int> DeleteAsync(TKey id);
+        
+        /// <summary>
+        /// Deletes multiple entities by IDs in single query. Returns number of affected rows.
+        /// </summary>
+        Task<int> DeleteRangeAsync(TKey[] ids);
+        
+        /// <summary>
+        /// Deletes entities matching specification. Returns number of affected rows.
+        /// </summary>
+        Task<int> DeleteWithSpecAsync(ISpecification<TEntity> specification);
+        
         Task UpdateAsync(TEntity entity);
 
         #endregion
