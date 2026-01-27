@@ -133,16 +133,6 @@ namespace SFARS.Infrastructure.Repositories
             _dbSet.AddRange(entities);
         }
 
-        public void Delete(TKey id)
-        {
-            var entity = _dbSet.Find(id);
-
-            if (entity != null)
-            {
-                _dbSet.Remove(entity);
-            }
-        }
-
         public void Update(TEntity entity)
         {
             _dbSet.Attach(entity);
@@ -159,27 +149,54 @@ namespace SFARS.Infrastructure.Repositories
             await _dbSet.AddRangeAsync(entities);
         }
 
-        public async Task DeleteAsync(TKey id)
+        /// <summary>
+        /// Deletes an entity by ID using EF Core 7+ ExecuteDeleteAsync.
+        /// Executes DELETE directly in database without loading entity into memory.
+        /// </summary>
+        /// <returns>Number of rows affected (0 if not found, 1 if deleted)</returns>
+        public async Task<int> DeleteAsync(TKey id)
         {
-            var entity = await _dbSet.FindAsync(id);
+            // Get primary key property name
+            var primaryKeyProperty = _context.Model.FindEntityType(typeof(TEntity))
+                ?.FindPrimaryKey()?.Properties
+                .Select(p => p.Name)
+                .FirstOrDefault() ?? "Id";
 
-            if (entity != null)
-            {
-                _dbSet.Remove(entity);
-            }
+            // EF Core 7+ ExecuteDeleteAsync - direct DELETE in database
+            return await _dbSet
+                .Where(e => EF.Property<TKey>(e, primaryKeyProperty)!.Equals(id))
+                .ExecuteDeleteAsync();
         }
 
-        public async Task DeleteRangeAsync(TKey[] ids)
+        /// <summary>
+        /// Deletes multiple entities by their IDs using a single DELETE query.
+        /// EF Core 7+ ExecuteDeleteAsync - no entities loaded into memory.
+        /// </summary>
+        /// <returns>Number of rows affected</returns>
+        public async Task<int> DeleteRangeAsync(TKey[] ids)
         {
-            foreach (var id in ids)
-            {
-                var entity = await _dbSet.FindAsync(id);
+            if (ids == null || ids.Length == 0)
+                return 0;
 
-                if (entity != null)
-                {
-                    _dbSet.Remove(entity);
-                }
-            }
+            // Get primary key property name
+            var primaryKeyProperty = _context.Model.FindEntityType(typeof(TEntity))
+                ?.FindPrimaryKey()?.Properties
+                .Select(p => p.Name)
+                .FirstOrDefault() ?? "Id";
+
+            // Single DELETE query for all IDs
+            return await _dbSet
+                .Where(e => ids.Contains(EF.Property<TKey>(e, primaryKeyProperty)))
+                .ExecuteDeleteAsync();
+        }
+
+        /// <summary>
+        /// Deletes entities matching a specification using ExecuteDeleteAsync.
+        /// </summary>
+        /// <returns>Number of rows affected</returns>
+        public async Task<int> DeleteWithSpecAsync(ISpecification<TEntity> specification)
+        {
+            return await ApplySpecification(specification).ExecuteDeleteAsync();
         }
 
         public async Task UpdateAsync(TEntity entity)

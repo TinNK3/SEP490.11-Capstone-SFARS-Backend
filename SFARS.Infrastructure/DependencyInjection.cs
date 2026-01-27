@@ -22,8 +22,10 @@ public static class DependencyInjection
             // Add application DbContext 
             services.AddDbContext<SFARSDbContext>(options => options.UseSqlServer(connectionString, x => x.UseNetTopologySuite()));
 
-            // Register DI 
+            // Register Infrastructure services
             services.AddScoped<IDatabaseInitializer, DatabaseInitializer>();
+            
+            // Register repositories
             services.AddScoped(typeof(IGenericRepository<,>), typeof(GenericRepository<,>));
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
