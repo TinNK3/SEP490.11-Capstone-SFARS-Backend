@@ -18,6 +18,7 @@ namespace SFARS.Application.Validations
                 // Add cases for each DTO type and return the corresponding validator.
                 { } when typeof(T) == typeof(SnakeDto) => (IValidator<T>)(object)new SnakeDtoValidator(),
                 { } when typeof(T) == typeof(RefreshTokenDto) => (IValidator<T>)(object)new RefreshTokenDtoValidator(),
+                { } when typeof(T) == typeof(AuthenticateUserDto) => (IValidator<T>)(object)new AuthenticateUserDtoValidator(),
                 _ => null
             };
         }

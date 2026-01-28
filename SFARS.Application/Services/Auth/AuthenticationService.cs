@@ -3,12 +3,17 @@ using Microsoft.Extensions.Options;
 using SFARS.Application.Common;
 using SFARS.Application.Configurations;
 using SFARS.Application.Dtos.Auth;
+using SFARS.Application.Dtos.Role;
 using SFARS.Application.Dtos.User;
 using SFARS.Application.Exceptions;
 using SFARS.Application.Utils;
+using SFARS.Application.Validations;
 using SFARS.Domain.Common.Enum;
+using SFARS.Domain.Entities;
+using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
+using SFARS.Domain.Specifications;
 
 namespace SFARS.Application.Services.Auth
 {
@@ -17,19 +22,25 @@ namespace SFARS.Application.Services.Auth
         private readonly IUserService<UserDto> _userService;
         private readonly ISystemMessageService _msgService;
         private readonly IRefreshTokenService<RefreshTokenDto> _refreshTokenService;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly WebTokenSettings _webTokenSettings;
         private readonly ILogger<AuthenticationService> _logger;
+        private readonly ISystemRoleService<SystemRoleDto> _roleService;
 
         public AuthenticationService(
             IUserService<UserDto> userService,
             ISystemMessageService msgService,
+            ISystemRoleService<SystemRoleDto> roleService,
             IRefreshTokenService<RefreshTokenDto> refreshTokenService,
+            IUnitOfWork unitOfWork,
             IOptionsMonitor<WebTokenSettings> monitor,
             ILogger<AuthenticationService> logger)
         {
             _userService = userService;
             _msgService = msgService;
+            _roleService = roleService;
             _refreshTokenService = refreshTokenService;
+            _unitOfWork = unitOfWork;
             _webTokenSettings = monitor.CurrentValue;
             _logger = logger;
         }
@@ -96,10 +107,40 @@ namespace SFARS.Application.Services.Auth
             }
         }
 
-        public Task<IServiceResult> SignUpAsync(AuthenticateUserDto user)
+        public async Task<IServiceResult> SignUpAsync(AuthenticateUserDto user)
         {
-            // TODO: Implement sign up logic
-            throw new NotImplementedException("SignUp is not implemented yet");
+            await ValidateUserInputAsync(user);
+
+            // Check if user already exists
+            var checkUserAnyResult = await _userService.AnyAsync(u => u.Email.Equals(user.Email));
+            if (checkUserAnyResult.Data is true)
+            {
+                // Initialize custom errors dic
+                var customErrors = new Dictionary<string, string[]>();
+                // Add email exist error
+                customErrors.Add(
+                    StringUtils.ToCamelCase(nameof(User.Email)),
+                    [await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0006)]);
+
+                throw new UnprocessableEntityException("Invalid Data", customErrors);
+            }
+
+            // Hash password
+            user.PasswordHash = HashUtils.HashPassword(user.Password!);
+            // Progress create new user
+            user = await CreateNewUserAsync(user) ?? null!;
+
+            if (user != null!) // Create user successfully
+            {
+                // TODO: Implement OTP/Email verification for SFARS if needed
+                // For now, return success with created user
+                return new ServiceResult(ResultCodeConst.SYS_Success0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0001),
+                    new { UserId = user.Id, Email = user.Email });
+            }
+
+            return new ServiceResult(ResultCodeConst.SYS_Fail0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
         }
 
         // Handle refresh token
@@ -112,7 +153,7 @@ namespace SFARS.Application.Services.Auth
                 return await CreateNewRefreshTokenAsync(user, tokenId);
             }
 
-            return await UpdateExistingRefreshTokenAsync(getTokenResult.Data, tokenId);
+            return await UpdateExistingRefreshTokenAsync((RefreshTokenDto)getTokenResult.Data, tokenId);
         }
 
         // Create new refresh token 
@@ -157,7 +198,13 @@ namespace SFARS.Application.Services.Auth
             return refreshTokenDto;
         }
 
-        // Validate password
+        /// <summary>
+        /// Validate password
+        /// </summary>
+        /// <param name="inputPassword"></param>
+        /// <param name="storedHash"></param>
+        /// <returns></returns>
+        /// <exception cref="UnauthorizedException"></exception>
         private bool ValidatePassword(string? inputPassword, string? storedHash)
         {
             if (string.IsNullOrEmpty(storedHash))
@@ -168,6 +215,102 @@ namespace SFARS.Application.Services.Auth
             return HashUtils.VerifyPassword(inputPassword ?? string.Empty, storedHash);
         }
 
+        /// <summary>
+        /// Validate user input fields
+        /// </summary>
+        /// <param name="user"></param>
+        /// <param name="skipValidation"></param>
+        /// <returns></returns>
+        /// <exception cref="UnprocessableEntityException"></exception>        
+        private async Task ValidateUserInputAsync(AuthenticateUserDto user, bool skipValidation = false)
+        {
+            if (!skipValidation)
+            {
+                var validationResult = await ValidatorExtensions.ValidateAsync(user);
+                if (validationResult != null && !validationResult.IsValid)
+                {
+                    throw new UnprocessableEntityException("Invalid credentials", validationResult.ToProblemDetails().Errors);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Create new User
+        /// </summary>
+        /// <param name="user"></param>
+        /// <param name="createFromExternalProvider"></param>
+        /// <returns></returns>
+        /// <exception cref="NotFoundException"></exception>
+        private async Task<AuthenticateUserDto?> CreateNewUserAsync(AuthenticateUserDto user,
+            bool createFromExternalProvider = false)
+        {
+            // Not create from external provider, and not provide password
+            if (!createFromExternalProvider && string.IsNullOrEmpty(user.Password))
+                return null;
+
+            // Get default "User" role for new user
+            var userRole = await _unitOfWork.Repository<Role, Guid>()
+                .GetWithSpecAsync(new RoleSpecification("User"));
+
+            if (userRole == null)
+            {
+                throw new NotFoundException("Role", "User");
+            }
+
+            // Create new User entity
+            var newUser = new User
+            {
+                Id = Guid.NewGuid(),
+                Email = user.Email,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                PasswordHash = user.PasswordHash!,
+                Phone = user.Phone,
+                Avatar = user.Avatar,
+                Address = user.Address,
+                Gender = !string.IsNullOrEmpty(user.Gender) && Enum.TryParse<Gender>(user.Gender, out var parsedGender)
+                    ? parsedGender
+                    : null,
+                Dob = user.Dob,
+                Status = UserStatus.Active, // New user is active by default (can change to Pending for email verification)
+                IsOnline = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            // Add User to database
+            await _unitOfWork.Repository<User, Guid>().AddAsync(newUser);
+
+            // Assign role to user (UserRole junction table)
+            var newUserRole = new UserRole
+            {
+                UserId = newUser.Id,
+                RoleId = userRole.Id,
+                AssignedAt = DateTime.UtcNow
+            };
+
+            await _unitOfWork.Repository<UserRole, Guid>().AddAsync(newUserRole);
+
+            // Save all changes with transaction to ensure data consistency
+            if (await _unitOfWork.SaveChangesWithTransactionAsync() > 0)
+            {
+                // Return AuthenticateUserDto with populated data
+                user.Id = newUser.Id;
+                user.IsActive = true;
+                user.CreateDate = newUser.CreatedAt;
+                user.RoleName = userRole.RoleName;
+                user.IsRescuer = userRole.RoleName == "Rescuer";
+                return user;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// AuthenticateUserAsync
+        /// </summary>
+        /// <param name="user"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         private async Task<ServiceResult> AuthenticateUserAsync(AuthenticateUserDto? user)
         {
             // Check not exist authenticate user (save fail,...) 

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Auth;
+using SFARS.Application.Dtos.Role;
 using SFARS.Application.Dtos.User;
 using SFARS.Application.Services;
 using SFARS.Application.Services.Auth;
@@ -28,6 +29,7 @@ public static class DependencyInjection
 
         // Auth services
         services.AddScoped<IUserService<UserDto>, UserService>();
+        services.AddScoped<ISystemRoleService<SystemRoleDto>, SystemRoleService>();
         services.AddScoped<IRefreshTokenService<RefreshTokenDto>, RefreshTokenService>();
         services.AddScoped<IAuthenticationService<AuthenticateUserDto>, AuthenticationService>();
 

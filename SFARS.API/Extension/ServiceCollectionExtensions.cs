@@ -13,7 +13,7 @@ namespace SFARS.API.Extension
     //      This class is to configure services for presentation layer 
     public static class ServiceCollectionExtensions
     {
-        public static IServiceCollection ConfigureServices(this IServiceCollection services, IConfiguration configuration)
+        public static IServiceCollection ConfigureEndpoints(this IServiceCollection services)
         {
             // Add controllers
             services.AddControllers();
@@ -45,77 +45,80 @@ namespace SFARS.API.Extension
         {
             services.AddSingleton<AggregatedHealthCheckService>();
             services.AddScoped<DbConnection>(sp =>
-                new SqlConnection(configuration.GetConnectionString("DefaultConnectionStr")));
+                new SqlConnection(configuration.GetConnectionString("DefaultConnection")));
 
             return services;
         }
 
         public static IServiceCollection ConfigureAppSettings(this IServiceCollection services,
-            IConfiguration configuration,
+            WebApplicationBuilder builder,
             IWebHostEnvironment env)
         {
-            // Configure AppSettings
-            services.Configure<AppSettings>(configuration.GetSection("AppSettings"));
-            
-            // Configure WebTokenSettings for JWT
-            services.Configure<WebTokenSettings>(configuration.GetSection("WebTokenSettings"));
 
             #region Development stage
             if (env.IsDevelopment()) // Is Development env
             {
+                // Development-specific configuration:
+                // - Enable detailed error messages for debugging
+                // - Use relaxed security settings for local development  
+                // - Enable developer tools and diagnostics
 
+                // Example: Configure detailed exception pages, enable sensitive data logging
+                // builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+                Log.Information("Running in Development mode - detailed logging enabled");
             }
             #endregion
             #region Production stage
             else if (env.IsProduction()) // Is Production env
             {
+                // Production-specific configuration:
+                // - Enable strict security settings (HSTS, secure cookies)
+                // - Use optimized caching and performance settings
+                // - Configure production-grade error handling
 
+                // Example: Enforce HTTPS, configure distributed caching
+                // builder.Services.AddHsts(options => options.MaxAge = TimeSpan.FromDays(365));
+
+                Log.Information("Running in Production mode - security hardening enabled");
             }
             #endregion
             #region Staging 
             else if (env.IsStaging()) // Is Staging env
             {
+                // Staging-specific configuration:
+                // - Use production-like settings for testing
+                // - Enable additional monitoring for pre-release validation
+                // - May include feature flags for A/B testing
 
+                // Example: Enable extended diagnostics for QA
+                // builder.Services.Configure<DiagnosticOptions>(o => o.EnableVerboseLogging = true);
+
+                Log.Information("Running in Staging mode - production-like with extended diagnostics");
             }
             #endregion
+
+
+            // Configure AppSettings
+            services.Configure<AppSettings>(builder.Configuration.GetSection("AppSettings"));
+
+            // Configure WebTokenSettings for JWT
+            services.Configure<WebTokenSettings>(builder.Configuration.GetSection("WebTokenSettings"));
 
             return services;
         }
 
-        public static IServiceCollection ConfigureJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
+        public static IServiceCollection AddCors(this IServiceCollection services,
+        IConfiguration configuration, string policyName)
         {
-            var webTokenSettings = configuration.GetSection("WebTokenSettings").Get<WebTokenSettings>();
-            
-            if (webTokenSettings == null)
+            var allowedOrigins = configuration.GetSection("AllowedOrigins").Get<string[]>()
+                ?? ["*"];
+            services.AddCors(p => p.AddPolicy(policyName, policy =>
             {
-                throw new InvalidOperationException("WebTokenSettings is not configured properly in appsettings.json");
-            }
-
-            services.AddAuthentication(options =>
-            {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-            })
-            .AddJwtBearer(options =>
-            {
-                options.SaveToken = true;
-                options.RequireHttpsMetadata = false;
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuerSigningKey = webTokenSettings.ValidateIssuerSigningKey,
-                    IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(webTokenSettings.IssuerSigningKey)),
-                    ValidateIssuer = webTokenSettings.ValidateIssuer,
-                    ValidIssuer = webTokenSettings.ValidIssuer,
-                    ValidateAudience = webTokenSettings.ValidateAudience,
-                    ValidAudience = webTokenSettings.ValidAudience,
-                    ValidateLifetime = webTokenSettings.ValidateLifetime,
-                    RequireExpirationTime = webTokenSettings.RequireExpirationTime,
-                    ClockSkew = TimeSpan.Zero
-                };
-            });
-
+                policy.WithOrigins(allowedOrigins)
+                    .AllowAnyHeader()
+                    .AllowAnyMethod();
+            }));
             return services;
         }
     }

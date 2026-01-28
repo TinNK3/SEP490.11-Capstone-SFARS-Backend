@@ -8,10 +8,9 @@ using System.Threading.Tasks;
 
 namespace SFARS.Domain.Interfaces.Services
 {
-    public interface IRefreshTokenService<TDto> : IGenericService<RefreshToken, TDto, int>
+    public interface ISystemRoleService<TDto> : IGenericService<Role, TDto, Guid>
         where TDto : class
     {
-        Task<IServiceResult> GetByUserIdAsync(Guid userId);
-        //Task<IServiceResult> GetByRecuserIdAsync(Guid rescuerId);
+        Task<IServiceResult> GetRoleByNameAsync(string roleName);
     }
 }
