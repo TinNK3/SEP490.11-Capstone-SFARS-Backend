@@ -24,10 +24,10 @@ namespace SFARS.API.Controller
             return Ok(await _authenticationService.SignInWithPasswordAsync(req.ToAuthenticatedUser()));
         }
 
-        //[HttpPost(APIRoute.Authentication.SignUp, Name = nameof(SignUpAsync))]
-        //public async Task<IActionResult> SignUpAsync([FromBody] SignUpRequest req)
-        //{
-        //    return Ok(await _authenticationService.SignUpAsync(req.ToAuthenticatedUser()));
-        //}
+        [HttpPost(APIRoute.Authentication.SignUp, Name = nameof(SignUpAsync))]
+        public async Task<IActionResult> SignUpAsync([FromBody] SignUpRequest req)
+        {
+           return Ok(await _authenticationService.SignUpAsync(req.ToAuthenticatedUser()));
+        }
     }
 }

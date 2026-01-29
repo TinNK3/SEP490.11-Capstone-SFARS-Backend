@@ -6,20 +6,37 @@ using SFARS.Application;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddHealthChecks()
+builder.Services
+    // Add HttpClient
+    .AddHttpClient()
+    // Add CORS
+    .AddCors()
+    // Add Health Checks
+    .AddHealthChecks()
+    //Add Api Health check
+    .AddApiHealthCheck()
+    // Add SQL Server health check
     .AddSqlServerHealthCheck();
 
-// Configure application services
 builder.Services
-    .ConfigureServices(builder.Configuration)
+    // Configure endpoints, swagger, and controllers
+    .ConfigureEndpoints()
+
+    // Configure Serilog logging
     .ConfigureSerilog(builder)
-    .ConfigureAppSettings(builder.Configuration, builder.Environment)
-    .ConfigureHealthCheckServices(builder.Configuration)
-    .ConfigureJwtAuthentication(builder.Configuration);
+
+    // Configure application settings
+    .ConfigureAppSettings(builder, builder.Environment)
+
+    // Configure authentication services
+    .ConfigureHealthCheckServices(builder.Configuration);
 
 // Configure infrastructure services
 builder.Services
+    // Configure application services
     .AddApplication(builder.Configuration)
+
+    // Configure infrastructure services
     .AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
@@ -28,6 +45,10 @@ var app = builder.Build();
 
 // Initialize database synchronously before app starts serving requests
 await app.InitializeDatabaseAsync();
+
+//builder.Services
+//    // Add swagger services
+//    .AddSwagger();
 
 // Configure swagger settings
 if (app.Environment.IsDevelopment())

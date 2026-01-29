@@ -1,4 +1,5 @@
 ﻿using MapsterMapper;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos.User;
@@ -25,36 +26,24 @@ namespace SFARS.Application.Services
         /// </summary>
         public async Task<IServiceResult> GetByEmailAsync(string email)
         {
-            if (string.IsNullOrWhiteSpace(email))
-            {
-                return new ServiceResult(ResultCodeConst.SYS_Warning0002, "Email is required");
-            }
+            //Query user with roles included
+            var baseSpec = new BaseSpecification<User>(u => u.Email.Equals(email));
 
-            var spec = UserSpecification.ByEmail(email);
-            var user = await _unitOfWork.Repository<User, Guid>().GetWithSpecAsync(spec);
+            baseSpec.ApplyInclude(u => u.Include(ur => ur.UserRoles)
+                                                .ThenInclude(r => r.Role));
 
+            // Get user
+            var user =  await _unitOfWork.Repository<User, Guid>().GetWithSpecAsync(baseSpec);
+
+            //Not exits user
             if (user == null)
-            {
-                return new ServiceResult(ResultCodeConst.SYS_Warning0004, "User not found");
-            }
+                return new ServiceResult(ResultCodeConst.SYS_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
 
-            // Map user to DTO with role info
-            var userDto = _mapper.Map<UserDto>(user);
-            
-            // Map the first role (primary role)
-            if (user.UserRoles.Any())
-            {
-                var primaryRole = user.UserRoles.First().Role;
-                userDto.Role = new RoleDto
-                {
-                    Id = primaryRole.Id,
-                    RoleName = primaryRole.RoleName,
-                    Description = primaryRole.Description
-                };
-                userDto.Roles = user.UserRoles.Select(ur => ur.Role.RoleName);
-            }
-
-            return new ServiceResult(ResultCodeConst.SYS_Success0002, string.Empty, userDto);
+            // Response read success
+            return new ServiceResult(ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                _mapper.Map<UserDto>(user));
         }
     }
 }

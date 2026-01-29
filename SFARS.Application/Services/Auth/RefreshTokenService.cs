@@ -10,7 +10,8 @@ using SFARS.Domain.Specifications;
 
 namespace SFARS.Application.Services.Auth
 {
-    public class RefreshTokenService : GenericService<RefreshToken, RefreshTokenDto, int>, IRefreshTokenService<RefreshTokenDto>
+    public class RefreshTokenService : GenericService<RefreshToken, RefreshTokenDto, int>, 
+        IRefreshTokenService<RefreshTokenDto>
     {
         public RefreshTokenService(
             ISystemMessageService msgService,
@@ -23,30 +24,29 @@ namespace SFARS.Application.Services.Auth
         /// <summary>
         /// Get refresh token by user ID
         /// </summary>
-        public async Task<IServiceResult<RefreshTokenDto>> GetByUserIdAsync(Guid userId)
+        public async Task<IServiceResult> GetByUserIdAsync(Guid userId)
         {
-            var spec = RefreshTokenSpecification.ByUserId(userId);
-            var token = await _unitOfWork.Repository<RefreshToken, int>().GetWithSpecAsync(spec);
+            var refreshToken = await _unitOfWork.Repository<RefreshToken, int>().GetWithSpecAsync(
+                    new BaseSpecification<RefreshToken>(r => r.UserId != null &&
+                        r.UserId.ToString()!.Equals(userId.ToString())));
 
-            if (token == null)
+            if (refreshToken is null)
             {
-                return new ServiceResult<RefreshTokenDto>(ResultCodeConst.SYS_Warning0004, "Refresh token not found");
+                return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Data not found or empty");
             }
 
-            return new ServiceResult<RefreshTokenDto>(
-                ResultCodeConst.SYS_Success0002, 
-                string.Empty, 
-                _mapper.Map<RefreshTokenDto>(token));
+            return new ServiceResult(ResultCodeConst.SYS_Success0002, "Get data successfully",
+                _mapper.Map<RefreshTokenDto>(refreshToken));
         }
 
         /// <summary>
         /// Get refresh token by rescuer ID (alias for GetByUserIdAsync for compatibility)
         /// </summary>
-        public async Task<IServiceResult<RefreshTokenDto>> GetByRecuserIdAsync(Guid rescuerId)
-        {
-            // In the current model, rescuers use the same User entity
-            // This method exists for interface compatibility
-            return await GetByUserIdAsync(rescuerId);
-        }
+        //public async Task<IServiceResult<RefreshTokenDto>> GetByRecuserIdAsync(Guid rescuerId)
+        //{
+        //    // In the current model, rescuers use the same User entity
+        //    // This method exists for interface compatibility
+        //    return await GetByUserIdAsync(rescuerId);
+        //}
     }
 }

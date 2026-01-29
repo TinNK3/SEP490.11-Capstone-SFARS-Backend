@@ -5,10 +5,12 @@ using Moq;
 using SFARS.Application.Common;
 using SFARS.Application.Configurations;
 using SFARS.Application.Dtos.Auth;
+using SFARS.Application.Dtos.Role;
 using SFARS.Application.Dtos.User;
 using SFARS.Application.Services;
 using SFARS.Application.Services.Auth;
 using SFARS.Domain.Common.Enum;
+using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 
@@ -18,7 +20,9 @@ public class AuthenticationServiceTests
 {
     private readonly Mock<IUserService<UserDto>> _userServiceMock;
     private readonly Mock<ISystemMessageService> _msgServiceMock;
+    private readonly Mock<ISystemRoleService<SystemRoleDto>> _roleServiceMock;
     private readonly Mock<IRefreshTokenService<RefreshTokenDto>> _refreshTokenServiceMock;
+    private readonly Mock<IUnitOfWork> _unitOfWorkMock;
     private readonly Mock<IOptionsMonitor<WebTokenSettings>> _webTokenSettingsMock;
     private readonly Mock<ILogger<AuthenticationService>> _loggerMock;
     private readonly AuthenticationService _sut; // System Under Test
@@ -27,7 +31,9 @@ public class AuthenticationServiceTests
     {
         _userServiceMock = new Mock<IUserService<UserDto>>();
         _msgServiceMock = new Mock<ISystemMessageService>();
+        _roleServiceMock = new Mock<ISystemRoleService<SystemRoleDto>>();
         _refreshTokenServiceMock = new Mock<IRefreshTokenService<RefreshTokenDto>>();
+        _unitOfWorkMock = new Mock<IUnitOfWork>();
         _webTokenSettingsMock = new Mock<IOptionsMonitor<WebTokenSettings>>();
         _loggerMock = new Mock<ILogger<AuthenticationService>>();
 
@@ -49,7 +55,9 @@ public class AuthenticationServiceTests
         _sut = new AuthenticationService(
             _userServiceMock.Object,
             _msgServiceMock.Object,
+            _roleServiceMock.Object,
             _refreshTokenServiceMock.Object,
+            _unitOfWorkMock.Object,
             _webTokenSettingsMock.Object,
             _loggerMock.Object
         );
@@ -149,7 +157,7 @@ public class AuthenticationServiceTests
             .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
 
         _refreshTokenServiceMock.Setup(x => x.GetByUserIdAsync(It.IsAny<Guid>()))
-            .ReturnsAsync(new ServiceResult<RefreshTokenDto>(ResultCodeConst.SYS_Success0002, null!, null!));
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, null!));
 
         _refreshTokenServiceMock.Setup(x => x.CreateAsync(It.IsAny<RefreshTokenDto>()))
             .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0001, null!, null!));
@@ -191,7 +199,7 @@ public class AuthenticationServiceTests
             .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
 
         _refreshTokenServiceMock.Setup(x => x.GetByUserIdAsync(userId))
-            .ReturnsAsync(new ServiceResult<RefreshTokenDto>(ResultCodeConst.SYS_Success0002, null!, existingRefreshToken));
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, existingRefreshToken));
 
         _refreshTokenServiceMock.Setup(x => x.UpdateAsync(It.IsAny<int>(), It.IsAny<RefreshTokenDto>()))
             .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0003, null!, null!));

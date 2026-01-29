@@ -10,9 +10,23 @@ namespace SFARS.Application.Utils
         private static readonly Random _rnd = new Random();
 
         /// <summary>
-        // Clean up names (Snake name, Victim name) entered carelessly by the user in a panic.
-        /// VD: "  rắn   hổ mang  " -> "Rắn Hổ Mang"
+        /// Generates a random alphanumeric code of the specified length.
         /// </summary>
+        /// <param name="length">The length of the code to generate. Defaults to 6.</param>
+        /// <returns>A randomly generated alphanumeric string.</returns>
+        public static string GenerateUniqueCode(int length = 6)
+        {
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            return new string(Enumerable.Repeat(chars, length)
+                .Select(s => s[_rnd.Next(s.Length)])
+                .ToArray());
+        }
+
+        /// <summary>
+        /// Removes extra spaces from the input string and converts it to title case using the current culture.
+        /// </summary>
+        /// <param name="input">The string to clean and convert to title case.</param>
+        /// <returns>A cleaned, title-cased version of the input string, or an empty string if the input is null or whitespace.</returns>
         public static string CleanAndTitleCase(string input)
         {
             if (string.IsNullOrWhiteSpace(input)) return string.Empty;
@@ -24,7 +38,14 @@ namespace SFARS.Application.Utils
             return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(clean.ToLower());
         }
 
-        // Formats a string by replacing placeholders like <0>, <1>, etc., with the provided arguments.
+        /// <summary>
+        /// Replaces placeholders in the input string, such as <0>, <1>, etc., with corresponding values from the args
+        /// array.
+        /// </summary>
+        /// <param name="input">The string containing placeholders to be replaced.</param>
+        /// <param name="args">An array of strings to substitute for the placeholders in the input.</param>
+        /// <returns>A formatted string with placeholders replaced by argument values, or the original string if no arguments are
+        /// provided.</returns>
         public static string Format(string input, params string[]? args)
         {
             if (string.IsNullOrEmpty(input))
@@ -39,6 +60,40 @@ namespace SFARS.Application.Utils
             }
 
             return input;
+        }
+
+        /// <summary>
+        /// Converts the specified string to camel case, changing the initial uppercase letters to lowercase as
+        /// appropriate.
+        /// </summary>
+        /// <param name="s">The string to convert to camel case.</param>
+        /// <returns>A camel case version of the input string.</returns>
+        public static string ToCamelCase(string s)
+        {
+            if (string.IsNullOrEmpty(s) || !char.IsUpper(s[0]))
+            {
+                return s;
+            }
+
+            var chars = s.ToCharArray();
+
+            for (var i = 0; i < chars.Length; i++)
+            {
+                if (i == 1 && !char.IsUpper(chars[i]))
+                {
+                    break;
+                }
+
+                var hasNext = (i + 1 < chars.Length);
+                if (i > 0 && hasNext && !char.IsUpper(chars[i + 1]))
+                {
+                    break;
+                }
+
+                chars[i] = char.ToLower(chars[i], CultureInfo.InvariantCulture);
+            }
+
+            return new string(chars);
         }
     }
 }

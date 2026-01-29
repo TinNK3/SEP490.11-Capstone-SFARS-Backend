@@ -18,8 +18,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- API is Composition Root - references all layers for DI wiring -->
     <ProjectReference Include="..\SFARS.Application\SFARS.Application.csproj" />
-    <ProjectReference Include="..\SFARS.Domain\SFARS.Domain.csproj" />
     <ProjectReference Include="..\SFARS.Infrastructure\SFARS.Infrastructure.csproj" />
   </ItemGroup>
 
