@@ -1,6 +1,5 @@
 ﻿using FluentValidation;
 using FluentValidation.Results;
-using SFARS.Application.Common;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Auth;
 using SFARS.Application.Validations.Auth;
@@ -18,7 +17,7 @@ namespace SFARS.Application.Validations
                 // Add cases for each DTO type and return the corresponding validator.
                 { } when typeof(T) == typeof(SnakeDto) => (IValidator<T>)(object)new SnakeDtoValidator(),
                 { } when typeof(T) == typeof(RefreshTokenDto) => (IValidator<T>)(object)new RefreshTokenDtoValidator(),
-                { } when typeof(T) == typeof(AuthenticateUserDto) => (IValidator<T>)(object)new AuthenticateUserDtoValidator(),
+                { } when typeof(T) == typeof(AuthUserDto) => (IValidator<T>)(object)new AuthUserDtoValidator(),
                 _ => null
             };
         }

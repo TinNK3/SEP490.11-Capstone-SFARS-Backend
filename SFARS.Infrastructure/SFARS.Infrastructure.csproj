@@ -31,4 +31,10 @@
     <ProjectReference Include="..\SFARS.Domain\SFARS.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Data\Seeds\system_messages.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

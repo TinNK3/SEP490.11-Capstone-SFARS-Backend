@@ -14,13 +14,13 @@ namespace SFARS.Application.Services
             Message = string.Empty;
         }
 
-        public ServiceResult(string resultCode, string message)
+        public ServiceResult(string resultCode, string? message)
         {
             ResultCode = resultCode;
             Message = message;
         }
 
-        public ServiceResult(string resultCode, string message, object? data)
+        public ServiceResult(string resultCode, string? message, object? data)
         {
             ResultCode = resultCode;
             Message = message;
@@ -34,7 +34,7 @@ namespace SFARS.Application.Services
         public string? Message { get; set; }
         public T? Data { get; set; }
 
-        public ServiceResult(string resultCode, string message)
+        public ServiceResult(string resultCode, string? message)
         {
             ResultCode = resultCode;
             Message = message;

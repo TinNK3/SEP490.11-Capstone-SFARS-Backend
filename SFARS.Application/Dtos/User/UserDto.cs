@@ -27,8 +27,8 @@ namespace SFARS.Application.Dtos.User
         public DateTime? LastActiveAt { get; set; }
 
         // Audit
-        public DateTime CreateDate { get; set; }
-        public DateTime? ModifiedDate { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
 
         // Security - internal use only (not serialized to response)
         [JsonIgnore]
@@ -38,24 +38,14 @@ namespace SFARS.Application.Dtos.User
         public bool TwoFactorEnabled { get; set; }
 
         // Role info
-        public RoleDto? Role { get; set; }
-        
-        // Roles (flattened for API response)
-        public IEnumerable<string>? Roles { get; set; }
-    }
-
-    public class RoleDto
-    {
-        public Guid Id { get; set; }
-        public string RoleName { get; set; } = null!;
-        public string? Description { get; set; }
+        public string? Role { get; set; }
     }
 
     public static class UserDtoExtensions
     {
-        public static AuthenticateUserDto ToAuthenticateUserDto(this UserDto userDto)
+        public static AuthUserDto ToAuthenticateUserDto(this UserDto userDto)
         {
-            return new AuthenticateUserDto
+            return new AuthUserDto
             {
                 Email = userDto.Email,
                 FirstName = userDto.FirstName,
@@ -63,11 +53,11 @@ namespace SFARS.Application.Dtos.User
                 Phone = userDto.Phone,
                 Avatar = userDto.Avatar,
                 Address = userDto.Address,
-                Gender = userDto.Gender?.ToString(),
+                Gender = userDto.Gender,
                 Dob = userDto.Dob,
-                IsActive = userDto.Status == UserStatus.Active,
-                CreateDate = userDto.CreateDate,
-                ModifiedDate = userDto.ModifiedDate
+                Status = userDto.Status,
+                CreatedAt = userDto.CreatedAt,
+                UpdatedAt = userDto.UpdatedAt
             };
         }
     }

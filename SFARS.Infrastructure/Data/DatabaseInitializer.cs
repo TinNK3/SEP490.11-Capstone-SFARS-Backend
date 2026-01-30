@@ -73,11 +73,8 @@ namespace SFARS.Infrastructure.Data
             // [Users] - Seed missing users (check by email)
             await SeedUsersAsync();
 
-            // [SystemMessages] - For result codes/messages
-            if (!await _context.SystemMessages.AnyAsync()) 
-                await SeedSystemMessagesAsync();
-            else 
-                _logger.LogInformation("Already seeded data for table {Table}", "SystemMessage");
+            // [SystemMessages] - For result codes/messages (Sync Data)
+            await SeedSystemMessagesAsync();
         }
 
         //  Summary:
@@ -202,37 +199,90 @@ namespace SFARS.Infrastructure.Data
         }
 
         //  Summary:
-        //      Seeding System Messages (for result codes)
+        //      Seeding System Messages (for result codes) with Upsert Logic
         private async Task SeedSystemMessagesAsync()
         {
-            var messages = new List<SystemMessage>
+            var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Seeds", "system_messages.json");
+            
+            if (!File.Exists(filePath))
             {
-                // Success messages
-                new() { MsgId = "SYS.Success0001", MsgContent = "Created successfully", En = "Created successfully", Vi = "Tạo thành công" },
-                new() { MsgId = "SYS.Success0002", MsgContent = "Retrieved successfully", En = "Retrieved successfully", Vi = "Lấy dữ liệu thành công" },
-                new() { MsgId = "SYS.Success0003", MsgContent = "Updated successfully", En = "Updated successfully", Vi = "Cập nhật thành công" },
-                new() { MsgId = "SYS.Success0004", MsgContent = "Deleted successfully", En = "Deleted successfully", Vi = "Xóa thành công" },
-                
-                // Warning messages
-                new() { MsgId = "SYS.Warning0002", MsgContent = "Not found {0}", En = "Not found {0}", Vi = "Không tìm thấy {0}" },
-                new() { MsgId = "SYS.Warning0004", MsgContent = "No data found", En = "No data found", Vi = "Không có dữ liệu" },
-                
-                // Auth messages
-                new() { MsgId = "Auth.Success0002", MsgContent = "Sign in successfully", En = "Sign in successfully", Vi = "Đăng nhập thành công" },
-                new() { MsgId = "Auth.Warning0001", MsgContent = "Account is inactive", En = "Account is inactive", Vi = "Tài khoản không hoạt động" },
-                new() { MsgId = "Auth.Warning0007", MsgContent = "Invalid password", En = "Invalid password", Vi = "Mật khẩu không đúng" },
-                new() { MsgId = "Auth.Warning0010", MsgContent = "MFA verification required", En = "MFA verification required", Vi = "Yêu cầu xác thực 2 lớp" },
-                
-                // Failure messages
-                new() { MsgId = "SYS.Fail0001", MsgContent = "Failed to create {0}", En = "Failed to create {0}", Vi = "Tạo {0} thất bại" },
-                new() { MsgId = "SYS.Fail0003", MsgContent = "Failed to update {0}", En = "Failed to update {0}", Vi = "Cập nhật {0} thất bại" }
-            };
+                _logger.LogWarning($"[Seeding] Seed file NOT found at: {filePath}");
+                return;
+            }
 
-            await _context.SystemMessages.AddRangeAsync(messages);
-            var saved = await _context.SaveChangesAsync() > 0;
+            try
+            {
+                var jsonData = await File.ReadAllTextAsync(filePath);
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip
+                };
 
-            if (saved)
-                _logger.LogInformation("Seeded {Count} system messages successfully.", messages.Count);
+                var seedMessages = System.Text.Json.JsonSerializer.Deserialize<List<SystemMessage>>(jsonData, options);
+
+                if (seedMessages == null || !seedMessages.Any())
+                {
+                    _logger.LogWarning("[Seeding] Message list is empty or null after deserialization.");
+                    return;
+                }
+
+                // 1. Get existing messages Keyed by MsgId (Batch Query)
+                var existingMessages = await _context.SystemMessages
+                    .ToDictionaryAsync(m => m.MsgId, m => m);
+
+                var newMessages = new List<SystemMessage>();
+                var updatedCount = 0;
+                var now = new DateTime(2026, 1, 29);
+
+                // 2. Iterate and Compare
+                foreach (var seedMsg in seedMessages)
+                {
+                    if (existingMessages.TryGetValue(seedMsg.MsgId, out var existingMsg))
+                    {
+                        // Update if content changed (Data Integrity)
+                        bool isChanged = false;
+                        if (existingMsg.MsgContent != seedMsg.MsgContent) { existingMsg.MsgContent = seedMsg.MsgContent; isChanged = true; }
+                        if (existingMsg.En != seedMsg.En) { existingMsg.En = seedMsg.En; isChanged = true; }
+                        if (existingMsg.Vi != seedMsg.Vi) { existingMsg.Vi = seedMsg.Vi; isChanged = true; }
+
+                        if (isChanged)
+                        {
+                            existingMsg.UpdatedAt = DateTime.UtcNow;
+                            // Explicitly track modification if needed, though EF Core tracks changes automatically on attached entities
+                            updatedCount++;
+                        }
+                    }
+                    else
+                    {
+                        // New message
+                        seedMsg.Id = Guid.NewGuid();
+                        seedMsg.CreatedAt = now;
+                        newMessages.Add(seedMsg);
+                    }
+                }
+
+                // 3. Batch Save
+                if (newMessages.Any())
+                {
+                    await _context.SystemMessages.AddRangeAsync(newMessages);
+                }
+
+                if (newMessages.Any() || updatedCount > 0)
+                {
+                    var rows = await _context.SaveChangesAsync();
+                    _logger.LogInformation($"[Seeding] Sync completed. Inserted: {newMessages.Count}, Updated: {updatedCount}, DB Rows affected: {rows}.");
+                }
+                else
+                {
+                    _logger.LogInformation("[Seeding] SystemMessages are up-to-date. No changes needed.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Seeding] Error during deserialization or syncing.");
+                throw;
+            }
         }
     }
 }

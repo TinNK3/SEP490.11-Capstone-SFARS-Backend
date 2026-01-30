@@ -1,6 +1,4 @@
-﻿using Microsoft.OpenApi.Models;
-
-namespace SFARS.API.Extension
+﻿namespace SFARS.API.Extension
 {
 
     /// <summary>

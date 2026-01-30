@@ -1,19 +1,16 @@
-﻿using Microsoft.IdentityModel.Tokens;
+﻿using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using SFARS.Application.Configurations;
 using SFARS.Application.Dtos.Auth;
 using SFARS.Domain.Common.Constants;
-using System;
-using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace SFARS.Application.Utils
 {
-    public class JwtUtils
+    public class JwtUtils : IJwtUtils
     {
         private readonly WebTokenSettings _webTokenSettings;
         private readonly TokenValidationParameters _tokenValidationParameters;
@@ -25,9 +22,9 @@ namespace SFARS.Application.Utils
         }
 
         public JwtUtils(
-            WebTokenSettings webTokenSettings)
+            IOptions<WebTokenSettings> webTokenSettings)
         {
-            _webTokenSettings = webTokenSettings;
+            _webTokenSettings = webTokenSettings.Value;
             _tokenValidationParameters = null!;
         }
 
@@ -40,7 +37,7 @@ namespace SFARS.Application.Utils
 
         // Generate JWT token 
         public async Task<(string AccessToken, DateTime ValidTo)> GenerateJwtTokenAsync(
-            string tokenId, AuthenticateUserDto user)
+            string tokenId, AuthUserDto user)
         {
             //Get security key
             var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_webTokenSettings.IssuerSigningKey));

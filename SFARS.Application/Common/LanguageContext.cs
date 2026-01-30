@@ -1,3 +1,5 @@
+using SFARS.Domain.Common.Enum;
+
 namespace SFARS.Application.Common;
 
 //  Summary:
@@ -13,7 +15,7 @@ public static class LanguageContext
 
     public static string CurrentLanguage
     {
-        get => _currentLanguage.Value ?? "vi";
+        get => _currentLanguage.Value ?? SystemLanguage.Vietnamese.ToString();
         set => _currentLanguage.Value = value;
     }
 }

@@ -5,14 +5,13 @@ using Moq;
 using SFARS.Application.Common;
 using SFARS.Application.Configurations;
 using SFARS.Application.Dtos.Auth;
-using SFARS.Application.Dtos.Role;
 using SFARS.Application.Dtos.User;
+using SFARS.Application.Utils;
 using SFARS.Application.Services;
 using SFARS.Application.Services.Auth;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Services;
-using SFARS.Domain.Interfaces.Services.Base;
 
 namespace SFARS.Tests.Application.Services.Auth;
 
@@ -20,22 +19,22 @@ public class AuthenticationServiceTests
 {
     private readonly Mock<IUserService<UserDto>> _userServiceMock;
     private readonly Mock<ISystemMessageService> _msgServiceMock;
-    private readonly Mock<ISystemRoleService<SystemRoleDto>> _roleServiceMock;
     private readonly Mock<IRefreshTokenService<RefreshTokenDto>> _refreshTokenServiceMock;
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
+    private readonly Mock<IJwtUtils> _jwtUtilsMock;
     private readonly Mock<IOptionsMonitor<WebTokenSettings>> _webTokenSettingsMock;
-    private readonly Mock<ILogger<AuthenticationService>> _loggerMock;
-    private readonly AuthenticationService _sut; // System Under Test
+    private readonly Mock<ILogger<AuthService>> _loggerMock;
+    private readonly AuthService _sut; // System Under Test
 
     public AuthenticationServiceTests()
     {
         _userServiceMock = new Mock<IUserService<UserDto>>();
         _msgServiceMock = new Mock<ISystemMessageService>();
-        _roleServiceMock = new Mock<ISystemRoleService<SystemRoleDto>>();
         _refreshTokenServiceMock = new Mock<IRefreshTokenService<RefreshTokenDto>>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
+        _jwtUtilsMock = new Mock<IJwtUtils>();
         _webTokenSettingsMock = new Mock<IOptionsMonitor<WebTokenSettings>>();
-        _loggerMock = new Mock<ILogger<AuthenticationService>>();
+        _loggerMock = new Mock<ILogger<AuthService>>();
 
         // Setup WebTokenSettings
         var webTokenSettings = new WebTokenSettings
@@ -52,12 +51,18 @@ public class AuthenticationServiceTests
         _msgServiceMock.Setup(x => x.GetMessageAsync(It.IsAny<string>()))
             .ReturnsAsync((string msgId) => $"Message for {msgId}");
 
-        _sut = new AuthenticationService(
+        // Setup default JwtUtils
+        _jwtUtilsMock.Setup(x => x.GenerateJwtTokenAsync(It.IsAny<string>(), It.IsAny<AuthUserDto>()))
+            .ReturnsAsync(("test-access-token", DateTime.UtcNow.AddHours(1)));
+        _jwtUtilsMock.Setup(x => x.GenerateRefreshTokenAsync())
+            .ReturnsAsync("test-refresh-token");
+
+        _sut = new AuthService(
             _userServiceMock.Object,
             _msgServiceMock.Object,
-            _roleServiceMock.Object,
             _refreshTokenServiceMock.Object,
             _unitOfWorkMock.Object,
+            _jwtUtilsMock.Object,
             _webTokenSettingsMock.Object,
             _loggerMock.Object
         );
@@ -69,7 +74,7 @@ public class AuthenticationServiceTests
     public async Task SignInWithPasswordAsync_UserNotFound_ReturnsWarning()
     {
         // Arrange
-        var request = new AuthenticateUserDto { Email = "notfound@test.com", Password = "Test123!" };
+        var request = new AuthUserDto { Email = "notfound@test.com", Password = "Test123!" };
         
         _userServiceMock.Setup(x => x.GetByEmailAsync(request.Email))
             .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Warning0002, "Not found", null!));
@@ -86,7 +91,7 @@ public class AuthenticationServiceTests
     public async Task SignInWithPasswordAsync_InvalidPassword_ReturnsWarning()
     {
         // Arrange
-        var request = new AuthenticateUserDto { Email = "test@example.com", Password = "WrongPassword" };
+        var request = new AuthUserDto { Email = "test@example.com", Password = "WrongPassword" };
         
         var userDto = CreateValidUserDto();
         userDto.PasswordHash = BCrypt.Net.BCrypt.EnhancedHashPassword("CorrectPassword");
@@ -106,7 +111,7 @@ public class AuthenticationServiceTests
     public async Task SignInWithPasswordAsync_UserInactive_ReturnsWarning()
     {
         // Arrange
-        var request = new AuthenticateUserDto { Email = "test@example.com", Password = "Test123!" };
+        var request = new AuthUserDto { Email = "test@example.com", Password = "Test123!" };
         
         var userDto = CreateValidUserDto();
         userDto.PasswordHash = BCrypt.Net.BCrypt.EnhancedHashPassword("Test123!");
@@ -127,7 +132,7 @@ public class AuthenticationServiceTests
     public async Task SignInWithPasswordAsync_MfaEnabled_ReturnsMfaRequired()
     {
         // Arrange
-        var request = new AuthenticateUserDto { Email = "test@example.com", Password = "Test123!" };
+        var request = new AuthUserDto { Email = "test@example.com", Password = "Test123!" };
         
         var userDto = CreateValidUserDto();
         userDto.PasswordHash = BCrypt.Net.BCrypt.EnhancedHashPassword("Test123!");
@@ -148,7 +153,7 @@ public class AuthenticationServiceTests
     public async Task SignInWithPasswordAsync_ValidCredentials_ReturnsTokens()
     {
         // Arrange
-        var request = new AuthenticateUserDto { Email = "test@example.com", Password = "Test123!" };
+        var request = new AuthUserDto { Email = "test@example.com", Password = "Test123!" };
         
         var userDto = CreateValidUserDto();
         userDto.PasswordHash = BCrypt.Net.BCrypt.EnhancedHashPassword("Test123!");
@@ -168,9 +173,9 @@ public class AuthenticationServiceTests
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Success0002);
         result.Data.Should().NotBeNull();
-        result.Data.Should().BeOfType<AuthenticateResultDto>();
+        result.Data.Should().BeOfType<AuthResultDto>();
         
-        var authResult = result.Data as AuthenticateResultDto;
+        var authResult = result.Data as AuthResultDto;
         authResult!.AccessToken.Should().NotBeNullOrEmpty();
         authResult.RefreshToken.Should().NotBeNullOrEmpty();
         authResult.ValidTo.Should().BeAfter(DateTime.UtcNow);
@@ -180,7 +185,7 @@ public class AuthenticationServiceTests
     public async Task SignInWithPasswordAsync_ExistingRefreshToken_UpdatesToken()
     {
         // Arrange
-        var request = new AuthenticateUserDto { Email = "test@example.com", Password = "Test123!" };
+        var request = new AuthUserDto { Email = "test@example.com", Password = "Test123!" };
         var userId = Guid.NewGuid();
         
         var userDto = CreateValidUserDto();
@@ -226,7 +231,7 @@ public class AuthenticationServiceTests
             LastName = "User",
             Status = UserStatus.Active,
             TwoFactorEnabled = false,
-            Role = new RoleDto { RoleName = "User" }
+            Role = "User"
         };
     }
 

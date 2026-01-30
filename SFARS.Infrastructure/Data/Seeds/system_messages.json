@@ -1,0 +1,416 @@
+[
+  {
+    "MsgId": "SYS.Success0001",
+    "MsgContent": "Created successfully.",
+    "En": "Created successfully.",
+    "Vi": "Tạo mới thành công."
+  },
+  {
+    "MsgId": "SYS.Success0002",
+    "MsgContent": "Data retrieved successfully.",
+    "En": "Data retrieved successfully.",
+    "Vi": "Lấy dữ liệu thành công."
+  },
+  {
+    "MsgId": "SYS.Success0003",
+    "MsgContent": "Updated successfully.",
+    "En": "Updated successfully.",
+    "Vi": "Cập nhật thành công."
+  },
+  {
+    "MsgId": "SYS.Success0004",
+    "MsgContent": "Deleted successfully.",
+    "En": "Deleted successfully.",
+    "Vi": "Xóa thành công."
+  },
+  {
+    "MsgId": "SYS.Success0005",
+    "MsgContent": "Imported {0} records successfully.",
+    "En": "Imported {0} records successfully.",
+    "Vi": "Nhập khẩu {0} bản ghi thành công."
+  },
+  {
+    "MsgId": "SYS.Success0006",
+    "MsgContent": "{0} has been created.",
+    "En": "{0} has been created.",
+    "Vi": "{0} đã được tạo mới."
+  },
+  {
+    "MsgId": "SYS.Success0007",
+    "MsgContent": "Moved to trash successfully.",
+    "En": "Moved to trash successfully.",
+    "Vi": "Đã chuyển vào thùng rác."
+  },
+  {
+    "MsgId": "SYS.Success0008",
+    "MsgContent": "Restored data successfully.",
+    "En": "Restored data successfully.",
+    "Vi": "Khôi phục dữ liệu thành công."
+  },
+  {
+    "MsgId": "SYS.Fail0001",
+    "MsgContent": "Failed to create data. Please try again.",
+    "En": "Failed to create data. Please try again.",
+    "Vi": "Tạo mới thất bại. Vui lòng thử lại."
+  },
+  {
+    "MsgId": "SYS.Fail0002",
+    "MsgContent": "Failed to retrieve data.",
+    "En": "Failed to retrieve data.",
+    "Vi": "Không thể lấy dữ liệu."
+  },
+  {
+    "MsgId": "SYS.Fail0003",
+    "MsgContent": "Failed to update data.",
+    "En": "Failed to update data.",
+    "Vi": "Cập nhật thất bại."
+  },
+  {
+    "MsgId": "SYS.Fail0004",
+    "MsgContent": "Failed to delete data.",
+    "En": "Failed to delete data.",
+    "Vi": "Xóa thất bại."
+  },
+  {
+    "MsgId": "SYS.Fail0005",
+    "MsgContent": "System error: {0}.",
+    "En": "System error: {0}.",
+    "Vi": "Lỗi hệ thống: {0}."
+  },
+  {
+    "MsgId": "SYS.Fail0007",
+    "MsgContent": "Cannot delete {0} because it is referenced by other data.",
+    "En": "Cannot delete {0} because it is referenced by other data.",
+    "Vi": "Không thể xóa {0} vì đang được sử dụng bởi dữ liệu khác."
+  },
+  {
+    "MsgId": "SYS.Warning0001",
+    "MsgContent": "Invalid input data.",
+    "En": "Invalid input data.",
+    "Vi": "Dữ liệu đầu vào không hợp lệ."
+  },
+  {
+    "MsgId": "SYS.Warning0002",
+    "MsgContent": "{0} not found.",
+    "En": "{0} not found.",
+    "Vi": "Không tìm thấy {0}."
+  },
+  {
+    "MsgId": "SYS.Warning0003",
+    "MsgContent": "{0} already exists.",
+    "En": "{0} already exists.",
+    "Vi": "{0} đã tồn tại."
+  },
+  {
+    "MsgId": "SYS.Warning0004",
+    "MsgContent": "No data available.",
+    "En": "No data available.",
+    "Vi": "Không có dữ liệu."
+  },
+  {
+    "MsgId": "Auth.Success0001",
+    "MsgContent": "Registration successful. Please verify your email.",
+    "En": "Registration successful. Please verify your email.",
+    "Vi": "Đăng ký thành công. Vui lòng xác thực email."
+  },
+  {
+    "MsgId": "Auth.Success0002",
+    "MsgContent": "Login successful.",
+    "En": "Login successful.",
+    "Vi": "Đăng nhập thành công."
+  },
+  {
+    "MsgId": "Auth.Success0003",
+    "MsgContent": "Password changed successfully.",
+    "En": "Password changed successfully.",
+    "Vi": "Đổi mật khẩu thành công."
+  },
+  {
+    "MsgId": "Auth.Success0005",
+    "MsgContent": "OTP sent to your email.",
+    "En": "OTP sent to your email.",
+    "Vi": "Mã OTP đã được gửi đến email của bạn."
+  },
+  {
+    "MsgId": "Auth.Success0008",
+    "MsgContent": "Token refreshed successfully.",
+    "En": "Token refreshed successfully.",
+    "Vi": "Làm mới phiên đăng nhập thành công."
+  },
+  {
+    "MsgId": "Auth.Warning0001",
+    "MsgContent": "Account is banned or inactive.",
+    "En": "Account is banned or inactive.",
+    "Vi": "Tài khoản đã bị khóa hoặc chưa kích hoạt."
+  },
+  {
+    "MsgId": "Auth.Warning0002",
+    "MsgContent": "Invalid or expired token.",
+    "En": "Invalid or expired token.",
+    "Vi": "Token không hợp lệ hoặc đã hết hạn."
+  },
+  {
+    "MsgId": "Auth.Warning0005",
+    "MsgContent": "Incorrect OTP code.",
+    "En": "Incorrect OTP code.",
+    "Vi": "Mã OTP không chính xác."
+  },
+  {
+    "MsgId": "Auth.Warning0006",
+    "MsgContent": "Email already exist.",
+    "En": "Email already exist.",
+    "Vi": "Email đã tồn tại."
+  },
+  {
+    "MsgId": "Auth.Warning0007",
+    "MsgContent": "Incorrect username or password.",
+    "En": "Incorrect username or password.",
+    "Vi": "Sai tên đăng nhập hoặc mật khẩu."
+  },
+  {
+    "MsgId": "Auth.Warning0008",
+    "MsgContent": "Email is not verified yet.",
+    "En": "Email is not verified yet.",
+    "Vi": "Email chưa được xác thực."
+  },
+  {
+    "MsgId": "Auth.Warning0010",
+    "MsgContent": "Two-factor authentication is required.",
+    "En": "Two-factor authentication is required.",
+    "Vi": "Yêu cầu xác thực hai yếu tố."
+  },
+  {
+    "MsgId": "Auth.Warning0013",
+    "MsgContent": "Authentication required.",
+    "En": "Authentication required.",
+    "Vi": "Vui lòng đăng nhập để thực hiện chức năng này."
+  },
+  {
+    "MsgId": "Auth.Fail0002",
+    "MsgContent": "Could not send email. Please try again later.",
+    "En": "Could not send email. Please try again later.",
+    "Vi": "Không thể gửi email. Vui lòng thử lại sau."
+  },
+  {
+    "MsgId": "User.Success0001",
+    "MsgContent": "Profile updated successfully.",
+    "En": "Profile updated successfully.",
+    "Vi": "Cập nhật hồ sơ thành công."
+  },
+  {
+    "MsgId": "User.Success0002",
+    "MsgContent": "Avatar uploaded successfully.",
+    "En": "Avatar uploaded successfully.",
+    "Vi": "Tải ảnh đại diện thành công."
+  },
+  {
+    "MsgId": "User.Warning0001",
+    "MsgContent": "Current password is incorrect.",
+    "En": "Current password is incorrect.",
+    "Vi": "Mật khẩu hiện tại không đúng."
+  },
+  {
+    "MsgId": "User.Warning0002",
+    "MsgContent": "User is not a rescuer.",
+    "En": "User is not a rescuer.",
+    "Vi": "Người dùng không phải là nhân viên cứu hộ."
+  },
+  {
+    "MsgId": "Rescuer.Success0001",
+    "MsgContent": "Rescuer profile submitted for review.",
+    "En": "Rescuer profile submitted for review.",
+    "Vi": "Hồ sơ cứu hộ đã được gửi để xét duyệt."
+  },
+  {
+    "MsgId": "Rescuer.Success0002",
+    "MsgContent": "Rescuer status updated to {0}.",
+    "En": "Rescuer status updated to {0}.",
+    "Vi": "Trạng thái cứu hộ đã cập nhật thành {0}."
+  },
+  {
+    "MsgId": "Rescuer.Warning0001",
+    "MsgContent": "Rescuer is currently busy.",
+    "En": "Rescuer is currently busy.",
+    "Vi": "Nhân viên cứu hộ đang bận."
+  },
+  {
+    "MsgId": "Rescuer.Warning0002",
+    "MsgContent": "Document verification failed.",
+    "En": "Document verification failed.",
+    "Vi": "Xác minh giấy tờ thất bại."
+  },
+  {
+    "MsgId": "Snake.Success0001",
+    "MsgContent": "Snake species added to database.",
+    "En": "Snake species added to database.",
+    "Vi": "Đã thêm loài rắn vào cơ sở dữ liệu."
+  },
+  {
+    "MsgId": "Snake.Warning0001",
+    "MsgContent": "This scientific name already exists.",
+    "En": "This scientific name already exists.",
+    "Vi": "Tên khoa học này đã tồn tại."
+  },
+  {
+    "MsgId": "Medical.Success0001",
+    "MsgContent": "Facility found successfully.",
+    "En": "Facility found successfully.",
+    "Vi": "Tìm thấy cơ sở y tế thành công."
+  },
+  {
+    "MsgId": "Medical.Warning0001",
+    "MsgContent": "No medical facility found near your location.",
+    "En": "No medical facility found near your location.",
+    "Vi": "Không tìm thấy cơ sở y tế nào gần bạn."
+  },
+  {
+    "MsgId": "Medical.Warning0002",
+    "MsgContent": "Antivenom stock is empty for this facility.",
+    "En": "Antivenom stock is empty for this facility.",
+    "Vi": "Cơ sở này hiện đã hết huyết thanh kháng độc."
+  },
+  {
+    "MsgId": "Incident.Success0001",
+    "MsgContent": "SOS signal sent! Searching for rescuers...",
+    "En": "SOS signal sent! Searching for rescuers...",
+    "Vi": "Đã gửi tín hiệu SOS! Đang tìm cứu hộ..."
+  },
+  {
+    "MsgId": "Incident.Success0002",
+    "MsgContent": "Rescuer has accepted the mission.",
+    "En": "Rescuer has accepted the mission.",
+    "Vi": "Nhân viên cứu hộ đã nhận nhiệm vụ."
+  },
+  {
+    "MsgId": "Incident.Success0003",
+    "MsgContent": "Mission completed successfully.",
+    "En": "Mission completed successfully.",
+    "Vi": "Nhiệm vụ hoàn thành xuất sắc."
+  },
+  {
+    "MsgId": "Incident.Success0004",
+    "MsgContent": "Location updated.",
+    "En": "Location updated.",
+    "Vi": "Đã cập nhật vị trí."
+  },
+  {
+    "MsgId": "Incident.Warning0001",
+    "MsgContent": "No available rescuers nearby. Please contact hotline.",
+    "En": "No available rescuers nearby. Please contact hotline.",
+    "Vi": "Không có cứu hộ gần đây. Vui lòng gọi đường dây nóng."
+  },
+  {
+    "MsgId": "Incident.Warning0002",
+    "MsgContent": "Mission cancelled by user.",
+    "En": "Mission cancelled by user.",
+    "Vi": "Nhiệm vụ đã bị hủy bởi người dùng."
+  },
+  {
+    "MsgId": "Incident.Warning0003",
+    "MsgContent": "Incident is already resolved.",
+    "En": "Incident is already resolved.",
+    "Vi": "Sự cố này đã được giải quyết."
+  },
+  {
+    "MsgId": "Incident.Fail0001",
+    "MsgContent": "Failed to calculate route.",
+    "En": "Failed to calculate route.",
+    "Vi": "Không thể tính toán lộ trình."
+  },
+  {
+    "MsgId": "AI.Success0001",
+    "MsgContent": "Snake identified: {0} ({1}% confidence).",
+    "En": "Snake identified: {0} ({1}% confidence).",
+    "Vi": "Nhận diện rắn: {0} (Độ tin cậy {1}%)."
+  },
+  {
+    "MsgId": "AI.Success0002",
+    "MsgContent": "Model training started.",
+    "En": "Model training started.",
+    "Vi": "Bắt đầu huấn luyện mô hình."
+  },
+  {
+    "MsgId": "AI.Warning0001",
+    "MsgContent": "Cannot identify snake. Image unclear.",
+    "En": "Cannot identify snake. Image unclear.",
+    "Vi": "Không thể nhận diện. Hình ảnh không rõ ràng."
+  },
+  {
+    "MsgId": "AI.Warning0002",
+    "MsgContent": "Not a snake detected in the image.",
+    "En": "Not a snake detected in the image.",
+    "Vi": "Không phát hiện rắn trong hình ảnh."
+  },
+  {
+    "MsgId": "AI.Warning0003",
+    "MsgContent": "Upload more images to improve accuracy.",
+    "En": "Upload more images to improve accuracy.",
+    "Vi": "Tải thêm ảnh để tăng độ chính xác."
+  },
+  {
+    "MsgId": "Comm.Success0001",
+    "MsgContent": "Post published successfully.",
+    "En": "Post published successfully.",
+    "Vi": "Bài viết đã được xuất bản."
+  },
+  {
+    "MsgId": "Comm.Success0002",
+    "MsgContent": "Quiz completed! You earned {0} points.",
+    "En": "Quiz completed! You earned {0} points.",
+    "Vi": "Hoàn thành bài thi! Bạn nhận được {0} điểm."
+  },
+  {
+    "MsgId": "Comm.Success0003",
+    "MsgContent": "Hotspot reported. Waiting for verification.",
+    "En": "Hotspot reported. Waiting for verification.",
+    "Vi": "Đã báo cáo điểm nóng. Đang chờ xác minh."
+  },
+  {
+    "MsgId": "Comm.Warning0001",
+    "MsgContent": "You have already taken this quiz.",
+    "En": "You have already taken this quiz.",
+    "Vi": "Bạn đã làm bài kiểm tra này rồi."
+  },
+  {
+    "MsgId": "Comm.Warning0002",
+    "MsgContent": "Insufficient points to redeem reward.",
+    "En": "Insufficient points to redeem reward.",
+    "Vi": "Không đủ điểm để đổi thưởng."
+  },
+  {
+    "MsgId": "Trans.Success0001",
+    "MsgContent": "Payment link created.",
+    "En": "Payment link created.",
+    "Vi": "Đã tạo liên kết thanh toán."
+  },
+  {
+    "MsgId": "Trans.Success0002",
+    "MsgContent": "Payment verified successfully.",
+    "En": "Payment verified successfully.",
+    "Vi": "Xác thực thanh toán thành công."
+  },
+  {
+    "MsgId": "Trans.Success0003",
+    "MsgContent": "Refund processed successfully.",
+    "En": "Refund processed successfully.",
+    "Vi": "Hoàn tiền thành công."
+  },
+  {
+    "MsgId": "Trans.Warning0001",
+    "MsgContent": "Transaction is pending.",
+    "En": "Transaction is pending.",
+    "Vi": "Giao dịch đang chờ xử lý."
+  },
+  {
+    "MsgId": "Trans.Warning0002",
+    "MsgContent": "Transaction cancelled.",
+    "En": "Transaction cancelled.",
+    "Vi": "Giao dịch đã bị hủy."
+  },
+  {
+    "MsgId": "Trans.Fail0001",
+    "MsgContent": "Payment gateway error.",
+    "En": "Payment gateway error.",
+    "Vi": "Lỗi cổng thanh toán."
+  }
+]

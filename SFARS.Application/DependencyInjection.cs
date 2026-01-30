@@ -9,6 +9,7 @@ using SFARS.Application.Dtos.Role;
 using SFARS.Application.Dtos.User;
 using SFARS.Application.Services;
 using SFARS.Application.Services.Auth;
+using SFARS.Application.Utils;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using System.Reflection;
@@ -28,10 +29,11 @@ public static class DependencyInjection
         services.AddScoped<ISnakeService<SnakeDto>, SnakeService>();
 
         // Auth services
+        services.AddScoped<IJwtUtils, JwtUtils>();
         services.AddScoped<IUserService<UserDto>, UserService>();
         services.AddScoped<ISystemRoleService<SystemRoleDto>, SystemRoleService>();
         services.AddScoped<IRefreshTokenService<RefreshTokenDto>, RefreshTokenService>();
-        services.AddScoped<IAuthenticationService<AuthenticateUserDto>, AuthenticationService>();
+        services.AddScoped<IAuthService<AuthUserDto>, AuthService>();
 
         // Register all validators from this assembly
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
