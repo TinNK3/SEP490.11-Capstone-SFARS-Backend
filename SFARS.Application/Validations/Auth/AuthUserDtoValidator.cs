@@ -9,9 +9,9 @@ namespace SFARS.Application.Validations.Auth
     /// <summary>
     /// Validator for AuthenticateUserDto (used in sign-up and authentication)
     /// </summary>
-    public class AuthenticateUserDtoValidator : AbstractValidator<AuthenticateUserDto>
+    public class AuthUserDtoValidator : AbstractValidator<AuthUserDto>
     {
-        public AuthenticateUserDtoValidator()
+        public AuthUserDtoValidator()
         {
             // Get language from static context (set by middleware/request)
             var langContext = LanguageContext.CurrentLanguage ?? "en";

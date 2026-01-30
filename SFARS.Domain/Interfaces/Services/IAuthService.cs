@@ -2,7 +2,7 @@
 
 namespace SFARS.Domain.Interfaces.Services
 {
-    public interface IAuthenticationService<TDto>
+    public interface IAuthService<TDto>
         where TDto : class
     {
         Task<IServiceResult> SignInWithPasswordAsync(TDto user);

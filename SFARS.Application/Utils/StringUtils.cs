@@ -7,8 +7,6 @@ namespace SFARS.Application.Utils
     //		Provide utility procedures to handle any logic related to String datatype
     public static class StringUtils
     {
-        private static readonly Random _rnd = new Random();
-
         /// <summary>
         /// Generates a random alphanumeric code of the specified length.
         /// </summary>
@@ -18,7 +16,7 @@ namespace SFARS.Application.Utils
         {
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
             return new string(Enumerable.Repeat(chars, length)
-                .Select(s => s[_rnd.Next(s.Length)])
+                .Select(s => s[Random.Shared.Next(s.Length)])
                 .ToArray());
         }
 
@@ -56,7 +54,7 @@ namespace SFARS.Application.Utils
 
             for (int i = 0; i < args.Length; i++)
             {
-                input = input.Replace($"<{i}>", args[i]);
+                input = input.Replace($"{{{i}}}", args[i]);
             }
 
             return input;

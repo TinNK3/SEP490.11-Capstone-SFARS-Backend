@@ -7,7 +7,7 @@
         /// <summary>
         /// Authentication endpoints
         /// </summary>
-        public static class Authentication
+        public static class Auth
         {
             // [GET]
 

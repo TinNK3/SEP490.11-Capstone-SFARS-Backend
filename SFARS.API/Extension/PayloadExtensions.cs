@@ -9,18 +9,17 @@ namespace SFARS.API.Extension
     {
         #region Auth
         // Mapping from typeof(SignInWithPasswordRequest) to typeof(AuthenticateUserDto)
-        public static AuthenticateUserDto ToAuthenticatedUser(this SignInWithPasswordRequest req)
-            => new AuthenticateUserDto
+        public static AuthUserDto ToAuthenticatedUser(this SignInWithPasswordRequest req)
+            => new AuthUserDto
             {
                 Email = req.Email,
                 Password = req.Password
             };
 
         // Mapping from typeof(SignUpRequest) to typeof(AuthenticateUserDto)
-        public static AuthenticateUserDto ToAuthenticatedUser(this SignUpRequest req)
-            => new AuthenticateUserDto
+        public static AuthUserDto ToAuthenticatedUser(this SignUpRequest req)
+            => new AuthUserDto
             {
-                UserCode = req.UserCode,
                 Email = req.Email,
                 FirstName = req.FirstName,
                 LastName = req.LastName,

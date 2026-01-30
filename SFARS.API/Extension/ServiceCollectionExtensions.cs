@@ -1,11 +1,8 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Data.SqlClient;
-using Microsoft.IdentityModel.Tokens;
+﻿using Microsoft.Data.SqlClient;
 using Serilog;
 using SFARS.Application.Configurations;
 using SFARS.Application.HealthChecks;
 using System.Data.Common;
-using System.Text;
 
 namespace SFARS.API.Extension
 {
@@ -16,7 +13,10 @@ namespace SFARS.API.Extension
         public static IServiceCollection ConfigureEndpoints(this IServiceCollection services)
         {
             // Add controllers
-            services.AddControllers();
+            services.AddControllers().AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+            });
             // Configures ApiExplorer
             services.AddEndpointsApiExplorer();
             // Add swagger
