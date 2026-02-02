@@ -26,6 +26,13 @@ namespace SFARS.API.Controller
             return this.ToIActionResult(result);
         }
 
+        [HttpPost(APIRoute.Auth.SignInWithGoogle, Name = nameof(SignInWithGoogleAsync))]
+        public async Task<IActionResult> SignInWithGoogleAsync([FromBody] SignInWithGoogleRequest req)
+        {
+            var result = await _authService.SignInWithGoogleAsync(req.Credential);
+            return this.ToIActionResult(result);
+        }
+
         [HttpPost(APIRoute.Auth.SignUp, Name = nameof(SignUpAsync))]
         public async Task<IActionResult> SignUpAsync([FromBody] SignUpRequest req)
         {
