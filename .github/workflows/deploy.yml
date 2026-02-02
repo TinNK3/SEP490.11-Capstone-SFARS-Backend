@@ -26,13 +26,14 @@ jobs:
         run: dotnet restore
 
       - name: Build
-        run: dotnet build -c Release --no-restore
+        run: dotnet build -c ${{ env.CONFIGURATION }} --no-restore
 
       - name: Test
-        run: dotnet test -c Release --no-build
+        run: dotnet test -c ${{ env.CONFIGURATION }} --no-build
 
+      # 👉 Publish ĐÚNG cho Linux + Clean Architecture
       - name: Publish
-        run: dotnet publish -c Release -o publish --no-build
+        run: dotnet publish ./SFARS.API/SFARS.API.csproj -c ${{ env.CONFIGURATION }} -o publish
 
       - name: Copy to VPS
         uses: appleboy/scp-action@v0.1.7
@@ -41,7 +42,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
-          source: "publish/*"
+          source: "publish/**"
           target: ${{ env.APP_DIR }}
           strip_components: 1
 
