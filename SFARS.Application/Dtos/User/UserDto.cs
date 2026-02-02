@@ -1,4 +1,5 @@
 ﻿using SFARS.Application.Dtos.Auth;
+using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
 using System.Text.Json.Serialization;
 
@@ -43,10 +44,13 @@ namespace SFARS.Application.Dtos.User
 
     public static class UserDtoExtensions
     {
-        public static AuthUserDto ToAuthenticateUserDto(this UserDto userDto)
+        public static AuthUserDto ToAuthUserDto(this UserDto userDto)
         {
+            var role = userDto.Role ?? UserTypeConstants.User;
+
             return new AuthUserDto
             {
+                Id = userDto.Id,
                 Email = userDto.Email,
                 FirstName = userDto.FirstName,
                 LastName = userDto.LastName,
@@ -57,7 +61,9 @@ namespace SFARS.Application.Dtos.User
                 Dob = userDto.Dob,
                 Status = userDto.Status,
                 CreatedAt = userDto.CreatedAt,
-                UpdatedAt = userDto.UpdatedAt
+                UpdatedAt = userDto.UpdatedAt,
+                RoleName = role,
+                IsRescuer = role == UserTypeConstants.Rescuer,
             };
         }
     }

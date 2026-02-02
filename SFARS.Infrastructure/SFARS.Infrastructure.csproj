@@ -9,6 +9,7 @@
   <ItemGroup>
 	<PackageReference Include="DiffPlex" Version="1.7.2" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageReference Include="Google.Apis.Auth" Version="1.73.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.1">
       <!--<PrivateAssets>all</PrivateAssets>-->
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

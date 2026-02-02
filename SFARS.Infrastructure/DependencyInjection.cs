@@ -2,10 +2,12 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SFARS.Domain.Interfaces;
+using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Repositories.Base;
 using SFARS.Infrastructure.Data;
 using SFARS.Infrastructure.Data.Context;
 using SFARS.Infrastructure.Repositories;
+using SFARS.Infrastructure.Services;
 
 namespace SFARS.Infrastructure;
 
@@ -24,6 +26,8 @@ public static class DependencyInjection
 
             // Register Infrastructure services
             services.AddScoped<IDatabaseInitializer, DatabaseInitializer>();
+            
+            services.AddScoped<IExternalAuthService, ExternalAuthService>();
             
             // Register repositories
             services.AddScoped(typeof(IGenericRepository<,>), typeof(GenericRepository<,>));

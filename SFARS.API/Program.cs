@@ -1,4 +1,4 @@
-using SFARS.API.Extension;
+﻿using SFARS.API.Extension;
 using SFARS.API.Extensions;
 using SFARS.API.Middlewares;
 using SFARS.Infrastructure;
@@ -6,11 +6,24 @@ using SFARS.Application;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var allowedOrigins = builder.Configuration
+    .GetSection("AllowedOrigins")
+    .Get<string[]>() ?? Array.Empty<string>();
+
 builder.Services
     // Add HttpClient
     .AddHttpClient()
     // Add CORS
-    .AddCors()
+    .AddCors(options =>
+    {
+        options.AddPolicy("SFARS_CORS", policy =>
+        {
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        });
+    })
     // Add Health Checks
     .AddHealthChecks()
     //Add Api Health check
@@ -59,6 +72,7 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseHttpsRedirection();
 app.UseRouting();
+app.UseCors("SFARS_CORS");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

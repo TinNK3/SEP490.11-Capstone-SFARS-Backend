@@ -13,6 +13,7 @@
 
             // [POST]
             public const string SignInWithPassword = Base + "/auth/sign-in/password-method";
+            public const string SignInWithGoogle = Base + "/auth/sign-in/google-method";
             public const string SignUp = Base + "/auth/sign-up";
 
         }

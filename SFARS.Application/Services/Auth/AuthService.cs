@@ -7,10 +7,12 @@ using SFARS.Application.Dtos.User;
 using SFARS.Application.Exceptions;
 using SFARS.Application.Utils;
 using SFARS.Application.Validations;
+using SFARS.Application.Validations.Auth;
 using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
+using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
@@ -25,6 +27,7 @@ namespace SFARS.Application.Services.Auth
         private readonly IUnitOfWork _unitOfWork;
         private readonly WebTokenSettings _webTokenSettings;
         private readonly IJwtUtils _jwtUtils;
+        private readonly IExternalAuthService _externalAuthService;
         private readonly ILogger<AuthService> _logger;
 
         public AuthService(
@@ -34,7 +37,8 @@ namespace SFARS.Application.Services.Auth
             IUnitOfWork unitOfWork,
             IJwtUtils jwtUtils,
             IOptionsMonitor<WebTokenSettings> monitor,
-            ILogger<AuthService> logger)
+            ILogger<AuthService> logger,
+            IExternalAuthService externalAuthService)
         {
             _userService = userService;
             _msgService = msgService;
@@ -43,6 +47,7 @@ namespace SFARS.Application.Services.Auth
             _jwtUtils = jwtUtils;
             _webTokenSettings = monitor.CurrentValue;
             _logger = logger;
+            _externalAuthService = externalAuthService;
         }
 
         public async Task<IServiceResult> SignInWithPasswordAsync(AuthUserDto user)
@@ -108,6 +113,64 @@ namespace SFARS.Application.Services.Auth
                 var message = await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002);
                 return new ServiceResult(ResultCodeConst.SYS_Warning0002,
                     StringUtils.Format(message, "email"));
+            }
+        }
+
+        public async Task<IServiceResult> SignInWithGoogleAsync(string googleIdToken)
+        {
+            var validator = new SignInWithGoogleValidator();
+            var validation = await validator.ValidateAsync(googleIdToken);
+            if (!validation.IsValid)
+            {
+                return new ServiceResult(ResultCodeConst.SYS_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001),
+                    validation.Errors.Select(e => e.ErrorMessage));
+            }
+
+            // Verify Google Token (Using Infrastructure Service)
+            var externalUser = await _externalAuthService.VerifyGoogleTokenAsync(googleIdToken);
+
+            // Check if user exists
+            var userResult = await _userService.GetByEmailAsync(externalUser.Email);
+
+            if (userResult.ResultCode == ResultCodeConst.SYS_Success0002
+                && userResult.Data is UserDto userDto)
+            {
+                // User exists: Check status
+                if (userDto.Status != UserStatus.Active)
+                {
+                    _logger.LogWarning("Failed Google login for {Email}: User status is {Status}.", externalUser.Email, userDto.Status);
+                    return new ServiceResult(ResultCodeConst.Auth_Warning0001,
+                        await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0001));
+                }
+
+                // Map to AuthUserDto
+                var authenticateUser = userDto.ToAuthUserDto();
+                return await AuthenticateUserAsync(authenticateUser);
+            }
+            else
+            {
+                // User does not exist: Auto Register
+                var newUser = new AuthUserDto
+                {
+                    Email = externalUser.Email,
+                    FirstName = externalUser.FirstName ?? "User",
+                    LastName = externalUser.LastName ?? "",
+                    Avatar = externalUser.Avatar,
+                    Status = UserStatus.Active
+                };
+
+                // Create new user (createFromExternalProvider = true)
+                var createdUser = await CreateNewUserAsync(newUser, createFromExternalProvider: true);
+
+                if (createdUser != null)
+                {
+                    _logger.LogInformation("New user registered via Google: {Email}", externalUser.Email);
+                    return await AuthenticateUserAsync(createdUser);
+                }
+
+                return new ServiceResult(ResultCodeConst.SYS_Fail0001,
+                     await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
             }
         }
 
@@ -268,7 +331,7 @@ namespace SFARS.Application.Services.Auth
                 Email = user.Email,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
-                PasswordHash = user.PasswordHash!,
+                PasswordHash = user.PasswordHash ?? string.Empty,
                 Phone = user.Phone,
                 Avatar = user.Avatar,
                 Address = user.Address,

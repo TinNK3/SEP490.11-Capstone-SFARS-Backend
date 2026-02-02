@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using Serilog;
 using SFARS.Application.Configurations;
+using SFARS.Domain.Configurations;
 using SFARS.Application.HealthChecks;
 using System.Data.Common;
 
@@ -104,6 +105,7 @@ namespace SFARS.API.Extension
 
             // Configure WebTokenSettings for JWT
             services.Configure<WebTokenSettings>(builder.Configuration.GetSection("WebTokenSettings"));
+            services.Configure<GoogleAuthSettings>(builder.Configuration.GetSection("GoogleAuthSettings"));
 
             return services;
         }

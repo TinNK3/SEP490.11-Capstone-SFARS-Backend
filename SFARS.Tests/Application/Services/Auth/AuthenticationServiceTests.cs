@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -11,7 +11,9 @@ using SFARS.Application.Services;
 using SFARS.Application.Services.Auth;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Interfaces;
+using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Domain.Models;
 
 namespace SFARS.Tests.Application.Services.Auth;
 
@@ -24,6 +26,7 @@ public class AuthenticationServiceTests
     private readonly Mock<IJwtUtils> _jwtUtilsMock;
     private readonly Mock<IOptionsMonitor<WebTokenSettings>> _webTokenSettingsMock;
     private readonly Mock<ILogger<AuthService>> _loggerMock;
+    private readonly Mock<IExternalAuthService> _externalAuthServiceMock;
     private readonly AuthService _sut; // System Under Test
 
     public AuthenticationServiceTests()
@@ -35,6 +38,7 @@ public class AuthenticationServiceTests
         _jwtUtilsMock = new Mock<IJwtUtils>();
         _webTokenSettingsMock = new Mock<IOptionsMonitor<WebTokenSettings>>();
         _loggerMock = new Mock<ILogger<AuthService>>();
+        _externalAuthServiceMock = new Mock<IExternalAuthService>();
 
         // Setup WebTokenSettings
         var webTokenSettings = new WebTokenSettings
@@ -64,7 +68,8 @@ public class AuthenticationServiceTests
             _unitOfWorkMock.Object,
             _jwtUtilsMock.Object,
             _webTokenSettingsMock.Object,
-            _loggerMock.Object
+            _loggerMock.Object,
+            _externalAuthServiceMock.Object
         );
     }
 
@@ -233,7 +238,71 @@ public class AuthenticationServiceTests
             TwoFactorEnabled = false,
             Role = "User"
         };
+        #endregion
+
+    }
+
+    #region SignInWithGoogleAsync Tests
+
+    [Fact]
+    public async Task SignInWithGoogleAsync_ValidToken_ExistingUser_ReturnsTokens()
+    {
+        // Arrange
+        var token = "valid-google-token-which-is-long-enough";
+        var externalUser = new ExternalAuthUser
+        {
+            Email = "test@example.com",
+            FirstName = "Test",
+            LastName = "User",
+            Avatar = "http://avatar.url",
+            ProviderId = "google-123"
+        };
+
+        _externalAuthServiceMock.Setup(x => x.VerifyGoogleTokenAsync(token))
+            .ReturnsAsync(externalUser);
+
+        var userDto = CreateValidUserDto();
+        _userServiceMock.Setup(x => x.GetByEmailAsync(externalUser.Email))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
+
+        _refreshTokenServiceMock.Setup(x => x.GetByUserIdAsync(It.IsAny<Guid>()))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Warning0002, "Not found", null!));
+
+        _refreshTokenServiceMock.Setup(x => x.CreateAsync(It.IsAny<RefreshTokenDto>()))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0001, null!, new RefreshTokenDto
+            {
+                Id = 1,
+                UserId = userDto.Id,
+                RefreshTokenId = "test-refresh-token",
+                TokenId = "token-id",
+                CreateDate = DateTime.UtcNow,
+                ExpiryDate = DateTime.UtcNow.AddDays(7)
+            }));
+
+        // Act
+        var result = await _sut.SignInWithGoogleAsync(token);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.Auth_Success0002);
+        result.Data.Should().BeOfType<AuthResultDto>();
+    }
+
+    [Fact]
+    public async Task SignInWithGoogleAsync_InvalidToken_ThrowsUnauthorized()
+    {
+        // Arrange (token đủ dài để qua validator)
+        var token = "invalid-token-which-is-long-enough";
+        _externalAuthServiceMock.Setup(x => x.VerifyGoogleTokenAsync(token))
+            .ThrowsAsync(new UnauthorizedAccessException("Invalid Google Token."));
+
+        // Act
+        Func<Task> act = async () => await _sut.SignInWithGoogleAsync(token);
+
+        // Assert
+        await act.Should().ThrowAsync<UnauthorizedAccessException>()
+            .WithMessage("Invalid Google Token.");
     }
 
     #endregion
+
 }

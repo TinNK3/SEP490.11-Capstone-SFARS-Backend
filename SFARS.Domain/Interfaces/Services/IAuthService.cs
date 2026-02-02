@@ -6,6 +6,7 @@ namespace SFARS.Domain.Interfaces.Services
         where TDto : class
     {
         Task<IServiceResult> SignInWithPasswordAsync(TDto user);
+        Task<IServiceResult> SignInWithGoogleAsync(string googleIdToken);
         Task<IServiceResult> SignUpAsync(TDto user);
     }
 }
