@@ -54,5 +54,6 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
           script: |
-            sudo systemctl restart myapp
-            sudo systemctl status myapp --no-pager
+            whoami
+                  sudo -n /usr/bin/systemctl restart myapp
+                    sudo -n /usr/bin/systemctl status myapp --no-pager
