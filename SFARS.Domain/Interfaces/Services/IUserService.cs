@@ -7,5 +7,7 @@ namespace SFARS.Domain.Interfaces.Services
         where TDto : class
     {
         Task<IServiceResult> GetByEmailAsync(string email);
+        Task<IServiceResult> GetMeAsync(Guid userId);
+        Task<IServiceResult> UpdateMeAsync(Guid userId, TDto dto);
     }
 }

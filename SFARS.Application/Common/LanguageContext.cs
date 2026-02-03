@@ -15,7 +15,7 @@ public static class LanguageContext
 
     public static string CurrentLanguage
     {
-        get => _currentLanguage.Value ?? SystemLanguage.Vietnamese.ToString();
+        get => _currentLanguage.Value ?? "vi";
         set => _currentLanguage.Value = value;
     }
 }

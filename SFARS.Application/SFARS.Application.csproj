@@ -40,4 +40,8 @@
     <ProjectReference Include="..\SFARS.Infrastructure\SFARS.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Validations\User\" />
+  </ItemGroup>
+
 </Project>

@@ -1,7 +1,9 @@
 ﻿using SFARS.API.Payloads.Request.Auth;
 using SFARS.API.Payloads.Request.Snake;
+using SFARS.API.Payloads.Request.User;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Auth;
+using SFARS.Application.Dtos.User;
 
 namespace SFARS.API.Extension
 {
@@ -55,6 +57,23 @@ namespace SFARS.API.Extension
                 Description = req.Description,
                 Habitat = req.Habitat,
                 IsActive = req.IsActive
+            };
+        }
+        #endregion
+
+        #region User
+        // Mapping from typeof(UpdateProfileRequest) to typeof(UserDto)
+        public static UserDto ToUserForUpdate(this UpdateProfileRequest req)
+        {
+            return new UserDto
+            {
+                FirstName = req.FirstName,
+                LastName = req.LastName,
+                Phone = req.Phone,
+                Avatar = req.Avatar,
+                Address = req.Address,
+                Gender = req.Gender,
+                Dob = req.Dob
             };
         }
         #endregion

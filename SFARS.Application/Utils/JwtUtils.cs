@@ -48,6 +48,7 @@ namespace SFARS.Application.Utils
             //Token claims
             List<Claim> authClaims = new()
             {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Role, user.RoleName),
                 new Claim(CustomClaimTypes.UserType, user.IsRescuer
                     ? ClaimValues.RESCUER_CLAIMVALUE // Is rescuer

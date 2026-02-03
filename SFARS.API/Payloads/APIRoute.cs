@@ -19,6 +19,17 @@
         }
 
         /// <summary>
+        /// User endpoints
+        /// </summary>
+        public static class User
+        {
+            // [GET]
+            public const string Me = Base + "/me";
+            // [PUT]
+            public const string UpdateMe = Base + "/me";
+        }
+
+        /// <summary>
         /// Snake endpoints
         /// </summary>
         public static class Snake
