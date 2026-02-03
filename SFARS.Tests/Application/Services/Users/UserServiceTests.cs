@@ -181,24 +181,34 @@ namespace SFARS.Tests.Application.Services.Users
         [Fact]
         public async Task UpdateMeAsync_ValidRequest_UpdatesAndReturnsUserDto_WithRole()
         {
-            // Arrange
             var userId = Guid.NewGuid();
 
-            // DTO input (simulate client payload mapped from request)
-            // NOTE: In your service, you manually assign allowed fields.
+            // Input DTO (simulate payload from client)
             var dto = CreateValidUserDto();
 
-            // Existing user in DB
-            var userEntity = new User
+            // User entity loaded for UPDATE (tracked entity, no roles needed here)
+            var existingUser = new User
             {
                 Id = userId,
                 Email = "test@example.com"
             };
 
-            // After update, you want response includes Role.
-            // The most reliable way is to re-load user WITH ROLE before mapping (your "cách 2"),
-            // or map from a userWithRole loaded by spec. In test we simulate final returned mapping.
-            var userDtoWithRole = new UserDto
+            // User entity RELOADED after update (include role)
+            var userWithRole = new User
+            {
+                Id = userId,
+                Email = "test@example.com",
+                UserRoles = new List<UserRole>
+        {
+            new UserRole
+            {
+                Role = new Role { RoleName = "User" }
+            }
+        }
+            };
+
+            // Expected DTO returned to client
+            var expectedDto = new UserDto
             {
                 Id = userId,
                 Email = "test@example.com",
@@ -212,40 +222,49 @@ namespace SFARS.Tests.Application.Services.Users
                 Role = "User"
             };
 
-            // 1) Load entity for update
+            // 1️⃣ Load user for update
             _userRepoMock
                 .Setup(r => r.GetByIdAsync(userId))
-                .ReturnsAsync(userEntity);
+                .ReturnsAsync(existingUser);
 
-            // 2) UpdateAsync called
+            // 2️⃣ UpdateAsync called
             _userRepoMock
                 .Setup(r => r.UpdateAsync(It.IsAny<User>()))
                 .Returns(Task.CompletedTask);
 
-            // 3) SaveChangesAsync must report success (>0) for success flow
+            // 3️⃣ SaveChangesAsync must succeed
             _unitOfWorkMock
                 .Setup(u => u.SaveChangesAsync())
                 .ReturnsAsync(1);
 
-            // 4) After saving, service may map from user entity or from a reloaded entity
-            // We'll assume service returns mapping result with Role filled.
-            _mapperMock
-                .Setup(m => m.Map<UserDto>(It.IsAny<User>()))
-                .Returns(userDtoWithRole);
+            // 4️⃣ Reload user WITH ROLE after update (CRITICAL FIX)
+            _userRepoMock
+                .Setup(r => r.GetWithSpecAsync(
+                    It.IsAny<UserByIdWithRoleSpecification>(),
+                    It.IsAny<bool>()))
+                .ReturnsAsync(userWithRole);
 
-            // Act
+            // 5️⃣ Map reloaded entity → DTO
+            _mapperMock
+                .Setup(m => m.Map<UserDto>(userWithRole))
+                .Returns(expectedDto);
+
             var result = await _sut.UpdateMeAsync(userId, dto);
 
-            // Assert
             result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0003);
             result.Data.Should().NotBeNull();
 
             var returned = (UserDto)result.Data!;
             returned.FirstName.Should().Be(dto.FirstName);
+            returned.LastName.Should().Be(dto.LastName);
             returned.Role.Should().Be("User");
 
-            // Verify that update pipeline actually happened
+            // Verify pipeline
+            _userRepoMock.Verify(r => r.GetByIdAsync(userId), Times.Once);
             _userRepoMock.Verify(r => r.UpdateAsync(It.IsAny<User>()), Times.Once);
+            _userRepoMock.Verify(
+                r => r.GetWithSpecAsync(It.IsAny<UserByIdWithRoleSpecification>(), It.IsAny<bool>()),
+                Times.Once);
             _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
         }
 
