@@ -1,8 +1,8 @@
 ﻿using Microsoft.Data.SqlClient;
 using Serilog;
 using SFARS.Application.Configurations;
-using SFARS.Domain.Configurations;
 using SFARS.Application.HealthChecks;
+using SFARS.Infrastructure.Configurations;
 using System.Data.Common;
 
 namespace SFARS.API.Extension
