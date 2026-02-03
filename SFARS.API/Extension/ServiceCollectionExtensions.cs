@@ -20,8 +20,6 @@ namespace SFARS.API.Extension
             });
             // Configures ApiExplorer
             services.AddEndpointsApiExplorer();
-            // Add swagger
-            services.AddSwaggerGen();
 
             return services;
         }

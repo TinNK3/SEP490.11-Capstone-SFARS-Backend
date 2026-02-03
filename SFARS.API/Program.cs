@@ -39,6 +39,9 @@ builder.Services
     // Configure infrastructure services
     .AddInfrastructure(builder.Configuration);
 
+builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.Services.AddSwaggerFeature();
+
 var app = builder.Build();
 
 //app.UseHealthChecks();

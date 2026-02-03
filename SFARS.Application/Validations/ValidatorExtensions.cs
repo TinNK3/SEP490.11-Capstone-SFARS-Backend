@@ -2,7 +2,9 @@
 using FluentValidation.Results;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Auth;
+using SFARS.Application.Dtos.User;
 using SFARS.Application.Validations.Auth;
+using SFARS.Application.Validations.User;
 
 namespace SFARS.Application.Validations
 {
@@ -18,6 +20,7 @@ namespace SFARS.Application.Validations
                 { } when typeof(T) == typeof(SnakeDto) => (IValidator<T>)(object)new SnakeDtoValidator(),
                 { } when typeof(T) == typeof(RefreshTokenDto) => (IValidator<T>)(object)new RefreshTokenDtoValidator(),
                 { } when typeof(T) == typeof(AuthUserDto) => (IValidator<T>)(object)new AuthUserDtoValidator(),
+                { } when typeof(T) == typeof(UserDto) => (IValidator<T>)(object)new UpdateProfileRequestValidator(),
                 _ => null
             };
         }
