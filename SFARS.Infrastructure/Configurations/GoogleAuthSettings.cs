@@ -1,4 +1,4 @@
-namespace SFARS.Domain.Configurations
+namespace SFARS.Infrastructure.Configurations
 {
     public class GoogleAuthSettings
     {

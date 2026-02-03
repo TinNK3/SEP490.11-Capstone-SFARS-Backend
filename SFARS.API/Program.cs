@@ -6,24 +6,11 @@ using SFARS.Application;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var allowedOrigins = builder.Configuration
-    .GetSection("AllowedOrigins")
-    .Get<string[]>() ?? Array.Empty<string>();
-
 builder.Services
     // Add HttpClient
     .AddHttpClient()
-    // Add CORS
-    .AddCors(options =>
-    {
-        options.AddPolicy("SFARS_CORS", policy =>
-        {
-            policy.WithOrigins(allowedOrigins)
-                  .AllowAnyHeader()
-                  .AllowAnyMethod()
-                  .AllowCredentials();
-        });
-    })
+   // Add CORS
+   .AddCors(builder.Configuration, "SFARS_CORS")
     // Add Health Checks
     .AddHealthChecks()
     //Add Api Health check

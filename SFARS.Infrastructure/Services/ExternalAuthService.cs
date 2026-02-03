@@ -1,9 +1,9 @@
 using Google.Apis.Auth;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using SFARS.Domain.Configurations;
 using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Models;
+using SFARS.Infrastructure.Configurations;
 
 namespace SFARS.Infrastructure.Services
 {
