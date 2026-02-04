@@ -17,7 +17,13 @@ namespace SFARS.API.Controller
         {
             _authService = authService;
         }
-    
+
+        [HttpPost(APIRoute.Auth.SignIn, Name = nameof(SignInAsync))]
+        public async Task<IActionResult> SignInAsync([FromBody] SignInRequest req)
+        {
+            var result = await _authService.SignInAsync(req.Email);
+            return this.ToIActionResult(result);
+        }
 
         [HttpPost(APIRoute.Auth.SignInWithPassword, Name = nameof(SignInWithPasswordAsync))]
         public async Task<IActionResult> SignInWithPasswordAsync([FromBody] SignInWithPasswordRequest req)
@@ -30,6 +36,13 @@ namespace SFARS.API.Controller
         public async Task<IActionResult> SignInWithGoogleAsync([FromBody] SignInWithGoogleRequest req)
         {
             var result = await _authService.SignInWithGoogleAsync(req.Credential);
+            return this.ToIActionResult(result);
+        }
+
+        [HttpPost(APIRoute.Auth.SignInWithOtp, Name = nameof(SignInWithOtpAsync))]
+        public async Task<IActionResult> SignInWithOtpAsync([FromBody] SignInWithOtpRequest req)
+        {
+            var result = await _authService.SignInWithOtpAsync(req.Otp, req.ToAuthenticatedUser());
             return this.ToIActionResult(result);
         }
 

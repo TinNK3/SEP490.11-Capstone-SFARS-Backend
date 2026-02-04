@@ -109,9 +109,9 @@
   },
   {
     "MsgId": "Auth.Success0001",
-    "MsgContent": "Registration successful. Please verify your email.",
-    "En": "Registration successful. Please verify your email.",
-    "Vi": "Đăng ký thành công. Vui lòng xác thực email."
+    "MsgContent": "Please continue with password sign-in.",
+    "En": "Please continue with password sign-in.",
+    "Vi": "Vui lòng đăng nhập bằng mật khẩu."
   },
   {
     "MsgId": "Auth.Success0002",

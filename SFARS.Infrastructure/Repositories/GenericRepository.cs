@@ -199,10 +199,11 @@ namespace SFARS.Infrastructure.Repositories
             return await ApplySpecification(specification).ExecuteDeleteAsync();
         }
 
-        public async Task UpdateAsync(TEntity entity)
+        public Task UpdateAsync(TEntity entity)
         {
             _dbSet.Attach(entity);
             _dbSet.Entry(entity).State = EntityState.Modified;
+            return Task.CompletedTask;
         }
 
         #endregion

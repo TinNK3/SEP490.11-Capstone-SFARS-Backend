@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SFARS.Application.Common;
 using SFARS.Application.Configurations;
@@ -13,6 +15,7 @@ using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Infrastructure;
+using SFARS.Domain.Models;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
@@ -29,6 +32,7 @@ namespace SFARS.Application.Services.Auth
         private readonly IJwtUtils _jwtUtils;
         private readonly IExternalAuthService _externalAuthService;
         private readonly ILogger<AuthService> _logger;
+        private readonly IEmailService _emailService;
 
         public AuthService(
             IUserService<UserDto> userService,
@@ -38,7 +42,8 @@ namespace SFARS.Application.Services.Auth
             IJwtUtils jwtUtils,
             IOptionsMonitor<WebTokenSettings> monitor,
             ILogger<AuthService> logger,
-            IExternalAuthService externalAuthService)
+            IExternalAuthService externalAuthService,
+            IEmailService emailService)
         {
             _userService = userService;
             _msgService = msgService;
@@ -48,6 +53,106 @@ namespace SFARS.Application.Services.Auth
             _webTokenSettings = monitor.CurrentValue;
             _logger = logger;
             _externalAuthService = externalAuthService;
+            _emailService = emailService;
+        }
+
+        public async Task<IServiceResult> SignInAsync(string email)
+        {
+            AuthUserDto? authUser = null;
+            bool isAdmin = false;
+
+            // Get user by email
+            var userResult = await _userService.GetByEmailAsync(email);
+
+            if (userResult == null || userResult.ResultCode != ResultCodeConst.SYS_Success0002)
+            {
+                var message = await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002);
+                return new ServiceResult(ResultCodeConst.SYS_Warning0002,
+                    StringUtils.Format(message, "email"));
+            }
+            else if (userResult.Data is UserDto userDto)
+            {
+                //Map user info to authenticate user
+                authUser = userDto.ToAuthUserDto();
+
+                // Check whether user is admin
+                isAdmin = userDto.Role == UserTypeConstants.Admin;
+            }
+
+            if (authUser != null)
+            {
+                var userTypeResult = new UserTypeResultDto
+                {
+                    UserType = isAdmin ? UserTypeConstants.Admin //Admin user
+                    : authUser.IsRescuer ? UserTypeConstants.Rescuer //Rescuer user
+                    : UserTypeConstants.User //Regular user
+                };
+
+                //Check account haven't password yet
+                var hasPassword = !string.IsNullOrEmpty(authUser.PasswordHash);
+
+                // Check account status
+                if (authUser.Status != UserStatus.Active)
+                {
+                    return new ServiceResult(ResultCodeConst.Auth_Warning0001,
+                            await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0001));
+                }
+
+                //Response to keep on sign-in with username/password
+                if (hasPassword) //Existing user with password
+                {
+                    return new ServiceResult(ResultCodeConst.Auth_Success0001,
+                        await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0001));
+                }
+
+                // Response to keep on sign-in with OTP
+                // since user sign-up with external provider
+                else
+                {
+                    //
+                    var otpCode = StringUtils.GenerateUniqueCode();
+
+                    //Email Subject and Body
+                    var emailsubject = "Your One-Time Password (OTP) for SFARS Sign-In";
+                    var emailBody = $@"
+                        <div style='font-family: Arial, sans-serif; background:#f6f7fb; padding:24px;'>
+                            <div style='max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;'>
+                                <div style='background:#2C3E50;color:#fff;padding:16px 24px;'>
+                                    <h2 style='margin:0;font-size:20px;'>SFARS Verification</h2>
+                                </div>
+                                <div style='padding:24px;color:#333;line-height:1.6;'>
+                                    <p>Xin chào <strong>{authUser.FirstName} {authUser.LastName}</strong>,</p>
+                                    <p>Đây là mã OTP để đăng nhập:</p>
+                                    <div style='text-align:center;margin:20px 0;'>
+                                        <span style='display:inline-block;background:#f0f2f7;color:#2C3E50;
+                                            font-size:28px;letter-spacing:6px;padding:12px 18px;border-radius:10px;'>
+                                            {otpCode}
+                                        </span>
+                                    </div>
+                                    <p>Mã có hiệu lực trong thời gian ngắn. Vui lòng không chia sẻ mã này.</p>
+                                    <p style='margin-top:24px;'>Cảm ơn bạn đã sử dụng SFARS.</p>
+                                </div>
+                            </div>
+                        </div>";
+
+                    // Send OTP email and save to user
+                    var isOtpSent = await SendAndSaveOtpAsync(otpCode, authUser, emailsubject, emailBody);
+                    if (isOtpSent)
+                    {
+                        return new ServiceResult(ResultCodeConst.Auth_Success0005,
+                            await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0005));
+                    }
+                    else //Failed to send OTP email
+                    {
+                        return new ServiceResult(ResultCodeConst.Auth_Fail0002,
+                            await _msgService.GetMessageAsync(ResultCodeConst.Auth_Fail0002));
+                    }
+                }
+            }
+
+            // Unknown error
+            return new ServiceResult(ResultCodeConst.SYS_Fail0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0002));
         }
 
         public async Task<IServiceResult> SignInWithPasswordAsync(AuthUserDto user)
@@ -172,6 +277,49 @@ namespace SFARS.Application.Services.Auth
                 return new ServiceResult(ResultCodeConst.SYS_Fail0001,
                      await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
             }
+        }
+
+        public async Task<IServiceResult> SignInWithOtpAsync(string otp, AuthUserDto user)
+        {
+            // Get user by email
+            var userResult = await _userService.GetByEmailAsync(user.Email);
+
+            // Handle User authentication
+            if (userResult.ResultCode == ResultCodeConst.SYS_Success0002
+                && userResult.Data is UserDto userDto)
+            {
+                // Check match confirmation code 
+                if (userDto.EmailVerificationCode == otp)
+                {
+                    user = new AuthUserDto
+                    {
+                        Id = userDto.Id,
+                        Email = userDto.Email,
+                        FirstName = userDto.FirstName ?? string.Empty,
+                        LastName = userDto.LastName ?? string.Empty,
+                        Phone = userDto.Phone,
+                        Dob = userDto.Dob,
+                        Avatar = userDto.Avatar,
+                        Address = userDto.Address,
+                        Status = userDto.Status,
+                        IsRescuer = userDto.Role == UserTypeConstants.Rescuer,
+                        RoleName = userDto.Role ?? UserTypeConstants.User,
+                        Password = string.Empty
+                    };
+                }
+                else
+                {
+                    return new ServiceResult(ResultCodeConst.Auth_Warning0005,
+                            await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0005));
+                }
+            }
+            else
+            {
+                var message = await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002);
+                return new ServiceResult(ResultCodeConst.SYS_Warning0002,
+                    StringUtils.Format(message, "email"));
+            }
+            return await AuthenticateUserAsync(user);
         }
 
         public async Task<IServiceResult> SignUpAsync(AuthUserDto user)
@@ -402,8 +550,8 @@ namespace SFARS.Application.Services.Auth
 
             if (string.IsNullOrEmpty(jwtResponse.AccessToken) || jwtResponse.ValidTo <= DateTime.UtcNow)
             {
-                 _logger.LogError("Failed to generate JWT token for User {UserId}.", user.Id);
-                 return new ServiceResult(ResultCodeConst.SYS_Fail0001, "Invalid JWT token generated");
+                _logger.LogError("Failed to generate JWT token for User {UserId}.", user.Id);
+                return new ServiceResult(ResultCodeConst.SYS_Fail0001, "Invalid JWT token generated");
             }
 
             _logger.LogInformation("User {UserId} authenticated. Token generated.", user.Id);
@@ -428,6 +576,47 @@ namespace SFARS.Application.Services.Auth
                 ResultCodeConst.Auth_Success0002,
                 await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0002),
                 authResult);
+        }
+
+        //Send OTP Email
+        public async Task<bool> SendAndSaveOtpAsync(string otpCode, AuthUserDto user,
+            string subject, string emailBody)
+        {
+            if (string.IsNullOrWhiteSpace(user.Email))
+            {
+                _logger.LogWarning("Cannot send OTP: missing user email.");
+                return false;
+            }
+
+            // Save OTP to user
+            user.EmailVerificationCode = otpCode;
+            var updateResult = await _userService.UpdateEmailVerificationCodeAsync(user.Id, otpCode);
+
+            if (updateResult.Data is not true)
+            {
+                _logger.LogWarning("Failed to update OTP for user {UserId}.", user.Id);
+                return false;
+            }
+
+            // Process send email
+            var emailMessageDto = new EmailMessageDto
+            {
+                // Define Recipients
+                To = user.Email,
+                // Define Subject
+                Subject = subject,
+                // Define Body
+                Body = StringUtils.Format(emailBody, otpCode)
+            };
+
+            var sendResult = await _emailService.SendEmailAsync(message: emailMessageDto, isBodyHtml: true);
+            if (!sendResult)
+            {
+                _logger.LogWarning("Failed to send OTP email to {Email}.", user.Email);
+                return false;
+            }
+
+            return true;
         }
     }
 }
