@@ -28,6 +28,9 @@ public class User : BaseEntity
     // Location (Real-time)
     public Point? CurrentLocation { get; set; }
 
+    // Email Verification
+    public string? EmailVerificationCode { get; set; }
+
     // Navigation Properties
     public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
     public virtual ICollection<UserDevice> UserDevices { get; set; } = new List<UserDevice>();

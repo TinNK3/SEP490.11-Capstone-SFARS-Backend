@@ -28,6 +28,7 @@ public static class DependencyInjection
             services.AddScoped<IDatabaseInitializer, DatabaseInitializer>();
             
             services.AddScoped<IExternalAuthService, ExternalAuthService>();
+            services.AddScoped<IEmailService, EmailService>();
             
             // Register repositories
             services.AddScoped(typeof(IGenericRepository<,>), typeof(GenericRepository<,>));

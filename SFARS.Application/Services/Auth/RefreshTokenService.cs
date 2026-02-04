@@ -27,8 +27,7 @@ namespace SFARS.Application.Services.Auth
         public async Task<IServiceResult> GetByUserIdAsync(Guid userId)
         {
             var refreshToken = await _unitOfWork.Repository<RefreshToken, int>().GetWithSpecAsync(
-                    new BaseSpecification<RefreshToken>(r => r.UserId != null &&
-                        r.UserId.ToString()!.Equals(userId.ToString())));
+                    new BaseSpecification<RefreshToken>(r => r.UserId == userId));
 
             if (refreshToken is null)
             {

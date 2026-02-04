@@ -27,6 +27,7 @@ public class AuthenticationServiceTests
     private readonly Mock<IOptionsMonitor<WebTokenSettings>> _webTokenSettingsMock;
     private readonly Mock<ILogger<AuthService>> _loggerMock;
     private readonly Mock<IExternalAuthService> _externalAuthServiceMock;
+    private readonly Mock<IEmailService> _emailServiceMock;
     private readonly AuthService _sut; // System Under Test
 
     public AuthenticationServiceTests()
@@ -39,6 +40,7 @@ public class AuthenticationServiceTests
         _webTokenSettingsMock = new Mock<IOptionsMonitor<WebTokenSettings>>();
         _loggerMock = new Mock<ILogger<AuthService>>();
         _externalAuthServiceMock = new Mock<IExternalAuthService>();
+        _emailServiceMock = new Mock<IEmailService>();
 
         // Setup WebTokenSettings
         var webTokenSettings = new WebTokenSettings
@@ -69,7 +71,8 @@ public class AuthenticationServiceTests
             _jwtUtilsMock.Object,
             _webTokenSettingsMock.Object,
             _loggerMock.Object,
-            _externalAuthServiceMock.Object
+            _externalAuthServiceMock.Object,
+            _emailServiceMock.Object
         );
     }
 

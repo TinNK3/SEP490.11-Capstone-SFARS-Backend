@@ -6,7 +6,7 @@ namespace SFARS.Application.Dtos.Auth
     /// <summary>
     /// DTO for authenticated user response (includes auth-specific fields)
     /// </summary>
-    public class AuthUserDto
+    public class AuthUserDto 
     {
         public Guid Id { get; set; }
         public string Email { get; set; } = null!;
@@ -28,13 +28,15 @@ namespace SFARS.Application.Dtos.Auth
         public string? RefreshToken { get; set; }
         public string? Password { get; set; }
         public string? PasswordHash { get; set; }
+        public string? EmailVerificationCode { get; set; }
         public bool IsRescuer { get; set; }
         public string RoleName { get; set; } = null!;
     }
 
     public static class AuthUserDtoExtensions
     {
-        public static UserDto ToUserDto(this AuthUserDto authenticateUser)
+        public static UserDto ToUserDto(
+            this AuthUserDto authenticateUser)
         {
             return new UserDto
             {
@@ -43,6 +45,8 @@ namespace SFARS.Application.Dtos.Auth
                 FirstName = authenticateUser.FirstName,
                 LastName = authenticateUser.LastName,
                 Phone = authenticateUser.Phone,
+                PasswordHash = authenticateUser.PasswordHash,
+                EmailVerificationCode = authenticateUser.EmailVerificationCode,
                 Avatar = authenticateUser.Avatar,
                 Address = authenticateUser.Address,
                 Gender = authenticateUser.Gender,
