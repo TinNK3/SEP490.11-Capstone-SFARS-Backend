@@ -14,7 +14,7 @@ namespace SFARS.Application.Utils
         /// <returns>A randomly generated alphanumeric string.</returns>
         public static string GenerateUniqueCode(int length = 6)
         {
-            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            const string chars = "0123456789";
             return new string(Enumerable.Repeat(chars, length)
                 .Select(s => s[Random.Shared.Next(s.Length)])
                 .ToArray());

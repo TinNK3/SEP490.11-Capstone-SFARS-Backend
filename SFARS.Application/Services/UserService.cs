@@ -151,5 +151,63 @@ namespace SFARS.Application.Services
                 _mapper.Map<UserDto>(userWithRole)
             );
         }
+
+        public async Task<IServiceResult> UpdateEmailVerificationCodeAsync(Guid userId, string otp)
+        {
+            // Initiate service result
+            var serviceResult = new ServiceResult();
+
+            try
+            {
+                // Retrieve the entity
+                var existingEntity = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(userId);
+
+                //Check not found
+                if (existingEntity == null)
+                {
+                    return new ServiceResult(ResultCodeConst.SYS_Fail0002,
+                        await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002), false);
+                }
+
+                // Update email verification code
+                existingEntity.EmailVerificationCode = otp;
+
+                // Check if there are any differences between the original and the updated entity
+                if (!_unitOfWork.Repository<User, Guid>().HasChanges(existingEntity))
+                {
+                    serviceResult.ResultCode = ResultCodeConst.SYS_Success0003;
+                    serviceResult.Message = await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0003);
+                    serviceResult.Data = true;
+                    return serviceResult;
+                }
+
+                // Progress update when all require passed
+                await _unitOfWork.Repository<User, Guid>().UpdateAsync(existingEntity);
+
+                // Commit the changes
+                var commitResult = await _unitOfWork.SaveChangesAsync();
+
+                // Check commit result
+                if (commitResult == 0)
+                {
+                    serviceResult.ResultCode = ResultCodeConst.SYS_Fail0003;
+                    serviceResult.Message = await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0003);
+                    serviceResult.Data = false;
+                    return serviceResult;
+                }
+
+                // Response update success
+                serviceResult.ResultCode = ResultCodeConst.SYS_Success0003;
+                serviceResult.Message = await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0003);
+                serviceResult.Data = true;
+            }
+            catch(Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                throw new Exception("Error invoke while confirm email verification code");
+            }
+
+            return serviceResult;
+        }
     }
 }

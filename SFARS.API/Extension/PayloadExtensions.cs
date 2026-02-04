@@ -10,6 +10,7 @@ namespace SFARS.API.Extension
     public static class PayloadExtensions
     {
         #region Auth
+
         // Mapping from typeof(SignInWithPasswordRequest) to typeof(AuthenticateUserDto)
         public static AuthUserDto ToAuthenticatedUser(this SignInWithPasswordRequest req)
             => new AuthUserDto
@@ -27,6 +28,14 @@ namespace SFARS.API.Extension
                 LastName = req.LastName,
                 Password = req.Password,
                 IsRescuer = false
+            };
+
+        // Mapping from typeof(SignInWithOtpRequest) to typeof(AuthenticateUserDto)
+        public static AuthUserDto ToAuthenticatedUser(this SignInWithOtpRequest req)
+            => new AuthUserDto
+            {
+                Email = req.Email,
+                Password = null!
             };
         #endregion
 

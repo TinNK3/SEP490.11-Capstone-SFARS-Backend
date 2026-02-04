@@ -49,6 +49,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasColumnType("geography")
             .HasColumnName("current_location");
 
+        #region Update at: 4-02-2026 by Nguyen Khanh Tin
+        builder.Property(e => e.EmailVerificationCode)
+            .HasMaxLength(20)
+            .HasColumnName("email_verification_code");
+        #endregion
+
         builder.Property(e => e.Gender)
             .HasConversion<string>()
             .HasMaxLength(10)
