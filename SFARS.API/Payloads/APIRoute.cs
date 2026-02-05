@@ -9,14 +9,17 @@
         /// </summary>
         public static class Auth
         {
-            // [GET]
-
             // [POST]
             public const string SignIn = Base + "/auth/sign-in";
             public const string SignInWithPassword = Base + "/auth/sign-in/password-method";
             public const string SignInWithGoogle = Base + "/auth/sign-in/google-method";
             public const string SignInWithOtp = Base + "/auth/sign-in/otp-method";
             public const string SignUp = Base + "/auth/sign-up";
+            public const string RefreshToken = Base + "/auth/refresh-token";
+            public const string ForgotPassword = Base + "/auth/forgot-password";
+            public const string ResetPassword = Base + "/auth/reset-password";
+
+            // [PUT]
 
         }
 

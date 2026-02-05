@@ -21,6 +21,8 @@ namespace SFARS.Application.Validations
                 { } when typeof(T) == typeof(RefreshTokenDto) => (IValidator<T>)(object)new RefreshTokenDtoValidator(),
                 { } when typeof(T) == typeof(AuthUserDto) => (IValidator<T>)(object)new AuthUserDtoValidator(),
                 { } when typeof(T) == typeof(UserDto) => (IValidator<T>)(object)new UpdateProfileRequestValidator(),
+                { } when typeof(T) == typeof(ForgotPasswordDto) => (IValidator<T>)(object)new ForgotPasswordDtoValidator(),
+                { } when typeof(T) == typeof(ResetPasswordDto) => (IValidator<T>)(object)new ResetPasswordDtoValidator(),
                 _ => null
             };
         }

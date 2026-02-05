@@ -12,6 +12,24 @@ namespace SFARS.API.Extension
             var jwt = config.GetSection("WebTokenSettings").Get<WebTokenSettings>()
                       ?? throw new InvalidOperationException("WebTokenSettings is missing in configuration.");
 
+            var tokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = jwt.ValidateIssuerSigningKey,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.IssuerSigningKey)),
+
+                ValidateIssuer = jwt.ValidateIssuer,
+                ValidIssuer = jwt.ValidIssuer,
+
+                ValidateAudience = jwt.ValidateAudience,
+                ValidAudience = jwt.ValidAudience,
+
+                RequireExpirationTime = jwt.RequireExpirationTime,
+                ValidateLifetime = jwt.ValidateLifetime,
+                ClockSkew = TimeSpan.Zero
+            };
+
+            services.AddSingleton(tokenValidationParameters);
+
             services
                 .AddAuthentication(options =>
                 {
@@ -23,21 +41,7 @@ namespace SFARS.API.Extension
                     options.RequireHttpsMetadata = false;
                     options.SaveToken = true;
 
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateIssuerSigningKey = jwt.ValidateIssuerSigningKey,
-                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.IssuerSigningKey)),
-
-                        ValidateIssuer = jwt.ValidateIssuer,
-                        ValidIssuer = jwt.ValidIssuer,
-
-                        ValidateAudience = jwt.ValidateAudience,
-                        ValidAudience = jwt.ValidAudience,
-
-                        RequireExpirationTime = jwt.RequireExpirationTime,
-                        ValidateLifetime = jwt.ValidateLifetime,
-                        ClockSkew = TimeSpan.Zero
-                    };
+                    options.TokenValidationParameters = tokenValidationParameters;
                 });
 
             return services;
