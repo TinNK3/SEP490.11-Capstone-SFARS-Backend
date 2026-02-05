@@ -180,6 +180,12 @@
     "Vi": "Yêu cầu xác thực hai yếu tố."
   },
   {
+    "MsgId": "Auth.Warning0011",
+    "MsgContent": "New password must be different from old password.",
+    "En": "New password must be different from old password.",
+    "Vi": "Mật khẩu mới phải khác mật khẩu cũ."
+  },
+  {
     "MsgId": "Auth.Warning0013",
     "MsgContent": "Authentication required.",
     "En": "Authentication required.",

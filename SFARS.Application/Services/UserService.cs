@@ -209,5 +209,48 @@ namespace SFARS.Application.Services
 
             return serviceResult;
         }
+
+        public async Task<IServiceResult> UpdatePasswordAsync(Guid userId, string newPasswordHash)
+        {
+            try
+            {
+                // Retrieve the entity
+                var existingEntity = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(userId);
+
+                // Check not found
+                if (existingEntity == null)
+                {
+                    return new ServiceResult(ResultCodeConst.SYS_Warning0004,
+                        await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004), false);
+                }
+
+                // Update password hash and clear email verification code
+                existingEntity.PasswordHash = newPasswordHash;
+                existingEntity.EmailVerificationCode = null;
+                existingEntity.UpdatedAt = DateTime.UtcNow;
+
+                // Progress update
+                await _unitOfWork.Repository<User, Guid>().UpdateAsync(existingEntity);
+
+                // Commit the changes
+                var commitResult = await _unitOfWork.SaveChangesAsync();
+
+                // Check commit result
+                if (commitResult == 0)
+                {
+                    return new ServiceResult(ResultCodeConst.SYS_Fail0003,
+                        await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0003), false);
+                }
+
+                // Response update success
+                return new ServiceResult(ResultCodeConst.SYS_Success0003,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0003), true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating password for user {UserId}", userId);
+                throw new Exception("Error occurred while updating password");
+            }
+        }
     }
 }

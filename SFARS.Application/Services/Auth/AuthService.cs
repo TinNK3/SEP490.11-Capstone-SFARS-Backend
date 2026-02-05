@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using SFARS.Application.Common;
 using SFARS.Application.Configurations;
 using SFARS.Application.Dtos.Auth;
@@ -15,10 +17,11 @@ using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Infrastructure;
-using SFARS.Domain.Models;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
+using SFARS.Domain.Models;
 using SFARS.Domain.Specifications;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace SFARS.Application.Services.Auth
 {
@@ -27,6 +30,7 @@ namespace SFARS.Application.Services.Auth
         private readonly IUserService<UserDto> _userService;
         private readonly ISystemMessageService _msgService;
         private readonly IRefreshTokenService<RefreshTokenDto> _refreshTokenService;
+        private readonly TokenValidationParameters _tokenValidationParameters;
         private readonly IUnitOfWork _unitOfWork;
         private readonly WebTokenSettings _webTokenSettings;
         private readonly IJwtUtils _jwtUtils;
@@ -38,6 +42,7 @@ namespace SFARS.Application.Services.Auth
             IUserService<UserDto> userService,
             ISystemMessageService msgService,
             IRefreshTokenService<RefreshTokenDto> refreshTokenService,
+            TokenValidationParameters tokenValidationParameters,
             IUnitOfWork unitOfWork,
             IJwtUtils jwtUtils,
             IOptionsMonitor<WebTokenSettings> monitor,
@@ -48,6 +53,7 @@ namespace SFARS.Application.Services.Auth
             _userService = userService;
             _msgService = msgService;
             _refreshTokenService = refreshTokenService;
+            _tokenValidationParameters = tokenValidationParameters;
             _unitOfWork = unitOfWork;
             _jwtUtils = jwtUtils;
             _webTokenSettings = monitor.CurrentValue;
@@ -102,7 +108,8 @@ namespace SFARS.Application.Services.Auth
                 if (hasPassword) //Existing user with password
                 {
                     return new ServiceResult(ResultCodeConst.Auth_Success0001,
-                        await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0001));
+                        await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0001),
+                        new SignInMethodDto { Method = "password" });
                 }
 
                 // Response to keep on sign-in with OTP
@@ -140,7 +147,8 @@ namespace SFARS.Application.Services.Auth
                     if (isOtpSent)
                     {
                         return new ServiceResult(ResultCodeConst.Auth_Success0005,
-                            await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0005));
+                            await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0005),
+                            new SignInMethodDto { Method = "otp" });
                     }
                     else //Failed to send OTP email
                     {
@@ -360,6 +368,138 @@ namespace SFARS.Application.Services.Auth
                     await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
         }
 
+        public async Task<IServiceResult> ForgotPasswordAsync(string email)
+        {
+            // Validate using DTO
+            var dto = new ForgotPasswordDto { Email = email };
+            var validation = await ValidatorExtensions.ValidateAsync(dto);
+            if (validation != null && !validation.IsValid)
+            {
+                return new ServiceResult(ResultCodeConst.SYS_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001),
+                    validation.ToProblemDetails().Errors);
+            }
+
+            // Get user by email
+            var userResult = await _userService.GetByEmailAsync(email);
+
+            if (userResult.ResultCode != ResultCodeConst.SYS_Success0002 || userResult.Data is not UserDto userDto)
+            {
+                // User not found - return error
+                _logger.LogWarning("Forgot password request for non-existent email: {Email}", email);
+                return new ServiceResult(ResultCodeConst.SYS_Warning0002,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002));
+            }
+
+            // Check if user is active
+            if (userDto.Status != UserStatus.Active)
+            {
+                _logger.LogWarning("Forgot password request for inactive user: {Email}", email);
+                return new ServiceResult(ResultCodeConst.Auth_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0001));
+            }
+
+            // Generate OTP code
+            var otpCode = StringUtils.GenerateUniqueCode();
+
+            // Map to AuthUserDto
+            var authUser = userDto.ToAuthUserDto();
+
+            // Email Subject and Body
+            var emailSubject = "Password Reset OTP for SFARS";
+            var emailBody = $@"
+                <div style='font-family: Arial, sans-serif; background:#f6f7fb; padding:24px;'>
+                    <div style='max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;'>
+                        <div style='background:#2C3E50;color:#fff;padding:16px 24px;'>
+                            <h2 style='margin:0;font-size:20px;'>SFARS Password Reset</h2>
+                        </div>
+                        <div style='padding:24px;color:#333;line-height:1.6;'>
+                            <p>Xin chào <strong>{authUser.FirstName} {authUser.LastName}</strong>,</p>
+                            <p>Bạn đã yêu cầu đặt lại mật khẩu. Đây là mã OTP của bạn:</p>
+                            <div style='text-align:center;margin:20px 0;'>
+                                <span style='display:inline-block;background:#f0f2f7;color:#2C3E50;
+                                    font-size:28px;letter-spacing:6px;padding:12px 18px;border-radius:10px;'>
+                                    {otpCode}
+                                </span>
+                            </div>
+                            <p>Mã có hiệu lực trong thời gian ngắn. Vui lòng không chia sẻ mã này với bất kỳ ai.</p>
+                            <p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
+                            <p style='margin-top:24px;'>Cảm ơn bạn đã sử dụng SFARS.</p>
+                        </div>
+                    </div>
+                </div>";
+
+            // Send OTP email and save to user
+            var isOtpSent = await SendAndSaveOtpAsync(otpCode, authUser, emailSubject, emailBody);
+
+            if (isOtpSent)
+            {
+                _logger.LogInformation("Password reset OTP sent to {Email}", email);
+                return new ServiceResult(ResultCodeConst.Auth_Success0005,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0005));
+            }
+
+            _logger.LogError("Failed to send password reset OTP to {Email}", email);
+            return new ServiceResult(ResultCodeConst.Auth_Fail0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.Auth_Fail0002));
+        }
+
+        public async Task<IServiceResult> ResetPasswordAsync(string email, string otp, string newPassword)
+        {
+            // Validate using DTO
+            var dto = new ResetPasswordDto { Email = email, Otp = otp, NewPassword = newPassword };
+            var validation = await ValidatorExtensions.ValidateAsync(dto);
+            if (validation != null && !validation.IsValid)
+            {
+                return new ServiceResult(ResultCodeConst.SYS_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001),
+                    validation.ToProblemDetails().Errors);
+            }
+
+            // Get user by email
+            var userResult = await _userService.GetByEmailAsync(email);
+
+            if (userResult.ResultCode != ResultCodeConst.SYS_Success0002 || userResult.Data is not UserDto userDto)
+            {
+                _logger.LogWarning("Reset password attempt for non-existent email: {Email}", email);
+                return new ServiceResult(ResultCodeConst.SYS_Warning0002,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002));
+            }
+
+            // Verify OTP
+            if (userDto.EmailVerificationCode != otp)
+            {
+                _logger.LogWarning("Reset password attempt with invalid OTP for {Email}", email);
+                return new ServiceResult(ResultCodeConst.Auth_Warning0005,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0005));
+            }
+
+            // Check if new password is same as old password
+            if (!string.IsNullOrEmpty(userDto.PasswordHash) && ValidatePassword(newPassword, userDto.PasswordHash))
+            {
+                _logger.LogWarning("Reset password attempt with same password for {Email}", email);
+                return new ServiceResult(ResultCodeConst.Auth_Warning0011,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0011));
+            }
+
+            // Hash new password
+            var newPasswordHash = HashUtils.HashPassword(newPassword);
+
+            // Update user password and clear OTP
+            var updateResult = await _userService.UpdatePasswordAsync(userDto.Id, newPasswordHash);
+
+            if (updateResult.ResultCode == ResultCodeConst.SYS_Success0003)
+            {
+                _logger.LogInformation("Password reset successful for {Email}", email);
+                return new ServiceResult(ResultCodeConst.SYS_Success0003,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0003));
+            }
+
+            _logger.LogError("Failed to reset password for {Email}", email);
+            return new ServiceResult(ResultCodeConst.SYS_Fail0001,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
+        }
+
         // Handle refresh token
         private async Task<IServiceResult> HandleRefreshTokenAsync(AuthUserDto user, string tokenId)
         {
@@ -396,6 +536,124 @@ namespace SFARS.Application.Services.Auth
             }
 
             return new ServiceResult(ResultCodeConst.SYS_Success0001, null, refreshTokenDto);
+        }
+
+
+        public async Task<IServiceResult> RefreshTokenAsync(string refreshTokenId, string accessToken)
+        {
+            //Try to validate and extract claims from access token
+            var token = _jwtUtils.GetPrincipalFromExpiredToken(accessToken);
+            if (token == null)
+            {
+                _logger.LogWarning("Refresh token failed: unable to extract principal from access token.");
+                throw new UnauthorizedException("Invalid access token.");
+            }
+
+            // Retrieve claims from the authenticated user's identity
+            var roleName = token?.Claims.FirstOrDefault(c => c.Type == CustomClaimTypes.Role)?.Value
+                           ?? token?.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+            var userType = token?.Claims.FirstOrDefault(c => c.Type == CustomClaimTypes.UserType)?.Value;
+            var email = token?.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Email)?.Value
+                        ?? token?.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value
+                        ?? token?.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
+            var name = token?.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Name)?.Value
+                       ?? token?.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name)?.Value;
+            var tokenId = token?.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Jti)?.Value;
+            var userIdClaim = token?.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value
+                              ?? token?.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value
+                              ?? token?.Claims.FirstOrDefault(c => c.Type == "nameid")?.Value;
+            var hasUserId = Guid.TryParse(userIdClaim, out var userId);
+            if (string.IsNullOrEmpty(email) // Is not exist email claim
+                || string.IsNullOrEmpty(userType) // Is not exist user type claim
+                || string.IsNullOrEmpty(roleName) // Is not exist role claim
+                || string.IsNullOrEmpty(name) // Is not exist name claim
+                || string.IsNullOrEmpty(tokenId) // Is not exist tokenId claim
+                || !hasUserId) // Is not exist user id claim
+            {
+                _logger.LogWarning(
+                    "Refresh token failed: missing claims. Email:{Email}, UserType:{UserType}, Role:{Role}, Name:{Name}, Jti:{Jti}, UserId:{UserId}",
+                    email, userType, roleName, name, tokenId, userIdClaim);
+                // 401
+                throw new UnauthorizedException("Missing token claims.");
+            }
+
+            var getRefreshTokenResult = await _refreshTokenService.GetByTokenIdAndRefreshTokenIdAsync(
+                tokenId, refreshTokenId);
+             if (getRefreshTokenResult.Data != null) // Exist refresh token
+            {
+                // Map to RefreshTokenDto
+                var refreshTokenDto = (getRefreshTokenResult.Data as RefreshTokenDto)!;
+                // Retrieve refresh token limit
+                var maxRefreshTokenLifeSpan = _webTokenSettings.MaxRefreshTokenLifeSpan;
+                // Check whether valid refresh token limit
+                if (refreshTokenDto.RefreshCount + 1 > maxRefreshTokenLifeSpan)
+                {
+                    throw new ForbiddenException(
+                        await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0002));
+                }
+
+                // Generate new tokenId
+                tokenId = Guid.NewGuid().ToString();
+                // Rotate refresh token
+                refreshTokenDto.TokenId = tokenId;
+                refreshTokenDto.RefreshTokenId = await _jwtUtils.GenerateRefreshTokenAsync();
+                refreshTokenDto.RefreshCount += 1;
+                refreshTokenDto.CreateDate = DateTime.UtcNow;
+                refreshTokenDto.ExpiryDate = DateTime.UtcNow.AddMinutes(_webTokenSettings.RefreshTokenLifeTimeInMinutes);
+
+                // Progress update
+                var updateResult = await _refreshTokenService.UpdateAsync(refreshTokenDto.Id, refreshTokenDto);
+                if (updateResult.ResultCode == ResultCodeConst.SYS_Success0003) // Update success
+                {
+                    UserDto? userDto = null;
+                    var userResult = await _userService.GetByEmailAsync(email);
+                    if (userResult?.ResultCode == ResultCodeConst.SYS_Success0002
+                        && userResult.Data is UserDto foundUser)
+                    {
+                        userDto = foundUser;
+                    }
+                    else
+                    {
+                        userDto = new UserDto
+                        {
+                            Id = userId,
+                            Email = email,
+                            FirstName = name,
+                            LastName = string.Empty,
+                            Status = UserStatus.Active,
+                            Role = roleName
+                        };
+                    }
+
+                    // Generate authenticated user
+                    var authenticatedUserDto = new AuthUserDto()
+                    {
+                        Id = userId,
+                        Email = email,
+                        FirstName = name,
+                        LastName = string.Empty,
+                        RoleName = roleName,
+                        IsRescuer = userType.Equals(ClaimValues.RESCUER_CLAIMVALUE),
+                        Status = UserStatus.Active
+                    };
+
+                    // Generate access token
+                    var generateResult = await _jwtUtils
+                        .GenerateJwtTokenAsync(tokenId: tokenId, user: authenticatedUserDto);
+
+                    return new ServiceResult(ResultCodeConst.Auth_Success0008,
+                        await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0008),
+                        new AuthResultDto
+                        {
+                            AccessToken = generateResult.AccessToken,
+                            RefreshToken = refreshTokenDto.RefreshTokenId,
+                            ValidTo = generateResult.ValidTo,
+                            User = userDto
+                        });
+                }
+            }
+
+            return null!;
         }
 
         // Update existing refresh token
