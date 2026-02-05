@@ -1,4 +1,5 @@
 using SFARS.Application.Dtos.Auth;
+using System.Security.Claims;
 
 namespace SFARS.Application.Utils
 {
@@ -6,5 +7,6 @@ namespace SFARS.Application.Utils
     {
         Task<(string AccessToken, DateTime ValidTo)> GenerateJwtTokenAsync(string tokenId, AuthUserDto user);
         Task<string> GenerateRefreshTokenAsync();
+        ClaimsPrincipal? GetPrincipalFromExpiredToken(string accessToken);
     }
 }

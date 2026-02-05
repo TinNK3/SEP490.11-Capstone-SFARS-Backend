@@ -39,6 +39,7 @@ namespace SFARS.Application.Common
         public const string Auth_Warning0007 = "Auth.Warning0007";
         public const string Auth_Warning0008 = "Auth.Warning0008";
         public const string Auth_Warning0010 = "Auth.Warning0010";
+        public const string Auth_Warning0011 = "Auth.Warning0011"; // New password same as old password
         public const string Auth_Warning0013 = "Auth.Warning0013";
 
         public const string Auth_Fail0002 = "Auth.Fail0002";

@@ -52,5 +52,26 @@ namespace SFARS.API.Controller
             var result = await _authService.SignUpAsync(req.ToAuthenticatedUser());
             return this.ToIActionResult(result);
         }
+
+        [HttpPost(APIRoute.Auth.ForgotPassword, Name = nameof(ForgotPasswordAsync))]
+        public async Task<IActionResult> ForgotPasswordAsync([FromBody] ForgotPasswordRequest req)
+        {
+            var result = await _authService.ForgotPasswordAsync(req.Email);
+            return this.ToIActionResult(result);
+        }
+
+        [HttpPost(APIRoute.Auth.ResetPassword, Name = nameof(ResetPasswordAsync))]
+        public async Task<IActionResult> ResetPasswordAsync([FromBody] ResetPasswordRequest req)
+        {
+            var result = await _authService.ResetPasswordAsync(req.Email, req.Otp, req.NewPassword);
+            return this.ToIActionResult(result);
+        }
+
+        [HttpPost(APIRoute.Auth.RefreshToken, Name = nameof(RefreshTokenAsync))]
+        public async Task<IActionResult> RefreshTokenAsync([FromBody] RefreshTokenRequest req)
+        {
+            var result = await _authService.RefreshTokenAsync(req.RefreshToken, req.AccessToken);
+            return this.ToIActionResult(result);
+        }
     }
 }

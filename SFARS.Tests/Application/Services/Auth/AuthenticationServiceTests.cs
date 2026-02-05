@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Moq;
 using SFARS.Application.Common;
 using SFARS.Application.Configurations;
@@ -28,6 +29,7 @@ public class AuthenticationServiceTests
     private readonly Mock<ILogger<AuthService>> _loggerMock;
     private readonly Mock<IExternalAuthService> _externalAuthServiceMock;
     private readonly Mock<IEmailService> _emailServiceMock;
+    private readonly TokenValidationParameters _tokenValidationParameters;
     private readonly AuthService _sut; // System Under Test
 
     public AuthenticationServiceTests()
@@ -41,6 +43,7 @@ public class AuthenticationServiceTests
         _loggerMock = new Mock<ILogger<AuthService>>();
         _externalAuthServiceMock = new Mock<IExternalAuthService>();
         _emailServiceMock = new Mock<IEmailService>();
+        _tokenValidationParameters = new TokenValidationParameters();
 
         // Setup WebTokenSettings
         var webTokenSettings = new WebTokenSettings
@@ -67,6 +70,7 @@ public class AuthenticationServiceTests
             _userServiceMock.Object,
             _msgServiceMock.Object,
             _refreshTokenServiceMock.Object,
+            _tokenValidationParameters,
             _unitOfWorkMock.Object,
             _jwtUtilsMock.Object,
             _webTokenSettingsMock.Object,
@@ -304,6 +308,245 @@ public class AuthenticationServiceTests
         // Assert
         await act.Should().ThrowAsync<UnauthorizedAccessException>()
             .WithMessage("Invalid Google Token.");
+    }
+
+    #endregion
+
+    #region ForgotPasswordAsync Tests
+
+    [Fact]
+    public async Task ForgotPasswordAsync_EmptyEmail_ReturnsWarning()
+    {
+        // Arrange
+        var email = "";
+
+        // Act
+        var result = await _sut.ForgotPasswordAsync(email);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0001);
+    }
+
+    [Fact]
+    public async Task ForgotPasswordAsync_UserNotFound_ReturnsWarning()
+    {
+        // Arrange - Trả về warning khi email không tồn tại
+        var email = "notfound@test.com";
+        
+        _userServiceMock.Setup(x => x.GetByEmailAsync(email))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Warning0002, "Not found", null!));
+
+        // Act
+        var result = await _sut.ForgotPasswordAsync(email);
+
+        // Assert - Trả về warning khi email không tồn tại
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0002);
+    }
+
+    [Fact]
+    public async Task ForgotPasswordAsync_UserInactive_ReturnsWarning()
+    {
+        // Arrange
+        var email = "inactive@test.com";
+        var userDto = CreateValidUserDto();
+        userDto.Email = email;
+        userDto.Status = UserStatus.Inactive;
+
+        _userServiceMock.Setup(x => x.GetByEmailAsync(email))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
+
+        // Act
+        var result = await _sut.ForgotPasswordAsync(email);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0001);
+    }
+
+    [Fact]
+    public async Task ForgotPasswordAsync_ValidEmail_SendsOtpAndReturnsSuccess()
+    {
+        // Arrange
+        var email = "test@example.com";
+        var userDto = CreateValidUserDto();
+        userDto.Email = email;
+
+        _userServiceMock.Setup(x => x.GetByEmailAsync(email))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
+
+        _emailServiceMock.Setup(x => x.SendEmailAsync(It.Is<EmailMessageDto>(m => m.To == email), It.IsAny<bool>()))
+            .ReturnsAsync(true);
+
+        _userServiceMock.Setup(x => x.UpdateEmailVerificationCodeAsync(userDto.Id, It.IsAny<string>()))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0003, null!, true));
+
+        // Act
+        var result = await _sut.ForgotPasswordAsync(email);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.Auth_Success0005);
+        _emailServiceMock.Verify(x => x.SendEmailAsync(It.Is<EmailMessageDto>(m => m.To == email), It.IsAny<bool>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ForgotPasswordAsync_EmailSendFails_ReturnsFailure()
+    {
+        // Arrange
+        var email = "test@example.com";
+        var userDto = CreateValidUserDto();
+        userDto.Email = email;
+
+        _userServiceMock.Setup(x => x.GetByEmailAsync(email))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
+
+        // Phải setup UpdateEmailVerificationCodeAsync trả về success trước khi gửi email
+        _userServiceMock.Setup(x => x.UpdateEmailVerificationCodeAsync(userDto.Id, It.IsAny<string>()))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0003, null!, true));
+
+        _emailServiceMock.Setup(x => x.SendEmailAsync(It.Is<EmailMessageDto>(m => m.To == email), It.IsAny<bool>()))
+            .ReturnsAsync(false);
+
+        // Act
+        var result = await _sut.ForgotPasswordAsync(email);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.Auth_Fail0002);
+    }
+
+    #endregion
+
+    #region ResetPasswordAsync Tests
+
+    [Fact]
+    public async Task ResetPasswordAsync_EmptyInputs_ReturnsWarning()
+    {
+        // Arrange
+        var email = "";
+        var otp = "";
+        var newPassword = "";
+
+        // Act
+        var result = await _sut.ResetPasswordAsync(email, otp, newPassword);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0001);
+    }
+
+    [Fact]
+    public async Task ResetPasswordAsync_UserNotFound_ReturnsWarning()
+    {
+        // Arrange
+        var email = "notfound@test.com";
+        var otp = "123456";
+        var newPassword = "NewPassword123!";
+
+        _userServiceMock.Setup(x => x.GetByEmailAsync(email))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Warning0002, "Not found", null!));
+
+        // Act
+        var result = await _sut.ResetPasswordAsync(email, otp, newPassword);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0002);
+    }
+
+    [Fact]
+    public async Task ResetPasswordAsync_InvalidOtp_ReturnsWarning()
+    {
+        // Arrange
+        var email = "test@example.com";
+        var otp = "wrong-otp";
+        var newPassword = "NewPassword123!";
+        
+        var userDto = CreateValidUserDto();
+        userDto.Email = email;
+        userDto.EmailVerificationCode = "correct-otp";
+
+        _userServiceMock.Setup(x => x.GetByEmailAsync(email))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
+
+        // Act
+        var result = await _sut.ResetPasswordAsync(email, otp, newPassword);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0005);
+    }
+
+    [Fact]
+    public async Task ResetPasswordAsync_ValidOtp_UpdatesPassword()
+    {
+        // Arrange
+        var email = "test@example.com";
+        var otp = "123456";
+        var newPassword = "NewPassword123!";
+        
+        var userDto = CreateValidUserDto();
+        userDto.Email = email;
+        userDto.EmailVerificationCode = otp;
+
+        _userServiceMock.Setup(x => x.GetByEmailAsync(email))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
+
+        _userServiceMock.Setup(x => x.UpdatePasswordAsync(userDto.Id, It.IsAny<string>()))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0003, null!, true));
+
+        // Act
+        var result = await _sut.ResetPasswordAsync(email, otp, newPassword);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0003);
+        _userServiceMock.Verify(x => x.UpdatePasswordAsync(userDto.Id, It.IsAny<string>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ResetPasswordAsync_GoogleUser_CanSetPassword()
+    {
+        // Arrange - User đăng ký qua Google (không có password), muốn đặt password mới
+        var email = "googleuser@test.com";
+        var otp = "123456";
+        var newPassword = "MyFirstPassword123!";
+        
+        var userDto = CreateValidUserDto();
+        userDto.Email = email;
+        userDto.PasswordHash = null; // Google user không có password
+        userDto.EmailVerificationCode = otp;
+
+        _userServiceMock.Setup(x => x.GetByEmailAsync(email))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
+
+        _userServiceMock.Setup(x => x.UpdatePasswordAsync(userDto.Id, It.IsAny<string>()))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0003, null!, true));
+
+        // Act
+        var result = await _sut.ResetPasswordAsync(email, otp, newPassword);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0003);
+        _userServiceMock.Verify(x => x.UpdatePasswordAsync(userDto.Id, It.IsAny<string>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ResetPasswordAsync_UpdateFails_ReturnsFailure()
+    {
+        // Arrange
+        var email = "test@example.com";
+        var otp = "123456";
+        var newPassword = "NewPassword123!";
+        
+        var userDto = CreateValidUserDto();
+        userDto.Email = email;
+        userDto.EmailVerificationCode = otp;
+
+        _userServiceMock.Setup(x => x.GetByEmailAsync(email))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
+
+        _userServiceMock.Setup(x => x.UpdatePasswordAsync(userDto.Id, It.IsAny<string>()))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Fail0001, null!, false));
+
+        // Act
+        var result = await _sut.ResetPasswordAsync(email, otp, newPassword);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Fail0001);
     }
 
     #endregion

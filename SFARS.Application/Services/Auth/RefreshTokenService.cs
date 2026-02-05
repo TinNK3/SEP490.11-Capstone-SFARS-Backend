@@ -38,6 +38,29 @@ namespace SFARS.Application.Services.Auth
                 _mapper.Map<RefreshTokenDto>(refreshToken));
         }
 
+        public async Task<IServiceResult> GetByTokenIdAndRefreshTokenIdAsync(string tokenId, string refreshTokenId)
+        {
+            try
+            {
+                var refreshToken = await _unitOfWork.Repository<RefreshToken, int>().GetWithSpecAsync(
+                    new BaseSpecification<RefreshToken>(r => r.TokenId == tokenId
+                                                             && r.RefreshTokenId == refreshTokenId));
+
+                if (refreshToken is null)
+                {
+                    return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Data not found or empty or empty");
+                }
+
+                return new ServiceResult(ResultCodeConst.SYS_Success0002, "Get data successfully",
+                    _mapper.Map<RefreshTokenDto>(refreshToken));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                throw new Exception("Error invoke when progress get token and refresh token");
+            }
+        }
+
         /// <summary>
         /// Get refresh token by rescuer ID (alias for GetByUserIdAsync for compatibility)
         /// </summary>
