@@ -13,6 +13,8 @@ public class SnakeHotspot : BaseEntity
     public int Upvotes { get; set; }
     public bool VerifiedByExpert { get; set; }
     public DateTime? ExpiresAt { get; set; }
+    public HotspotObservationType ObservationType { get; set; } = HotspotObservationType.Unknown;
+    public ToxinGroup? ToxinGroup { get; set; }
 
     public virtual User Reporter { get; set; } = null!;
     public virtual Snake? Snake { get; set; }

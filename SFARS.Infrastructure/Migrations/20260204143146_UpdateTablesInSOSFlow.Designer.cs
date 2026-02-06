@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SFARS.Infrastructure.Data.Context;
@@ -12,13 +13,15 @@ using SFARS.Infrastructure.Data.Context;
 namespace SFARS.Infrastructure.Migrations
 {
     [DbContext(typeof(SFARSDbContext))]
-    partial class SFARSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260204143146_UpdateTablesInSOSFlow")]
+    partial class UpdateTablesInSOSFlow
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.11")
+                .HasAnnotation("ProductVersion", "9.0.1")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -383,137 +386,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.ToTable("Incident", (string)null);
                 });
 
-            modelBuilder.Entity("SFARS.Domain.Entities.IncidentChat", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("IncidentId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("LastMessageAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Title")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IncidentId")
-                        .IsUnique();
-
-                    b.ToTable("IncidentChats", (string)null);
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.IncidentChatMessage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("AiInferenceId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ChatId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("MetadataJson")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ModelName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("ModelVersion")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<Guid?>("SenderId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("SenderType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AiInferenceId");
-
-                    b.HasIndex("SenderId");
-
-                    b.HasIndex("ChatId", "CreatedAt");
-
-                    b.ToTable("IncidentChatMessages", (string)null);
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.IncidentChatMessageMedia", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("IncidentMediaId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("MediaUrl")
-                        .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)");
-
-                    b.Property<Guid>("MessageId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IncidentMediaId");
-
-                    b.HasIndex("MessageId");
-
-                    b.ToTable("IncidentChatMessageMedias", (string)null);
-                });
-
             modelBuilder.Entity("SFARS.Domain.Entities.IncidentMedia", b =>
                 {
                     b.Property<Guid>("Id")
@@ -563,10 +435,12 @@ namespace SFARS.Infrastructure.Migrations
 
             modelBuilder.Entity("SFARS.Domain.Entities.IncidentStatusHistory", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("bigint")
                         .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
                     b.Property<string>("ChangeReason")
                         .HasMaxLength(255)
@@ -580,10 +454,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("created_by");
 
                     b.Property<Guid>("IncidentId")
                         .HasColumnType("uniqueidentifier")
@@ -600,89 +470,12 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(20)")
                         .HasColumnName("status_to");
 
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("updated_by");
-
                     b.HasKey("Id")
                         .HasName("PK_IncidentStatusHistory_Id");
 
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("IX_IncidentStatusHistory_CreatedAt");
-
-                    b.HasIndex("IncidentId")
-                        .HasDatabaseName("IX_IncidentStatusHistory_IncidentId");
-
-                    b.ToTable("IncidentStatusHistory", (string)null);
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.IncidentSymptom", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("HasBleeding")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("HasBreathingDifficulty")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("HasNecrosis")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("HasPain")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("HasPtosis")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("HasSwelling")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("HasVomiting")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid>("IncidentId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<DateTime>("ReportedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
-
-                    b.Property<Guid?>("ReportedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
                     b.HasIndex("IncidentId");
 
-                    b.HasIndex("ReportedAt");
-
-                    b.HasIndex("ReportedBy");
-
-                    b.ToTable("IncidentSymptoms", (string)null);
+                    b.ToTable("IncidentStatusHistory", (string)null);
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.MedicalFacility", b =>
@@ -752,18 +545,12 @@ namespace SFARS.Infrastructure.Migrations
 
             modelBuilder.Entity("SFARS.Domain.Entities.NotificationLog", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("bigint")
                         .HasColumnName("id");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("created_by");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
                     b.Property<bool>("IsRead")
                         .HasColumnType("bit")
@@ -791,14 +578,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(50)")
                         .HasColumnName("type");
 
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("updated_by");
-
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("user_id");
@@ -806,11 +585,7 @@ namespace SFARS.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("PK_NotificationLog_Id");
 
-                    b.HasIndex("SentAt")
-                        .HasDatabaseName("IX_NotificationLog_SentAt");
-
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("IX_NotificationLog_UserId");
+                    b.HasIndex("UserId");
 
                     b.ToTable("NotificationLog", (string)null);
                 });
@@ -1625,11 +1400,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(100)")
                         .HasColumnName("email");
 
-                    b.Property<string>("EmailVerificationCode")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasColumnName("email_verification_code");
-
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -1929,60 +1699,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Navigation("Victim");
                 });
 
-            modelBuilder.Entity("SFARS.Domain.Entities.IncidentChat", b =>
-                {
-                    b.HasOne("SFARS.Domain.Entities.Incident", "Incident")
-                        .WithOne("Chat")
-                        .HasForeignKey("SFARS.Domain.Entities.IncidentChat", "IncidentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Incident");
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.IncidentChatMessage", b =>
-                {
-                    b.HasOne("SFARS.Domain.Entities.AiInference", "AiInference")
-                        .WithMany()
-                        .HasForeignKey("AiInferenceId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("SFARS.Domain.Entities.IncidentChat", "Chat")
-                        .WithMany("Messages")
-                        .HasForeignKey("ChatId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SFARS.Domain.Entities.User", "Sender")
-                        .WithMany()
-                        .HasForeignKey("SenderId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.Navigation("AiInference");
-
-                    b.Navigation("Chat");
-
-                    b.Navigation("Sender");
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.IncidentChatMessageMedia", b =>
-                {
-                    b.HasOne("SFARS.Domain.Entities.IncidentMedia", "IncidentMedia")
-                        .WithMany()
-                        .HasForeignKey("IncidentMediaId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("SFARS.Domain.Entities.IncidentChatMessage", "Message")
-                        .WithMany("Medias")
-                        .HasForeignKey("MessageId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("IncidentMedia");
-
-                    b.Navigation("Message");
-                });
-
             modelBuilder.Entity("SFARS.Domain.Entities.IncidentMedia", b =>
                 {
                     b.HasOne("SFARS.Domain.Entities.Incident", "Incident")
@@ -2007,30 +1723,12 @@ namespace SFARS.Infrastructure.Migrations
                     b.Navigation("Incident");
                 });
 
-            modelBuilder.Entity("SFARS.Domain.Entities.IncidentSymptom", b =>
-                {
-                    b.HasOne("SFARS.Domain.Entities.Incident", "Incident")
-                        .WithMany("Symptoms")
-                        .HasForeignKey("IncidentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SFARS.Domain.Entities.User", "Reporter")
-                        .WithMany()
-                        .HasForeignKey("ReportedBy")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.Navigation("Incident");
-
-                    b.Navigation("Reporter");
-                });
-
             modelBuilder.Entity("SFARS.Domain.Entities.NotificationLog", b =>
                 {
                     b.HasOne("SFARS.Domain.Entities.User", "User")
                         .WithMany("NotificationLogs")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK_NotificationLog_User_UserId");
 
@@ -2253,25 +1951,11 @@ namespace SFARS.Infrastructure.Migrations
                 {
                     b.Navigation("AiInferences");
 
-                    b.Navigation("Chat");
-
                     b.Navigation("Medias");
 
                     b.Navigation("Missions");
 
                     b.Navigation("StatusHistories");
-
-                    b.Navigation("Symptoms");
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.IncidentChat", b =>
-                {
-                    b.Navigation("Messages");
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.IncidentChatMessage", b =>
-                {
-                    b.Navigation("Medias");
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.RescueMission", b =>

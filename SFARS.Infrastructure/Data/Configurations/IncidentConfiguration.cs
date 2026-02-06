@@ -15,6 +15,8 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         builder.Property(e => e.VictimId).HasColumnName("victim_id");
         builder.Property(e => e.SnakeId).HasColumnName("snake_id");
 
+        builder.Property(e => e.CurrentAiInferenceId).HasColumnName("current_ai_inference_id");
+
         builder.Property(e => e.Code)
             .IsRequired()
             .HasMaxLength(20)
@@ -68,6 +70,17 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         builder.HasOne(i => i.Snake)
             .WithMany()
             .HasForeignKey(i => i.SnakeId)
+            .OnDelete(DeleteBehavior.SetNull)
             .HasConstraintName("FK_Incident_Snake_SnakeId");
+
+        builder.HasOne(i => i.CurrentAiInference)
+            .WithMany()
+            .HasForeignKey(i => i.CurrentAiInferenceId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .HasConstraintName("FK_Incident_AiInference_CurrentAiInferenceId");
+
+        builder.HasOne(i => i.Chat)
+            .WithOne(c => c.Incident)
+            .HasForeignKey<IncidentChat>(c => c.IncidentId);
     }
 }

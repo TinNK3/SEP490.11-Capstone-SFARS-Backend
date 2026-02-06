@@ -660,6 +660,7 @@ namespace SFARS.Application.Services.Auth
         private async Task<IServiceResult> UpdateExistingRefreshTokenAsync(RefreshTokenDto refreshTokenDto, string tokenId)
         {
             refreshTokenDto.CreateDate = DateTime.UtcNow;
+            refreshTokenDto.ExpiryDate = DateTime.UtcNow.AddMinutes(_webTokenSettings.RefreshTokenLifeTimeInMinutes);
             refreshTokenDto.RefreshTokenId = await _jwtUtils.GenerateRefreshTokenAsync();
             refreshTokenDto.TokenId = tokenId;
             refreshTokenDto.RefreshCount = 0;

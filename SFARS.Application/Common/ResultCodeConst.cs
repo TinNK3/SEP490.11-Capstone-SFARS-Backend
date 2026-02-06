@@ -85,6 +85,11 @@ namespace SFARS.Application.Common
         public const string Incident_Warning0003 = "Incident.Warning0003";
 
         public const string Incident_Fail0001 = "Incident.Fail0001";
+
+        // Notification messages
+        public const string Incident_Notify0001 = "Incident.Notify0001";
+        public const string Incident_Notify0002 = "Incident.Notify0002";
+        public const string Incident_Reason0001 = "Incident.Reason0001";
         #endregion
 
         #region AI

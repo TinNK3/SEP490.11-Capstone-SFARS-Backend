@@ -25,20 +25,32 @@ public class NotificationLogConfiguration : IEntityTypeConfiguration<Notificatio
             .HasColumnName("message");
 
         builder.Property(e => e.Type)
+            .IsRequired()
             .HasConversion<string>()
             .HasMaxLength(50)
             .HasColumnName("type");
 
         builder.Property(e => e.IsRead)
+            .IsRequired()
             .HasColumnName("is_read");
 
         builder.Property(e => e.SentAt)
+            .IsRequired()
             .HasColumnName("sent_at");
+
+        // audit columns (BaseEntity)
+        builder.Property(e => e.CreatedAt).HasColumnName("created_at");
+        builder.Property(e => e.CreatedBy).HasColumnName("created_by");
+        builder.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+        builder.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+        builder.HasIndex(e => e.UserId).HasDatabaseName("IX_NotificationLog_UserId");
+        builder.HasIndex(e => e.SentAt).HasDatabaseName("IX_NotificationLog_SentAt");
 
         builder.HasOne(n => n.User)
             .WithMany(u => u.NotificationLogs)
             .HasForeignKey(n => n.UserId)
-            .OnDelete(DeleteBehavior.Cascade)
+            .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("FK_NotificationLog_User_UserId");
     }
 }

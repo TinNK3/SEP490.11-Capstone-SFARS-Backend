@@ -54,6 +54,18 @@
         }
 
         /// <summary>
+        /// Incident endpoints
+        /// </summary>
+        public static class Incident
+        {
+            // [GET]
+            public const string GetById = Base + "/incidents/{id}";
+            public const string GetMyIncidents = Base + "/incidents/me";
+            // [POST]
+            public const string Create = Base + "/incidents";
+        }
+
+        /// <summary>
 		/// System service healthcheck endpoints
 		/// </summary>
 		public static class HealthCheck

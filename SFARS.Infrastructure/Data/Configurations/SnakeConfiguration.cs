@@ -29,11 +29,20 @@ public class SnakeConfiguration : IEntityTypeConfiguration<Snake>
             .HasMaxLength(50)
             .HasColumnName("toxicity_level");
 
+        builder.Property(e => e.ToxinGroup)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasColumnName("toxin_group");
+
         builder.Property(e => e.Description)
              .HasColumnName("description");
 
         builder.Property(e => e.Habitat)
              .HasColumnName("habitat");
+
+        builder.Property(e => e.DistributionNote)
+             .HasColumnName("distribution_note");
 
         builder.Property(e => e.IsActive)
              .HasColumnName("is_active");
