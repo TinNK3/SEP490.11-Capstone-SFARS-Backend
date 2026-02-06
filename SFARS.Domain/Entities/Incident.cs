@@ -20,10 +20,14 @@ public class Incident : BaseEntity
     // AI
     public string? AiPredictionResult { get; set; }
     public double? AiConfidenceScore { get; set; }
-
+    public Guid? CurrentAiInferenceId { get; set; }
+    public virtual AiInference? CurrentAiInference { get; set; }
     public virtual User Victim { get; set; } = null!;
     public virtual Snake? Snake { get; set; }
     public virtual ICollection<IncidentStatusHistory> StatusHistories { get; set; } = new List<IncidentStatusHistory>();
     public virtual ICollection<IncidentMedia> Medias { get; set; } = new List<IncidentMedia>();
     public virtual ICollection<RescueMission> Missions { get; set; } = new List<RescueMission>();
+    public virtual ICollection<AiInference> AiInferences { get; set; } = new List<AiInference>();
+    public virtual ICollection<IncidentSymptom> Symptoms { get; set; } = new List<IncidentSymptom>();
+    public virtual IncidentChat? Chat { get; set; }
 }

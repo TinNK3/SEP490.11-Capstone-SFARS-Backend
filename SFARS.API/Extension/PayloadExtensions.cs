@@ -1,8 +1,10 @@
 ﻿using SFARS.API.Payloads.Request.Auth;
+using SFARS.API.Payloads.Request.Incident;
 using SFARS.API.Payloads.Request.Snake;
 using SFARS.API.Payloads.Request.User;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Auth;
+using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Dtos.User;
 
 namespace SFARS.API.Extension
@@ -83,6 +85,21 @@ namespace SFARS.API.Extension
                 Address = req.Address,
                 Gender = req.Gender,
                 Dob = req.Dob
+            };
+        }
+        #endregion
+
+        #region Incident
+        // Mapping from typeof(CreateIncidentRequest) to typeof(IncidentDto)
+        public static IncidentDto ToIncidentDto(this CreateIncidentRequest req)
+        {
+            return new IncidentDto
+            {
+                Latitude = req.Latitude,
+                Longitude = req.Longitude,
+                AddressString = req.AddressString,
+                Description = req.Description,
+                PriorityLevel = req.PriorityLevel
             };
         }
         #endregion

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SFARS.Infrastructure.Data.Context;
@@ -12,13 +13,15 @@ using SFARS.Infrastructure.Data.Context;
 namespace SFARS.Infrastructure.Migrations
 {
     [DbContext(typeof(SFARSDbContext))]
-    partial class SFARSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260205060140_AddIncidentChatRelation")]
+    partial class AddIncidentChatRelation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.11")
+                .HasAnnotation("ProductVersion", "9.0.1")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -563,10 +566,12 @@ namespace SFARS.Infrastructure.Migrations
 
             modelBuilder.Entity("SFARS.Domain.Entities.IncidentStatusHistory", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("bigint")
                         .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
                     b.Property<string>("ChangeReason")
                         .HasMaxLength(255)
@@ -580,10 +585,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("created_by");
 
                     b.Property<Guid>("IncidentId")
                         .HasColumnType("uniqueidentifier")
@@ -600,22 +601,10 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(20)")
                         .HasColumnName("status_to");
 
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("updated_by");
-
                     b.HasKey("Id")
                         .HasName("PK_IncidentStatusHistory_Id");
 
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("IX_IncidentStatusHistory_CreatedAt");
-
-                    b.HasIndex("IncidentId")
-                        .HasDatabaseName("IX_IncidentStatusHistory_IncidentId");
+                    b.HasIndex("IncidentId");
 
                     b.ToTable("IncidentStatusHistory", (string)null);
                 });
@@ -752,18 +741,12 @@ namespace SFARS.Infrastructure.Migrations
 
             modelBuilder.Entity("SFARS.Domain.Entities.NotificationLog", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
+                        .HasColumnType("bigint")
                         .HasColumnName("id");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("created_by");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
                     b.Property<bool>("IsRead")
                         .HasColumnType("bit")
@@ -791,14 +774,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(50)")
                         .HasColumnName("type");
 
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("updated_by");
-
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("user_id");
@@ -806,11 +781,7 @@ namespace SFARS.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("PK_NotificationLog_Id");
 
-                    b.HasIndex("SentAt")
-                        .HasDatabaseName("IX_NotificationLog_SentAt");
-
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("IX_NotificationLog_UserId");
+                    b.HasIndex("UserId");
 
                     b.ToTable("NotificationLog", (string)null);
                 });
@@ -1625,11 +1596,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(100)")
                         .HasColumnName("email");
 
-                    b.Property<string>("EmailVerificationCode")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasColumnName("email_verification_code");
-
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -2030,7 +1996,7 @@ namespace SFARS.Infrastructure.Migrations
                     b.HasOne("SFARS.Domain.Entities.User", "User")
                         .WithMany("NotificationLogs")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK_NotificationLog_User_UserId");
 

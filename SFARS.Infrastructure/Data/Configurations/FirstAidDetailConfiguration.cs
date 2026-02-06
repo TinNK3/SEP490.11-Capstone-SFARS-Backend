@@ -14,6 +14,12 @@ public class FirstAidDetailConfiguration : IEntityTypeConfiguration<FirstAidDeta
         builder.Property(e => e.Id).HasColumnName("id");
         builder.Property(e => e.SnakeId).HasColumnName("snake_id");
 
+        builder.Property(e => e.ToxinGroup)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasColumnName("toxin_group");
+
         builder.Property(e => e.StepOrder).HasColumnName("step_order");
 
         builder.Property(e => e.Title)
@@ -42,7 +48,11 @@ public class FirstAidDetailConfiguration : IEntityTypeConfiguration<FirstAidDeta
         builder.HasOne(d => d.Snake)
             .WithMany(s => s.FirstAidDetails)
             .HasForeignKey(d => d.SnakeId)
-            .OnDelete(DeleteBehavior.Cascade)
+            .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("FK_FirstAidDetail_Snake_SnakeId");
+
+        builder.HasIndex(e => new { e.ToxinGroup, e.LanguageCode, e.StepOrder, e.SnakeId })
+            .IsUnique()
+            .HasDatabaseName("IX_FirstAidDetail_ToxinGroup_Lang_Order_Snake");
     }
 }

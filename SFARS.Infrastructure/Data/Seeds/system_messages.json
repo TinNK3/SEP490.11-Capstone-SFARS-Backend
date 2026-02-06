@@ -418,5 +418,23 @@
     "MsgContent": "Payment gateway error.",
     "En": "Payment gateway error.",
     "Vi": "Lỗi cổng thanh toán."
+  },
+  {
+    "MsgId": "Incident.Notify0001",
+    "MsgContent": "SOS Request Received",
+    "En": "SOS Request Received",
+    "Vi": "Đã tiếp nhận yêu cầu SOS"
+  },
+  {
+    "MsgId": "Incident.Notify0002",
+    "MsgContent": "Your SOS request {0} has been received. Searching for nearby rescuers...",
+    "En": "Your SOS request {0} has been received. Searching for nearby rescuers...",
+    "Vi": "Yêu cầu cứu hộ {0} đã được tiếp nhận. Đang tìm kiếm nhân viên cứu hộ gần bạn..."
+  },
+  {
+    "MsgId": "Incident.Reason0001",
+    "MsgContent": "Incident created by user",
+    "En": "Incident created by user",
+    "Vi": "Người dùng tạo sự cố"
   }
 ]

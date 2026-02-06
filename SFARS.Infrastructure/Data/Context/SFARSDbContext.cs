@@ -47,6 +47,15 @@ public partial class SFARSDbContext : DbContext
     public DbSet<NotificationLog> NotificationLogs { get; set; }
     public DbSet<SystemMessage> SystemMessages { get; set; }
 
+    public DbSet<AiInference> AiInferences { get; set; }
+    public DbSet<AiInferenceCandidate> AiInferenceCandidates { get; set; }
+    public DbSet<IncidentSymptom> IncidentSymptoms { get; set; }
+
+    // Chat
+    public DbSet<IncidentChat> IncidentChats { get; set; }
+    public DbSet<IncidentChatMessage> IncidentChatMessages { get; set; }
+    public DbSet<IncidentChatMessageMedia> IncidentChatMessageMedias { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

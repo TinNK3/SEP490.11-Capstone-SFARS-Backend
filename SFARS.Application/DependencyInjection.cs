@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Auth;
+using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Dtos.Role;
 using SFARS.Application.Dtos.User;
 using SFARS.Application.Services;
@@ -34,6 +35,9 @@ public static class DependencyInjection
         services.AddScoped<ISystemRoleService<SystemRoleDto>, SystemRoleService>();
         services.AddScoped<IRefreshTokenService<RefreshTokenDto>, RefreshTokenService>();
         services.AddScoped<IAuthService<AuthUserDto>, AuthService>();
+
+        // Incident services
+        services.AddScoped<IIncidentService<IncidentDto>, IncidentService>();
 
         // Register all validators from this assembly
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());

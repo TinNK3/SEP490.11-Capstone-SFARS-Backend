@@ -1,0 +1,68 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using SFARS.API.Extension;
+using SFARS.API.Extensions;
+using SFARS.API.Payloads;
+using SFARS.API.Payloads.Request.Incident;
+using SFARS.Application.Dtos.Incident;
+using SFARS.Domain.Interfaces.Services;
+
+namespace SFARS.API.Controller
+{
+    /// <summary>
+    /// Incident (SOS) endpoints
+    /// </summary>
+    [ApiController]
+    public class IncidentController : ControllerBase
+    {
+        private readonly IIncidentService<IncidentDto> _incidentService;
+
+        public IncidentController(IIncidentService<IncidentDto> incidentService)
+        {
+            _incidentService = incidentService;
+        }
+
+        /// <summary>
+        /// Create a new incident (SOS report)
+        /// </summary>
+        /// <param name="req">Incident details</param>
+        /// <returns>Created incident</returns>
+        [Authorize]
+        [HttpPost(APIRoute.Incident.Create, Name = nameof(CreateIncidentAsync))]
+        public async Task<IActionResult> CreateIncidentAsync([FromBody] CreateIncidentRequest req)
+        {
+            var userId = User.GetUserId();
+            var result = await _incidentService.CreateIncidentAsync(userId, req.ToIncidentDto());
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
+        /// Get current user's incidents
+        /// </summary>
+        /// <param name="pageIndex">Page index (0-based)</param>
+        /// <param name="pageSize">Page size</param>
+        /// <returns>List of incidents</returns>
+        [Authorize]
+        [HttpGet(APIRoute.Incident.GetMyIncidents, Name = nameof(GetMyIncidentsAsync))]
+        public async Task<IActionResult> GetMyIncidentsAsync([FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 10)
+        {
+            var userId = User.GetUserId();
+            var result = await _incidentService.GetMyIncidentsAsync(userId, pageIndex, pageSize);
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
+        /// Get incident by ID
+        /// </summary>
+        /// <param name="id">Incident ID</param>
+        /// <returns>Incident details</returns>
+        [Authorize]
+        [HttpGet(APIRoute.Incident.GetById, Name = nameof(GetIncidentByIdAsync))]
+        public async Task<IActionResult> GetIncidentByIdAsync([FromRoute] Guid id)
+        {
+            var userId = User.GetUserId();
+            var result = await _incidentService.GetIncidentByIdAsync(userId, id);
+            return this.ToIActionResult(result);
+        }
+    }
+}

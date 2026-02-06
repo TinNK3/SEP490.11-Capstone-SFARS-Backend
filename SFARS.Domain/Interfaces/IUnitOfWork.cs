@@ -15,5 +15,9 @@ namespace SFARS.Domain.Interfaces
         // or when handling complex logic with dependencies
         int SaveChangesWithTransaction();
         Task<int> SaveChangesWithTransactionAsync();
+        void ClearTracking();
+
+        // SQL Sequence support for thread-safe code generation
+        Task<long> GetNextSequenceValueAsync(string sequenceName);
     }
 }

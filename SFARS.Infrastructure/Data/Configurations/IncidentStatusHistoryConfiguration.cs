@@ -26,14 +26,21 @@ public class IncidentStatusHistoryConfiguration : IEntityTypeConfiguration<Incid
             .HasColumnName("status_to");
 
         builder.Property(e => e.ChangedBy)
+            .IsRequired()
             .HasColumnName("changed_by");
 
         builder.Property(e => e.ChangeReason)
             .HasMaxLength(255)
             .HasColumnName("change_reason");
 
-        builder.Property(e => e.CreatedAt)
-            .HasColumnName("created_at");
+        // audit columns (BaseEntity)
+        builder.Property(e => e.CreatedAt).HasColumnName("created_at");
+        builder.Property(e => e.CreatedBy).HasColumnName("created_by");
+        builder.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+        builder.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+        builder.HasIndex(e => e.IncidentId).HasDatabaseName("IX_IncidentStatusHistory_IncidentId");
+        builder.HasIndex(e => e.CreatedAt).HasDatabaseName("IX_IncidentStatusHistory_CreatedAt");
 
         builder.HasOne(h => h.Incident)
             .WithMany(i => i.StatusHistories)

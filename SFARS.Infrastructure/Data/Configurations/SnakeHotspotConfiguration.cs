@@ -51,5 +51,19 @@ public class SnakeHotspotConfiguration : IEntityTypeConfiguration<SnakeHotspot>
             .HasForeignKey(h => h.SnakeId)
             .OnDelete(DeleteBehavior.SetNull)
             .HasConstraintName("FK_SnakeHotspot_Snake_SnakeId");
+
+        builder.Property(x => x.ObservationType)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasColumnName("observation_type");
+
+        builder.Property(x => x.ToxinGroup)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasColumnName("toxin_group");
+
+        builder.HasIndex(x => x.ExpiresAt).HasDatabaseName("IX_SnakeHotspot_ExpiresAt");
+        builder.HasIndex(x => x.SnakeId).HasDatabaseName("IX_SnakeHotspot_SnakeId");
     }
 }

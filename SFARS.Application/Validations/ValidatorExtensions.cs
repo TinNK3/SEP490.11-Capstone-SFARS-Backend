@@ -2,8 +2,10 @@
 using FluentValidation.Results;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Auth;
+using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Dtos.User;
 using SFARS.Application.Validations.Auth;
+using SFARS.Application.Validations.Incident;
 using SFARS.Application.Validations.User;
 
 namespace SFARS.Application.Validations
@@ -23,6 +25,7 @@ namespace SFARS.Application.Validations
                 { } when typeof(T) == typeof(UserDto) => (IValidator<T>)(object)new UpdateProfileRequestValidator(),
                 { } when typeof(T) == typeof(ForgotPasswordDto) => (IValidator<T>)(object)new ForgotPasswordDtoValidator(),
                 { } when typeof(T) == typeof(ResetPasswordDto) => (IValidator<T>)(object)new ResetPasswordDtoValidator(),
+                { } when typeof(T) == typeof(IncidentDto) => (IValidator<T>)(object)new CreateIncidentValidator(),
                 _ => null
             };
         }

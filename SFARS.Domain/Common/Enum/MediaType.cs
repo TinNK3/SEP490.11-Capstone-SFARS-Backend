@@ -5,14 +5,12 @@ namespace SFARS.Domain.Common.Enum
     public enum MediaType
     {
         [Description("Ảnh rắn")]
-        SnakeImage,
+        SnakePhoto = 0,
+
         [Description("Ảnh vết cắn")]
-        BiteImage,
-        [Description("Ảnh xác minh")]
-        VerifyImage,
-        [Description("Ảnh triệu chứng")]
-        SymptomPhoto,
-        [Description("Video")]
-        Video
+        BiteWoundPhoto = 1,
+
+        [Description("Khác")]
+        Other = 2
     }
 }
