@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Repositories.Base;
+using SFARS.Infrastructure.Configurations;
 using SFARS.Infrastructure.Data;
 using SFARS.Infrastructure.Data.Context;
 using SFARS.Infrastructure.Repositories;
@@ -24,11 +25,20 @@ public static class DependencyInjection
             // Add application DbContext 
             services.AddDbContext<SFARSDbContext>(options => options.UseSqlServer(connectionString, x => x.UseNetTopologySuite()));
 
+            // Configure Cloudinary
+            services.Configure<CloudinarySettings>(
+                configuration.GetSection(CloudinarySettings.SectionName));
+
+            // Configure Storage options
+            services.Configure<StorageOptions>(
+                configuration.GetSection(StorageOptions.SectionName));
+
             // Register Infrastructure services
             services.AddScoped<IDatabaseInitializer, DatabaseInitializer>();
             
             services.AddScoped<IExternalAuthService, ExternalAuthService>();
             services.AddScoped<IEmailService, EmailService>();
+            services.AddScoped<IFileStorageService, CloudinaryStorageService>();
             
             // Register repositories
             services.AddScoped(typeof(IGenericRepository<,>), typeof(GenericRepository<,>));

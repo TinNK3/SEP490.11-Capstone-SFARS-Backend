@@ -1,6 +1,7 @@
 using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NetTopologySuite.Geometries;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos.Incident;
@@ -9,23 +10,32 @@ using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
+using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
+using SFARS.Infrastructure.Configurations;
 
 namespace SFARS.Application.Services
 {
     public class IncidentService : GenericService<Incident, IncidentDto, Guid>, IIncidentService<IncidentDto>
     {
+        private readonly IFileStorageService _fileStorageService;
+        private readonly IOptions<StorageOptions> _storageOptions;
 
         public IncidentService(
             ISystemMessageService msgService,
             IUnitOfWork unitOfWork,
             IMapper mapper,
-            ILogger<IncidentService> logger)
+            ILogger<IncidentService> logger,
+            IFileStorageService fileStorageService,
+            IOptions<StorageOptions> storageOptions)
             : base(msgService, unitOfWork, mapper, logger)
         {
+            _fileStorageService = fileStorageService;
+            _storageOptions = storageOptions;
         }
+
 
         /// <summary>
         /// Create a new incident (SOS report) with all related entities in single atomic transaction
@@ -248,6 +258,177 @@ namespace SFARS.Application.Services
                 await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
                 dto
             );
+        }
+
+        /// <summary>
+        /// Upload media (photo/video) for an incident
+        /// </summary>
+        public async Task<IServiceResult> UploadMediaAsync(
+            Guid userId,
+            Guid incidentId,
+            Stream stream,
+            string fileName,
+            string contentType,
+            long fileSize,
+            MediaType mediaType)
+        {
+            // Validate inputs
+            if (userId == Guid.Empty)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0013,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0013)
+                );
+            }
+
+            if (incidentId == Guid.Empty)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001)
+                );
+            }
+
+            // Get incident and validate ownership
+            var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
+            if (incident == null)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0002,
+                    string.Format(await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002), "Incident")
+                );
+            }
+
+            // Authorization: Only victim can upload media
+            if (incident.VictimId != userId)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0007,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0007)
+                );
+            }
+
+            // Business rule: Cannot upload if incident is closed or cancelled
+            if (incident.CurrentStatus == IncidentStatus.Closed ||
+                incident.CurrentStatus == IncidentStatus.Cancelled)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Incident_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0001)
+                );
+            }
+
+            // Validate file size
+            var storageOpt = _storageOptions.Value;
+            if (fileSize <= 0)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001)
+                );
+            }
+
+            if (fileSize > storageOpt.MaxUploadBytes)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0008,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0008)
+                );
+            }
+
+            // Validate content type
+            if (!IsAllowedContentType(contentType, mediaType, storageOpt))
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001)
+                );
+            }
+
+            try
+            {
+                // Upload to cloud storage (folder from config)
+                var folder = string.Format(storageOpt.IncidentMediaFolderFormat, incidentId);
+                var uploadResult = await _fileStorageService.UploadAsync(stream, fileName, folder, contentType);
+
+                // Create media record
+                var now = DateTime.UtcNow;
+                var media = new IncidentMedia
+                {
+                    Id = Guid.NewGuid(),
+                    IncidentId = incidentId,
+                    MediaUrl = uploadResult.Url,
+                    MediaType = mediaType,
+                    CreatedAt = now,
+                    CreatedBy = userId
+                };
+
+                await _unitOfWork.Repository<IncidentMedia, Guid>().AddAsync(media);
+                var saveResult = await _unitOfWork.SaveChangesAsync();
+
+                if (saveResult > 0)
+                {
+                    var dto = new IncidentMediaDto
+                    {
+                        Id = media.Id,
+                        IncidentId = media.IncidentId,
+                        MediaUrl = media.MediaUrl,
+                        MediaType = media.MediaType,
+                        CreatedAt = media.CreatedAt
+                    };
+
+                    return new ServiceResult(
+                        ResultCodeConst.SYS_Success0001,
+                        await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0001),
+                        dto
+                    );
+                }
+
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Fail0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001)
+                );
+            }
+            catch (InvalidOperationException ex) when (ex.Message.StartsWith("FileStorage:"))
+            {
+                // Expected: Cloud storage failure
+                _logger.LogWarning(ex, "File upload failed for incident {IncidentId}", incidentId);
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Fail0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001)
+                );
+            }
+            catch (DbUpdateException ex)
+            {
+                // Expected: Database save failure
+                _logger.LogError(ex, "Database save failed for incident media. IncidentId={IncidentId}", incidentId);
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Fail0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001)
+                );
+            }
+        }
+
+        /// <summary>
+        /// Validate if content type is allowed for the given media type
+        /// </summary>
+        private static bool IsAllowedContentType(string contentType, MediaType mediaType, StorageOptions options)
+        {
+            if (string.IsNullOrWhiteSpace(contentType))
+                return false;
+
+            var isImage = options.AllowedImageTypes.Any(t => 
+                contentType.Equals(t, StringComparison.OrdinalIgnoreCase));
+            var isVideo = options.AllowedVideoTypes.Any(t => 
+                contentType.Equals(t, StringComparison.OrdinalIgnoreCase));
+
+            return mediaType switch
+            {
+                MediaType.SnakePhoto => isImage,
+                MediaType.BiteWoundPhoto => isImage,
+                MediaType.Other => isImage || isVideo,
+                _ => false
+            };
         }
     }
 }

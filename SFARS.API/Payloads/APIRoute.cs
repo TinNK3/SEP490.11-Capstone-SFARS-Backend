@@ -63,6 +63,7 @@
             public const string GetMyIncidents = Base + "/incidents/me";
             // [POST]
             public const string Create = Base + "/incidents";
+            public const string UploadMedia = Base + "/incidents/{id}/media";
         }
 
         /// <summary>

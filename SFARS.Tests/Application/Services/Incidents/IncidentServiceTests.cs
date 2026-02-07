@@ -1,6 +1,7 @@
 using FluentAssertions;
 using MapsterMapper;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos.Incident;
@@ -9,26 +10,31 @@ using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
+using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Repositories.Base;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Specifications;
 using SFARS.Domain.Specifications.Interfaces;
+using SFARS.Infrastructure.Configurations;
 using System.Linq.Expressions;
 
 namespace SFARS.Tests.Application.Services.Incidents;
 
 public class IncidentServiceTests
 {
-    private readonly Mock<ISystemMessageService> _msgServiceMock;
-    private readonly Mock<IUnitOfWork> _unitOfWorkMock;
-    private readonly Mock<IMapper> _mapperMock;
-    private readonly Mock<ILogger<IncidentService>> _loggerMock;
-    private readonly Mock<IGenericRepository<Incident, Guid>> _incidentRepoMock;
-    private readonly Mock<IGenericRepository<IncidentStatusHistory, Guid>> _statusHistoryRepoMock;
-    private readonly Mock<IGenericRepository<IncidentChat, Guid>> _chatRepoMock;
-    private readonly Mock<IGenericRepository<NotificationLog, Guid>> _notificationRepoMock;
-    private readonly Mock<IGenericRepository<User, Guid>> _userRepoMock;
-    private readonly IncidentService _sut; // System Under Test
+    protected readonly Mock<ISystemMessageService> _msgServiceMock;
+    protected readonly Mock<IUnitOfWork> _unitOfWorkMock;
+    protected readonly Mock<IMapper> _mapperMock;
+    protected readonly Mock<ILogger<IncidentService>> _loggerMock;
+    protected readonly Mock<IFileStorageService> _fileStorageServiceMock;
+    protected readonly Mock<IOptions<StorageOptions>> _storageOptionsMock;
+    protected readonly Mock<IGenericRepository<Incident, Guid>> _incidentRepoMock;
+    protected readonly Mock<IGenericRepository<IncidentMedia, Guid>> _incidentMediaRepoMock;
+    protected readonly Mock<IGenericRepository<IncidentStatusHistory, Guid>> _statusHistoryRepoMock;
+    protected readonly Mock<IGenericRepository<IncidentChat, Guid>> _chatRepoMock;
+    protected readonly Mock<IGenericRepository<NotificationLog, Guid>> _notificationRepoMock;
+    protected readonly Mock<IGenericRepository<User, Guid>> _userRepoMock;
+    protected readonly IncidentService _sut; // System Under Test
 
     public IncidentServiceTests()
     {
@@ -36,7 +42,10 @@ public class IncidentServiceTests
         _unitOfWorkMock = new Mock<IUnitOfWork>();
         _mapperMock = new Mock<IMapper>();
         _loggerMock = new Mock<ILogger<IncidentService>>();
+        _fileStorageServiceMock = new Mock<IFileStorageService>();
+        _storageOptionsMock = new Mock<IOptions<StorageOptions>>();
         _incidentRepoMock = new Mock<IGenericRepository<Incident, Guid>>();
+        _incidentMediaRepoMock = new Mock<IGenericRepository<IncidentMedia, Guid>>();
         _statusHistoryRepoMock = new Mock<IGenericRepository<IncidentStatusHistory, Guid>>();
         _chatRepoMock = new Mock<IGenericRepository<IncidentChat, Guid>>();
         _notificationRepoMock = new Mock<IGenericRepository<NotificationLog, Guid>>();
@@ -44,6 +53,7 @@ public class IncidentServiceTests
 
         // Setup repositories
         _unitOfWorkMock.Setup(x => x.Repository<Incident, Guid>()).Returns(_incidentRepoMock.Object);
+        _unitOfWorkMock.Setup(x => x.Repository<IncidentMedia, Guid>()).Returns(_incidentMediaRepoMock.Object);
         _unitOfWorkMock.Setup(x => x.Repository<IncidentStatusHistory, Guid>()).Returns(_statusHistoryRepoMock.Object);
         _unitOfWorkMock.Setup(x => x.Repository<IncidentChat, Guid>()).Returns(_chatRepoMock.Object);
         _unitOfWorkMock.Setup(x => x.Repository<NotificationLog, Guid>()).Returns(_notificationRepoMock.Object);
@@ -53,11 +63,23 @@ public class IncidentServiceTests
         _msgServiceMock.Setup(x => x.GetMessageAsync(It.IsAny<string>()))
             .ReturnsAsync((string msgId) => $"Message for {msgId}");
 
+        // Setup StorageOptions
+        var storageOptions = new StorageOptions
+        {
+            MaxUploadBytes = 10 * 1024 * 1024, // 10MB
+            IncidentMediaFolderFormat = "incidents/{0}/media",
+            AllowedImageTypes = new[] { "image/jpeg", "image/jpg", "image/png" },
+            AllowedVideoTypes = new[] { "video/mp4", "video/quicktime" }
+        };
+        _storageOptionsMock.Setup(x => x.Value).Returns(storageOptions);
+
         _sut = new IncidentService(
             _msgServiceMock.Object,
             _unitOfWorkMock.Object,
             _mapperMock.Object,
-            _loggerMock.Object
+            _loggerMock.Object,
+            _fileStorageServiceMock.Object,
+            _storageOptionsMock.Object
         );
     }
 
