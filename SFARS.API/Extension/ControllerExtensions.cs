@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SFARS.Application.Common;
 using SFARS.Domain.Interfaces.Services.Base;
@@ -9,88 +8,50 @@ namespace SFARS.API.Extensions
     {
         public static IActionResult ToIActionResult(this ControllerBase controller, IServiceResult result)
         {
+            // Success: 200 OK
             if (IsSuccess(result.ResultCode))
             {
                 return controller.Ok(result);
             }
 
-            int statusCode;
-            string title;
-            string type;
-
+            // Unauthorized: 401
             if (IsUnauthorized(result.ResultCode))
             {
-                statusCode = StatusCodes.Status401Unauthorized;
-                title = "Unauthorized";
-                type = "https://tools.ietf.org/html/rfc7235#section-3.1";
-            }
-            else if (IsForbidden(result.ResultCode))
-            {
-                statusCode = StatusCodes.Status403Forbidden;
-                title = "Forbidden";
-                type = "https://tools.ietf.org/html/rfc7231#section-6.5.3";
-            }
-            else if (IsNotFound(result.ResultCode))
-            {
-                statusCode = StatusCodes.Status404NotFound;
-                title = "Not Found";
-                type = "https://tools.ietf.org/html/rfc7231#section-6.5.4";
-            }
-            else if (IsWarning(result.ResultCode))
-            {
-                statusCode = StatusCodes.Status400BadRequest;
-                title = "Bad Request";
-                type = "https://tools.ietf.org/html/rfc7231#section-6.5.1";
-            }
-            else // Fail / Internal Error
-            {
-                statusCode = StatusCodes.Status500InternalServerError;
-                title = "Internal Server Error";
-                type = "https://tools.ietf.org/html/rfc7231#section-6.6.1";
+                return controller.Unauthorized(result);
             }
 
-            // Create standard ProblemDetails
-            var problemDetails = new ProblemDetails
+            // Forbidden: 403
+            if (IsForbidden(result.ResultCode))
             {
-                Status = statusCode,
-                Title = title,
-                Type = type,
-                Detail = result.Message,
-                Instance = controller.HttpContext.Request.Path
-            };
-
-            // Add custom extension for internal error code (optional but helpful)
-            problemDetails.Extensions.Add("resultCode", result.ResultCode);
-
-            // If there are validation errors in Data, add them
-            if (result.Data is IDictionary<string, string[]> validationErrors)
-            {
-                 // Create ValidationProblemDetails if we have specific validation errors
-                 var validationProblem = new ValidationProblemDetails(validationErrors)
-                 {
-                     Status = statusCode,
-                     Title = title,
-                     Type = type,
-                     Detail = result.Message,
-                     Instance = controller.HttpContext.Request.Path
-                 };
-                 validationProblem.Extensions.Add("resultCode", result.ResultCode);
-                 return new ObjectResult(validationProblem) { StatusCode = statusCode };
+                return controller.StatusCode(StatusCodes.Status403Forbidden, result);
             }
 
-            return new ObjectResult(problemDetails)
+            // Not Found: 404
+            if (IsNotFound(result.ResultCode))
             {
-                StatusCode = statusCode
-            };
+                return controller.NotFound(result);
+            }
+
+            // Warning: 400 Bad Request
+            if (IsWarning(result.ResultCode))
+            {
+                return controller.BadRequest(result);
+            }
+
+            // Fail: 500 Internal Server Error
+            return controller.StatusCode(StatusCodes.Status500InternalServerError, result);
         }
 
         #region Mapping Logic
 
         private static bool IsSuccess(string code) => 
-            code.Contains("Success", StringComparison.OrdinalIgnoreCase);
+            code.Contains(".Success", StringComparison.OrdinalIgnoreCase);
 
         private static bool IsWarning(string code) => 
-            code.Contains("Warning", StringComparison.OrdinalIgnoreCase);
+            code.Contains(".Warning", StringComparison.OrdinalIgnoreCase);
+        
+        private static bool IsFail(string code) =>
+            code.Contains(".Fail", StringComparison.OrdinalIgnoreCase);
 
         private static bool IsUnauthorized(string code)
         {
@@ -101,7 +62,8 @@ namespace SFARS.API.Extensions
         private static bool IsForbidden(string code)
         {
             return code == ResultCodeConst.Auth_Warning0001  // Account banned
-                || code == ResultCodeConst.User_Warning0002; // Not a rescuer (Role check)
+                || code == ResultCodeConst.User_Warning0002  // Not a rescuer (Role check)
+                || code == ResultCodeConst.SYS_Warning0007;  // Not authorized/not owner
         }
 
         private static bool IsNotFound(string code)

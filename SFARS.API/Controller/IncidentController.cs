@@ -64,5 +64,35 @@ namespace SFARS.API.Controller
             var result = await _incidentService.GetIncidentByIdAsync(userId, id);
             return this.ToIActionResult(result);
         }
+
+        /// <summary>
+        /// Upload media (photo/video) for an incident
+        /// </summary>
+        /// <param name="id">Incident ID</param>
+        /// <param name="req">Media file and type</param>
+        /// <returns>Created media record</returns>
+        [Authorize]
+        [HttpPost(APIRoute.Incident.UploadMedia, Name = nameof(UploadMediaAsync))]
+        [Consumes("multipart/form-data")]
+        [RequestSizeLimit(10 * 1024 * 1024)] // 10MB limit
+        public async Task<IActionResult> UploadMediaAsync(
+            [FromRoute] Guid id,
+            [FromForm] UploadIncidentMediaRequest req)
+        {
+            var userId = User.GetUserId();
+
+            await using var stream = req.File.OpenReadStream();
+
+            var result = await _incidentService.UploadMediaAsync(
+                userId: userId,
+                incidentId: id,
+                stream: stream,
+                fileName: req.File.FileName,
+                contentType: req.File.ContentType,
+                fileSize: req.File.Length,
+                mediaType: req.MediaType);
+                
+            return this.ToIActionResult(result);
+        }
     }
 }

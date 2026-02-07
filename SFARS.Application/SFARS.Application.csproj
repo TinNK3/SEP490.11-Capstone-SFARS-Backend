@@ -25,8 +25,6 @@
 		<PackageReference Include="FuzzySharp" Version="2.0.2" />
 		<PackageReference Include="Diacritics" Version="3.3.29" />
 		<PackageReference Include="dotnet-stop-words" Version="1.1.0" />
-
-		<PackageReference Include="CloudinaryDotNet" Version="1.26.0" />
 		<PackageReference Include="OpenCvSharp4" Version="4.10.0.20241108" />
 		<PackageReference Include="OpenCvSharp4.runtime.win" Version="4.10.0.20241108" />
 		<PackageReference Include="Microsoft.Azure.CognitiveServices.Vision.ComputerVision" Version="7.0.1" />

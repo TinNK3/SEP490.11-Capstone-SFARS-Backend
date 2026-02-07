@@ -1,3 +1,4 @@
+using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces.Services.Base;
 
@@ -9,5 +10,17 @@ namespace SFARS.Domain.Interfaces.Services
         Task<IServiceResult> CreateIncidentAsync(Guid userId, TDto dto);
         Task<IServiceResult> GetMyIncidentsAsync(Guid userId, int pageIndex = 0, int pageSize = 10);
         Task<IServiceResult> GetIncidentByIdAsync(Guid userId, Guid incidentId);
+        
+        /// <summary>
+        /// Upload media (photo/video) for an incident
+        /// </summary>
+        Task<IServiceResult> UploadMediaAsync(
+            Guid userId, 
+            Guid incidentId, 
+            Stream stream, 
+            string fileName, 
+            string contentType, 
+            long fileSize, 
+            MediaType mediaType);
     }
 }

@@ -1,106 +1,69 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Infrastructure;
-using Newtonsoft.Json;
-using SFARS.Application.Exceptions;
-using System.Net;
+﻿using SFARS.Application.Common;
+using SFARS.Application.Services;
+using SFARS.Domain.Interfaces.Services;
 
 namespace SFARS.API.Middlewares
 {
-    //  Summary:
-    //      This act as exception handling middleware, where it will 
-    //      catch all exceptions invoked within the application and
-    //      continue to process response with [Problem details] for to client
+    /// <summary>
+    /// Exception handling middleware that catches all exceptions
+    /// and returns standardized ServiceResult responses
+    /// </summary>
     public class ExceptionHandlingMiddleware
     {
-        // Func that can process HTTP request
         private readonly RequestDelegate _next;
+        private readonly ILogger<ExceptionHandlingMiddleware> _logger;
 
-        /// Factory to produce <see cref="ProblemDetails" />
-        private readonly ProblemDetailsFactory _problemDetailsFactory;
-
-        // Contructors
         public ExceptionHandlingMiddleware(
             RequestDelegate next,
-            ProblemDetailsFactory problemDetailsFactory)
+            ILogger<ExceptionHandlingMiddleware> logger)
         {
             _next = next;
-            _problemDetailsFactory = problemDetailsFactory;
+            _logger = logger;
         }
 
-        // Invoke when HTTP request mainstream is progressing and reach the exception middleware
-        public async Task InvokeAsync(HttpContext httpContext)
+        public async Task InvokeAsync(
+            HttpContext httpContext,
+            ISystemMessageService msgService)
         {
             try
             {
-                // Nothing happen, keep on progressing request 
                 await _next(httpContext);
             }
-            catch (Exception ex) // Exception invoke 
+            catch (Exception ex)
             {
-                // Handle exception with Problem details for HTTP APIs
-                await HandleExceptionAsync(httpContext, ex);
+                // If response has already started, we cannot modify it
+                if (httpContext.Response.HasStarted)
+                {
+                    throw;
+                }
+
+                await HandleExceptionAsync(httpContext, ex, msgService);
             }
         }
 
-        // Handle Exception invoke
-        private async Task HandleExceptionAsync(HttpContext httpContext, Exception ex)
+        private async Task HandleExceptionAsync(
+            HttpContext httpContext,
+            Exception ex,
+            ISystemMessageService msgService)
         {
-            // Initialize problem details
-            // This is a machine-readable format for specifying errors in HTTP API responses based on
-            var problem = new ProblemDetails();
-            // Assign exception detail
-            problem.Detail = ex.Message;
-            // Assign instance, where the exception invoke
-            problem.Instance = $"{httpContext.Request.Method} {httpContext.Request.Path}";
+            // Log the exception with full details
+            _logger.LogError(ex, 
+                "Unhandled exception occurred. Path: {Path}, Method: {Method}", 
+                httpContext.Request.Path, 
+                httpContext.Request.Method);
 
-            // Define problem status based on specific exception type
-            switch (ex)
-            {
-                // NotFoundException
-                case NotFoundException notFoundException:
-                    problem.Status = (int)HttpStatusCode.NotFound;
-                    break;
-                // BadRequestException
-                case BadRequestException badRequestException:
-                    problem.Status = (int)HttpStatusCode.BadRequest;
-                    break;
-                // UnprocessableEntityException
-                case UnprocessableEntityException unprocessableEntityException:
-                    problem.Status = (int)HttpStatusCode.UnprocessableEntity;
-                    foreach (var validationResult in unprocessableEntityException.Errors)
-                    {
-                        problem.Extensions.Add(validationResult.Key, validationResult.Value);
-                    }
-                    break;
-                // Default 
-                default:
-                    problem.Status = (int)HttpStatusCode.InternalServerError;
-                    break;
-            }
+            // Create ServiceResult for all unhandled exceptions
+            var result = new ServiceResult(
+                ResultCodeConst.SYS_Fail0001,
+                await msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001)
+            );
 
-            // Add title and type for problem details
-            if (_problemDetailsFactory != null)
-            {
-                // Creates a ProblemDetails instance that configures defaults based on values specified
-                var tempProbDetail = _problemDetailsFactory.CreateProblemDetails(
-                    httpContext, statusCode: problem.Status);
-                // Assign title and type 
-                problem.Type = tempProbDetail.Type;
-                problem.Title = tempProbDetail.Title;
-            }
+            // Set response metadata
+            httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            httpContext.Response.ContentType = "application/json";
 
-            // Initiate ObjectResult
-            var result = new ObjectResult(problem)
-            {
-                StatusCode = problem.Status
-            };
-
-            // Serialize result object to str
-            var response = JsonConvert.SerializeObject(result.Value);
-            // Response Content-Type
-            httpContext.Response.ContentType = "application/problem+json";
-            // Write to response body
-            await httpContext.Response.WriteAsync(response);
+            // Write ServiceResult as JSON
+            await httpContext.Response.WriteAsJsonAsync(result);
         }
     }
 }

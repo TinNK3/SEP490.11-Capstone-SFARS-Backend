@@ -23,6 +23,8 @@ namespace SFARS.Application.Common
         public const string SYS_Warning0002 = "SYS.Warning0002";
         public const string SYS_Warning0003 = "SYS.Warning0003";
         public const string SYS_Warning0004 = "SYS.Warning0004";
+        public const string SYS_Warning0007 = "SYS.Warning0007"; // Forbidden - not owner/authorized
+        public const string SYS_Warning0008 = "SYS.Warning0008"; // File too large
         #endregion
 
         #region Auth

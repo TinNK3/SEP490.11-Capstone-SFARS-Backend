@@ -108,6 +108,18 @@
     "Vi": "Không có dữ liệu."
   },
   {
+    "MsgId": "SYS.Warning0007",
+    "MsgContent": "You are not authorized to perform this action.",
+    "En": "You are not authorized to perform this action.",
+    "Vi": "Bạn không có quyền thực hiện hành động này."
+  },
+  {
+    "MsgId": "SYS.Warning0008",
+    "MsgContent": "File size exceeds the maximum limit (10MB).",
+    "En": "File size exceeds the maximum limit (10MB).",
+    "Vi": "Kích thước file vượt quá giới hạn cho phép (10MB)."
+  },
+  {
     "MsgId": "Auth.Success0001",
     "MsgContent": "Please continue with password sign-in.",
     "En": "Please continue with password sign-in.",
