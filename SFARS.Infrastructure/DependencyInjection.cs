@@ -40,6 +40,10 @@ public static class DependencyInjection
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<IFileStorageService, CloudinaryStorageService>();
             
+            // AI Services
+            services.AddSingleton<IYoloInferenceService, YoloInferenceService>();
+            services.AddHttpClient<IGeminiAiService, GeminiAiService>();
+            
             // Register repositories
             services.AddScoped(typeof(IGenericRepository<,>), typeof(GenericRepository<,>));
             services.AddScoped<IUnitOfWork, UnitOfWork>();

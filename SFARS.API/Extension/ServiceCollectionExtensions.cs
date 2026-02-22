@@ -104,6 +104,12 @@ namespace SFARS.API.Extension
             // Configure WebTokenSettings for JWT
             services.Configure<WebTokenSettings>(builder.Configuration.GetSection("WebTokenSettings"));
             services.Configure<GoogleAuthSettings>(builder.Configuration.GetSection("GoogleAuthSettings"));
+            services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
+            services.Configure<StorageOptions>(builder.Configuration.GetSection("Storage"));
+            
+            // AI Services Configuration
+            services.Configure<GeminiOptions>(builder.Configuration.GetSection("Gemini"));
+            services.Configure<YoloModelOptions>(builder.Configuration.GetSection("YoloModel"));
 
             return services;
         }

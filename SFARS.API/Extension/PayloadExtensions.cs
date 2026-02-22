@@ -43,7 +43,7 @@ namespace SFARS.API.Extension
 
 
         #region Snake
-        // Mpapping from typeof(CreatSnakeRequest) to typeof(SnakeDto)
+        // Mapping from typeof(CreateSnakeRequest) to typeof(SnakeDto)
         public static SnakeDto ToSnake(this CreateSnakeRequest req)
         {
             return new SnakeDto
@@ -51,13 +51,18 @@ namespace SFARS.API.Extension
                 CommonName = req.CommonName,
                 ScientificName = req.ScientificName,
                 ToxicityLevel = req.ToxicityLevel,
+                ToxinGroup = req.ToxinGroup,
                 Description = req.Description,
+                KeyIdentifiers = req.KeyIdentifiers,
+                TypicalSymptoms = req.TypicalSymptoms,
                 Habitat = req.Habitat,
+                DistributionNote = req.DistributionNote,
+                Note = req.Note,
                 IsActive = true
             };
         }
 
-        // Mpapping from typeof(UpdateSnakeRequest) to typeof(SnakeDto)
+        // Mapping from typeof(UpdateSnakeRequest) to typeof(SnakeDto)
         public static SnakeDto ToSnakeForUpdate(this UpdateSnakeRequest req)
         {
             return new SnakeDto
@@ -65,8 +70,13 @@ namespace SFARS.API.Extension
                 CommonName = req.CommonName,
                 ScientificName = req.ScientificName,
                 ToxicityLevel = req.ToxicityLevel,
+                ToxinGroup = req.ToxinGroup,
                 Description = req.Description,
+                KeyIdentifiers = req.KeyIdentifiers,
+                TypicalSymptoms = req.TypicalSymptoms,
                 Habitat = req.Habitat,
+                DistributionNote = req.DistributionNote,
+                Note = req.Note,
                 IsActive = req.IsActive
             };
         }

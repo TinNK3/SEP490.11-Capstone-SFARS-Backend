@@ -23,6 +23,7 @@ public partial class SFARSDbContext : DbContext
     // Snake & Medical
     public DbSet<Snake> Snakes { get; set; }
     public DbSet<SnakeImage> SnakeImages { get; set; }
+    public DbSet<SnakeChangeLog> SnakeChangeLogs { get; set; }
     public DbSet<FirstAidDetail> FirstAidDetails { get; set; }
     public DbSet<MedicalFacility> MedicalFacilities { get; set; }
 

@@ -94,5 +94,30 @@ namespace SFARS.API.Controller
                 
             return this.ToIActionResult(result);
         }
+
+        /// <summary>
+        /// Create AI inference for incident media (snake detection + first aid)
+        /// </summary>
+        /// <param name="id">Incident ID</param>
+        /// <param name="req">Media to analyze</param>
+        /// <returns>AI analysis with snake detection and first aid steps</returns>
+        [Authorize]
+        [HttpPost(APIRoute.Incident.CreateAiInference, Name = nameof(CreateAiInferenceAsync))]
+        public async Task<IActionResult> CreateAiInferenceAsync(
+            [FromRoute] Guid id,
+            [FromBody] CreateAiInferenceRequest req)
+        {
+            var userId = User.GetUserId();
+            
+            var aiInferenceService = HttpContext.RequestServices
+                .GetRequiredService<IAiInferenceService>();
+            
+            var result = await aiInferenceService.CreateInferenceAsync(
+                userId: userId,
+                incidentId: id,
+                incidentMediaId: req.IncidentMediaId);
+                
+            return this.ToIActionResult(result);
+        }
     }
 }
