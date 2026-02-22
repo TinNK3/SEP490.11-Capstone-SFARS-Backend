@@ -43,10 +43,14 @@
             public const string GetAll = Base + "/snakes";
             public const string GetById = Base + "/snakes/{id}";
             public const string Search = Base + "/snakes/search";
+            public const string History = Base + "/snakes/{id}/history";
             // [POST]
             public const string Create = Base + "/snakes";
+            public const string ImportPreview = Base + "/snakes/import/preview";
+            public const string ImportApply = Base + "/snakes/import/apply";
             // [PUT]
             public const string Update = Base + "/snakes/{id}";
+            public const string Revert = Base + "/snakes/revert/{changeLogId}";
             // [PATCH]
 
             // [DELETE]
@@ -64,6 +68,7 @@
             // [POST]
             public const string Create = Base + "/incidents";
             public const string UploadMedia = Base + "/incidents/{id}/media";
+            public const string CreateAiInference = Base + "/incidents/{id}/ai-inferences";
         }
 
         /// <summary>

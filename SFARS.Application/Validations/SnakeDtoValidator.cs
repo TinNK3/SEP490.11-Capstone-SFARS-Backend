@@ -29,10 +29,12 @@ namespace SFARS.Application.Validations
                 .WithMessage(isVi ? "Tên khoa học không được vượt quá 200 ký tự" : "Scientific name must not exceed 200 characters");
 
             RuleFor(x => x.ToxicityLevel)
-                .NotEmpty()
-                .WithMessage(isVi ? "Mức độ độc tố không được để trống" : "Toxicity level must not be empty")
-                .MaximumLength(50)
-                .WithMessage(isVi ? "Mức độ độc tố không được vượt quá 50 ký tự" : "Toxicity level must not exceed 50 characters");
+                .IsInEnum()
+                .WithMessage(isVi ? "Mức độ độc tố không hợp lệ" : "Toxicity level is not valid");
+
+            RuleFor(x => x.ToxinGroup)
+                .IsInEnum()
+                .WithMessage(isVi ? "Nhóm độc tố không hợp lệ" : "Toxin group is not valid");
         }
     }
 }

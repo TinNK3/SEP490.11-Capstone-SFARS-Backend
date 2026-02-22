@@ -38,6 +38,7 @@ public static class DependencyInjection
 
         // Incident services
         services.AddScoped<IIncidentService<IncidentDto>, IncidentService>();
+        services.AddScoped<IAiInferenceService, AiInferenceService>();
 
         // Register all validators from this assembly
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());

@@ -11,5 +11,30 @@ namespace SFARS.Domain.Interfaces.Services
         Task<IServiceResult> DeleteSnake(Guid id);
         Task<IServiceResult> SearchSnakes(string? searchTerm, int pageIndex = 0, int pageSize = 10);
         Task<IServiceResult> GetAllSnakesPaginated(int pageIndex = 0, int pageSize = 10);
+
+        /// <summary>
+        /// Update snake with field-level change detection and audit logging.
+        /// </summary>
+        Task<IServiceResult> UpdateSnakeAsync(Guid id, TDto dto, string? changeReason);
+
+        /// <summary>
+        /// Preview a CSV import (parse + validate, no DB write).
+        /// </summary>
+        Task<IServiceResult> PreviewImportAsync(Stream csvStream);
+
+        /// <summary>
+        /// Apply a CSV import (upsert by ScientificName with audit logging).
+        /// </summary>
+        Task<IServiceResult> ApplyImportAsync(Stream csvStream, string? changeReason);
+
+        /// <summary>
+        /// Get change history for a specific snake with pagination.
+        /// </summary>
+        Task<IServiceResult> GetSnakeChangeHistory(Guid snakeId, int pageIndex = 0, int pageSize = 20);
+
+        /// <summary>
+        /// Revert a specific field change using its ChangeLog entry ID.
+        /// </summary>
+        Task<IServiceResult> RevertSnakeField(Guid changeLogId);
     }
 }

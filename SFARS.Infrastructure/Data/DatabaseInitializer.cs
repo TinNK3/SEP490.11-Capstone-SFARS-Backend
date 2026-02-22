@@ -75,6 +75,9 @@ namespace SFARS.Infrastructure.Data
 
             // [SystemMessages] - For result codes/messages (Sync Data)
             await SeedSystemMessagesAsync();
+
+            // [Snakes] - Master data for snake species (Sync Data)
+            await SeedSnakesAsync();
         }
 
         //  Summary:
@@ -281,6 +284,101 @@ namespace SFARS.Infrastructure.Data
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[Seeding] Error during deserialization or syncing.");
+                throw;
+            }
+        }
+
+        //  Summary:
+        //      Seeding Snake Master Data (Upsert by ScientificName)
+        private async Task SeedSnakesAsync()
+        {
+            var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Seeds", "snakes_seed.json");
+
+            if (!File.Exists(filePath))
+            {
+                _logger.LogWarning("[Seeding] Snakes seed file NOT found at: {FilePath}", filePath);
+                return;
+            }
+
+            try
+            {
+                var jsonData = await File.ReadAllTextAsync(filePath);
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip,
+                    Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+                };
+
+                var seedSnakes = System.Text.Json.JsonSerializer.Deserialize<List<Snake>>(jsonData, options);
+
+                if (seedSnakes == null || !seedSnakes.Any())
+                {
+                    _logger.LogWarning("[Seeding] Snake list is empty or null after deserialization.");
+                    return;
+                }
+
+                // 1. Get existing snakes keyed by ScientificName (natural key)
+                var existingSnakes = await _context.Snakes
+                    .ToDictionaryAsync(s => s.ScientificName, s => s);
+
+                var newSnakes = new List<Snake>();
+                var updatedCount = 0;
+                var now = DateTime.UtcNow;
+
+                // 2. Iterate and compare
+                foreach (var seed in seedSnakes)
+                {
+                    if (existingSnakes.TryGetValue(seed.ScientificName, out var existing))
+                    {
+                        // Update if content changed
+                        bool isChanged = false;
+                        if (existing.CommonName != seed.CommonName) { existing.CommonName = seed.CommonName; isChanged = true; }
+                        if (existing.ToxicityLevel != seed.ToxicityLevel) { existing.ToxicityLevel = seed.ToxicityLevel; isChanged = true; }
+                        if (existing.ToxinGroup != seed.ToxinGroup) { existing.ToxinGroup = seed.ToxinGroup; isChanged = true; }
+                        if (existing.Description != seed.Description) { existing.Description = seed.Description; isChanged = true; }
+                        if (existing.KeyIdentifiers != seed.KeyIdentifiers) { existing.KeyIdentifiers = seed.KeyIdentifiers; isChanged = true; }
+                        if (existing.TypicalSymptoms != seed.TypicalSymptoms) { existing.TypicalSymptoms = seed.TypicalSymptoms; isChanged = true; }
+                        if (existing.Habitat != seed.Habitat) { existing.Habitat = seed.Habitat; isChanged = true; }
+                        if (existing.DistributionNote != seed.DistributionNote) { existing.DistributionNote = seed.DistributionNote; isChanged = true; }
+                        if (existing.Note != seed.Note) { existing.Note = seed.Note; isChanged = true; }
+
+                        if (isChanged)
+                        {
+                            existing.UpdatedAt = now;
+                            updatedCount++;
+                        }
+                    }
+                    else
+                    {
+                        // New snake
+                        seed.Id = Guid.NewGuid();
+                        seed.CreatedAt = now;
+                        seed.IsActive = true;
+                        newSnakes.Add(seed);
+                    }
+                }
+
+                // 3. Batch save
+                if (newSnakes.Any())
+                {
+                    await _context.Snakes.AddRangeAsync(newSnakes);
+                }
+
+                if (newSnakes.Any() || updatedCount > 0)
+                {
+                    var rows = await _context.SaveChangesAsync();
+                    _logger.LogInformation("[Seeding] Snakes sync completed. Inserted: {Inserted}, Updated: {Updated}, DB rows: {Rows}.",
+                        newSnakes.Count, updatedCount, rows);
+                }
+                else
+                {
+                    _logger.LogInformation("[Seeding] Snakes are up-to-date. No changes needed.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Seeding] Error seeding snakes.");
                 throw;
             }
         }
