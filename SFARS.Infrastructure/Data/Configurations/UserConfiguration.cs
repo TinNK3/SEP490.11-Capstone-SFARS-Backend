@@ -49,6 +49,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasColumnType("geography")
             .HasColumnName("current_location");
 
+        builder.Property(e => e.LocationUpdatedAt)
+            .HasColumnName("location_updated_at");
+
+        builder.Property(e => e.LocationAccuracyMeters)
+            .HasColumnName("location_accuracy_meters");
+
         #region Update at: 4-02-2026 by Nguyen Khanh Tin
         builder.Property(e => e.EmailVerificationCode)
             .HasMaxLength(20)
@@ -85,5 +91,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             
         builder.HasIndex(e => e.Phone)
             .HasDatabaseName("IX_User_Phone");
+
+        builder.HasIndex(e => e.LocationUpdatedAt)
+            .HasDatabaseName("IX_User_LocationUpdatedAt")
+            .HasFilter("[location_updated_at] IS NOT NULL");
     }
 }

@@ -8,6 +8,7 @@ using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Validations;
 using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
+using SFARS.Domain.Common.Extensions;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Infrastructure;
@@ -15,6 +16,8 @@ using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
 using SFARS.Infrastructure.Configurations;
+using SFARS.Infrastructure.Helpers;
+using SFARS.Domain.Common.Constants;
 
 namespace SFARS.Application.Services
 {
@@ -95,6 +98,9 @@ namespace SFARS.Application.Services
                 Description = dto.Description,
                 CurrentStatus = IncidentStatus.Pending,
                 PriorityLevel = dto.PriorityLevel,
+                // Auto-generate tracking code for public link/QR sharing (24h expiry)
+                TrackingCode = LocationHelper.GenerateTrackingCode(),
+                TrackingCodeExpiresAt = now.Add(LocationConstants.TrackingCodeExpiry),
                 CreatedAt = now,
                 CreatedBy = userId
             };
@@ -430,5 +436,199 @@ namespace SFARS.Application.Services
                 _ => false
             };
         }
+
+        #region Tracking
+
+        /// <summary>
+        /// Get full tracking data for an incident (authenticated participants only).
+        /// Uses batch user query to avoid N+1.
+        /// </summary>
+        public async Task<IServiceResult> GetIncidentTrackingAsync(Guid userId, Guid incidentId)
+        {
+            if (userId == Guid.Empty)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0013,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0013));
+            }
+
+            // Get incident with missions (authorization check embedded)
+            var spec = new BaseSpecification<Incident>(i =>
+                i.Id == incidentId &&
+                (i.VictimId == userId ||
+                 i.Missions.Any(m => m.RescuerId == userId)));
+            spec.ApplyInclude(q => q.Include(i => i.Missions));
+
+            var incident = await _unitOfWork.Repository<Incident, Guid>()
+                .GetWithSpecAsync(spec, tracked: false);
+
+            if (incident == null)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
+            }
+
+            // Batch query all participant user IDs
+            var participantIds = new List<Guid> { incident.VictimId };
+            participantIds.AddRange(incident.Missions
+                .Where(m => m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Pending)
+                .Select(m => m.RescuerId));
+
+            var users = await _unitOfWork.Repository<User, Guid>()
+                .GetAllWithSpecAsync(new BaseSpecification<User>(u => participantIds.Contains(u.Id)),
+                    tracked: false);
+
+            var participants = BuildParticipants(users, incident.VictimId);
+
+            var dto = new IncidentTrackingDto
+            {
+                IncidentId = incident.Id,
+                IncidentCode = incident.Code,
+                TrackingCode = incident.TrackingCode,
+                Status = incident.CurrentStatus,
+                IncidentLatitude = incident.Location.Y,
+                IncidentLongitude = incident.Location.X,
+                Participants = participants
+            };
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                dto);
+        }
+
+        /// <summary>
+        /// Get incident tracking data via public tracking code (no auth).
+        /// Returns minimized DTO without userId/userName.
+        /// </summary>
+        public async Task<IServiceResult> GetPublicTrackingAsync(string trackingCode)
+        {
+            if (string.IsNullOrWhiteSpace(trackingCode))
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001));
+            }
+
+            var spec = new BaseSpecification<Incident>(i =>
+                i.TrackingCode == trackingCode
+                && i.TrackingCodeExpiresAt != null
+                && i.TrackingCodeExpiresAt > DateTime.UtcNow
+                && i.CurrentStatus != IncidentStatus.Closed
+                && i.CurrentStatus != IncidentStatus.Cancelled);
+            spec.ApplyInclude(q => q.Include(i => i.Missions));
+
+            var incident = await _unitOfWork.Repository<Incident, Guid>()
+                .GetWithSpecAsync(spec, tracked: false);
+
+            if (incident == null)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0002,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002));
+            }
+
+            // Batch query all participant users
+            var participantIds = new List<Guid> { incident.VictimId };
+            participantIds.AddRange(incident.Missions
+                .Where(m => m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Pending)
+                .Select(m => m.RescuerId));
+
+            var users = await _unitOfWork.Repository<User, Guid>()
+                .GetAllWithSpecAsync(new BaseSpecification<User>(u => participantIds.Contains(u.Id)),
+                    tracked: false);
+
+            var publicParticipants = users.Select(u => new PublicTrackingParticipantDto
+            {
+                Role = u.Id == incident.VictimId ? "victim" : "rescuer",
+                Latitude = u.CurrentLocation?.Y,
+                Longitude = u.CurrentLocation?.X,
+                LocationUpdatedAt = u.LocationUpdatedAt,
+                AccuracyLevel = LocationHelper.GetAccuracyLevel(u.LocationAccuracyMeters)
+            }).ToList();
+
+            var dto = new PublicIncidentTrackingDto
+            {
+                IncidentCode = incident.Code,
+                Status = incident.CurrentStatus.ToString(),
+                IncidentLatitude = incident.Location.Y,
+                IncidentLongitude = incident.Location.X,
+                Participants = publicParticipants
+            };
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                dto);
+        }
+
+        /// <summary>
+        /// Generate or regenerate a tracking code for an incident (victim only).
+        /// Code expires in 24 hours.
+        /// </summary>
+        public async Task<IServiceResult> RegenerateTrackingCodeAsync(Guid userId, Guid incidentId)
+        {
+            if (userId == Guid.Empty)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0013,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0013));
+            }
+
+            var incident = await _unitOfWork.Repository<Incident, Guid>()
+                .GetWithSpecAsync(new BaseSpecification<Incident>(i =>
+                    i.Id == incidentId && i.VictimId == userId));
+
+            if (incident == null)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
+            }
+
+            if (!incident.CurrentStatus.IsTrackable())
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001));
+            }
+
+            incident.TrackingCode = LocationHelper.GenerateTrackingCode();
+            incident.TrackingCodeExpiresAt = DateTime.UtcNow.Add(LocationConstants.TrackingCodeExpiry);
+
+            await _unitOfWork.Repository<Incident, Guid>().UpdateAsync(incident);
+            await _unitOfWork.SaveChangesAsync();
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0003,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0003),
+                new
+                {
+                    TrackingCode = incident.TrackingCode,
+                    ExpiresAt = incident.TrackingCodeExpiresAt
+                });
+        }
+
+        /// <summary>
+        /// Build participant list from User entities (shared by auth and public endpoints).
+        /// </summary>
+        private static List<TrackingParticipantDto> BuildParticipants(
+            IEnumerable<User> users, Guid victimId)
+        {
+            return users.Select(u => new TrackingParticipantDto
+            {
+                UserId = u.Id,
+                UserName = u.FullName ?? u.Email ?? "Unknown",
+                Role = u.Id == victimId ? "victim" : "rescuer",
+                Latitude = u.CurrentLocation?.Y,
+                Longitude = u.CurrentLocation?.X,
+                LocationUpdatedAt = u.LocationUpdatedAt,
+                AccuracyMeters = u.LocationAccuracyMeters,
+                AccuracyLevel = LocationHelper.GetAccuracyLevel(u.LocationAccuracyMeters)
+            }).ToList();
+        }
+
+        #endregion
     }
 }

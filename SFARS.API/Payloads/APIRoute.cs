@@ -30,6 +30,7 @@
         {
             // [GET]
             public const string Me = Base + "/me";
+            public const string MeLocation = Base + "/me/location";
             // [PUT]
             public const string UpdateMe = Base + "/me";
         }
@@ -65,10 +66,22 @@
             // [GET]
             public const string GetById = Base + "/incidents/{id}";
             public const string GetMyIncidents = Base + "/incidents/me";
+            public const string Tracking = Base + "/incidents/{id}/tracking";
+            public const string TrackingByCode = Base + "/tracking";
             // [POST]
             public const string Create = Base + "/incidents";
             public const string UploadMedia = Base + "/incidents/{id}/media";
             public const string CreateAiInference = Base + "/incidents/{id}/ai-inferences";
+            public const string RegenerateTrackingCode = Base + "/incidents/{id}/tracking-code/regenerate";
+        }
+
+        /// <summary>
+        /// Medical facility endpoints
+        /// </summary>
+        public static class Facility
+        {
+            // [GET]
+            public const string Nearby = Base + "/facilities/nearby";
         }
 
         /// <summary>

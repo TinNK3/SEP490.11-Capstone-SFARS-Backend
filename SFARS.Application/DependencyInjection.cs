@@ -40,8 +40,14 @@ public static class DependencyInjection
         services.AddScoped<IIncidentService<IncidentDto>, IncidentService>();
         services.AddScoped<IAiInferenceService, AiInferenceService>();
 
+        // Facility services
+        services.AddScoped<IMedicalFacilityService, MedicalFacilityService>();
+
         // Register all validators from this assembly
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
+        // Register MediatR (IPublisher, IMediator, and all handlers from this assembly)
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
 
         services.ConfigureMapster();
 

@@ -18,6 +18,8 @@ namespace SFARS.Application.Dtos.Auth
         public Gender? Gender { get; set; }
         public DateTime? Dob { get; set; }
         public UserStatus Status { get; set; }
+        public bool IsOnline { get; set; }
+        public DateTime? LastActiveAt { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public Guid? CreatedBy { get; set; }
@@ -46,15 +48,16 @@ namespace SFARS.Application.Dtos.Auth
                 LastName = authenticateUser.LastName,
                 Phone = authenticateUser.Phone,
                 PasswordHash = authenticateUser.PasswordHash,
-                EmailVerificationCode = authenticateUser.EmailVerificationCode,
                 Avatar = authenticateUser.Avatar,
                 Address = authenticateUser.Address,
                 Gender = authenticateUser.Gender,
                 Dob = authenticateUser.Dob,
                 Status = authenticateUser.Status,
+                IsOnline = authenticateUser.IsOnline,
+                LastActiveAt = authenticateUser.LastActiveAt,
                 CreatedAt = authenticateUser.CreatedAt,
                 UpdatedAt = authenticateUser.UpdatedAt,
-                Role = authenticateUser.RoleName
+                Role = authenticateUser.RoleName,
             };
         }
     }

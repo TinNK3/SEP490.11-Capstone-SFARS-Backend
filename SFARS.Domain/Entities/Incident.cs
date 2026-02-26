@@ -30,4 +30,8 @@ public class Incident : BaseEntity
     public virtual ICollection<AiInference> AiInferences { get; set; } = new List<AiInference>();
     public virtual ICollection<IncidentSymptom> Symptoms { get; set; } = new List<IncidentSymptom>();
     public virtual IncidentChat? Chat { get; set; }
+
+    // Public tracking (QR code sharing)
+    public string? TrackingCode { get; set; }
+    public DateTime? TrackingCodeExpiresAt { get; set; }
 }

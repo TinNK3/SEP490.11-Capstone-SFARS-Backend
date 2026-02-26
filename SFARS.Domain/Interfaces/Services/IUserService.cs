@@ -11,5 +11,10 @@ namespace SFARS.Domain.Interfaces.Services
         Task<IServiceResult> UpdateMeAsync(Guid userId, TDto dto);
         Task<IServiceResult> UpdateEmailVerificationCodeAsync(Guid userId, string otp);
         Task<IServiceResult> UpdatePasswordAsync(Guid userId, string newPasswordHash);
+
+        // Location
+        Task<IServiceResult> GetUserLocationAsync(Guid userId);
+        Task<IServiceResult> UpdateUserLocationAsync(
+            Guid userId, double latitude, double longitude, double? accuracyMeters);
     }
 }

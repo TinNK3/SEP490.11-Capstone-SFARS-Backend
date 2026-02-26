@@ -48,6 +48,10 @@ public static class DependencyInjection
             services.AddScoped(typeof(IGenericRepository<,>), typeof(GenericRepository<,>));
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+            // Location services
+            services.AddSingleton<ILocationCacheService, RedisLocationCacheService>();
+            services.AddScoped<ILocationBroadcastService, LocationBroadcastService>();
+
             return services;
         }
 }

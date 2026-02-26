@@ -82,5 +82,18 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         builder.HasOne(i => i.Chat)
             .WithOne(c => c.Incident)
             .HasForeignKey<IncidentChat>(c => c.IncidentId);
+
+        // Public tracking (QR code sharing)
+        builder.Property(e => e.TrackingCode)
+            .HasMaxLength(32)
+            .HasColumnName("tracking_code");
+
+        builder.Property(e => e.TrackingCodeExpiresAt)
+            .HasColumnName("tracking_code_expires_at");
+
+        builder.HasIndex(e => e.TrackingCode)
+            .IsUnique()
+            .HasDatabaseName("IX_Incident_TrackingCode")
+            .HasFilter("[tracking_code] IS NOT NULL");
     }
 }
