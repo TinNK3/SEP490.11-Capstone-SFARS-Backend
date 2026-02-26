@@ -33,6 +33,7 @@ namespace SFARS.Application.Common
         public const string Auth_Success0003 = "Auth.Success0003";
         public const string Auth_Success0005 = "Auth.Success0005";
         public const string Auth_Success0008 = "Auth.Success0008";
+        public const string Auth_Success0009 = "Auth.Success0009";
 
         public const string Auth_Warning0001 = "Auth.Warning0001";
         public const string Auth_Warning0002 = "Auth.Warning0002";

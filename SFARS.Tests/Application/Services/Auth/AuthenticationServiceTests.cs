@@ -15,6 +15,9 @@ using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Models;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace SFARS.Tests.Application.Services.Auth;
 
@@ -29,6 +32,7 @@ public class AuthenticationServiceTests
     private readonly Mock<ILogger<AuthService>> _loggerMock;
     private readonly Mock<IExternalAuthService> _externalAuthServiceMock;
     private readonly Mock<IEmailService> _emailServiceMock;
+    private readonly Mock<ITokenBlacklistService> _tokenBlacklistServiceMock;
     private readonly TokenValidationParameters _tokenValidationParameters;
     private readonly AuthService _sut; // System Under Test
 
@@ -43,6 +47,7 @@ public class AuthenticationServiceTests
         _loggerMock = new Mock<ILogger<AuthService>>();
         _externalAuthServiceMock = new Mock<IExternalAuthService>();
         _emailServiceMock = new Mock<IEmailService>();
+        _tokenBlacklistServiceMock = new Mock<ITokenBlacklistService>();
         _tokenValidationParameters = new TokenValidationParameters();
 
         // Setup WebTokenSettings
@@ -76,7 +81,8 @@ public class AuthenticationServiceTests
             _webTokenSettingsMock.Object,
             _loggerMock.Object,
             _externalAuthServiceMock.Object,
-            _emailServiceMock.Object
+            _emailServiceMock.Object,
+            _tokenBlacklistServiceMock.Object
         );
     }
 
@@ -410,6 +416,321 @@ public class AuthenticationServiceTests
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Fail0002);
+    }
+
+    #endregion
+
+    #region SignOutAsync Tests
+
+    // ──────────────────────────────────────────────────────────────────────────────
+    // Helper: build a real signed JWT so CanReadToken() + ReadJwtToken() work.
+    // SignOutAsync parses the token inline (not via IJwtUtils) — tests must supply
+    // an actual JWT string to exercise the blacklisting branch.
+    // ──────────────────────────────────────────────────────────────────────────────
+    private static string BuildRealJwt(
+        string? jti = null,
+        int expiresInMinutes = 60,
+        string signingKey = "SuperSecretKeyForTestingPurposesOnly12345678")
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
+        };
+
+        // Only add JTI claim when explicitly provided (allows testing the no-JTI path)
+        if (jti != null)
+            claims.Add(new Claim(JwtRegisteredClaimNames.Jti, jti));
+
+        var token = new JwtSecurityToken(
+            issuer: "SFARS.API.Test",
+            audience: "SFARS.Client.Test",
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(expiresInMinutes),
+            signingCredentials: creds);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    // ── STEP 1: Blacklisting ──────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task SignOutAsync_WithValidJwt_RevokesJtiOnBlacklist()
+    {
+        // Arrange — real JWT so CanReadToken() returns true and JTI is extracted
+        var userId = Guid.NewGuid();
+        var expectedJti = Guid.NewGuid().ToString();
+        var accessToken = BuildRealJwt(jti: expectedJti);
+
+        _refreshTokenServiceMock
+            .Setup(x => x.GetByUserIdAsync(userId))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Warning0004, "Not found", null!));
+
+        // Act
+        await _sut.SignOutAsync(userId, accessToken);
+
+        // Assert — Revoke must be called with the exact JTI extracted from the token
+        _tokenBlacklistServiceMock.Verify(
+            x => x.Revoke(expectedJti, It.IsAny<DateTime>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task SignOutAsync_WithValidJwt_RevokesWithCorrectExpiry()
+    {
+        // Arrange — verify the expiry passed to Revoke matches the token's ValidTo
+        var userId = Guid.NewGuid();
+        var expectedJti = Guid.NewGuid().ToString();
+        var accessToken = BuildRealJwt(jti: expectedJti, expiresInMinutes: 30);
+
+        // Parse the token ourselves to know exactly what ValidTo will be
+        var parsedValidTo = new JwtSecurityTokenHandler()
+            .ReadJwtToken(accessToken).ValidTo;
+
+        _refreshTokenServiceMock
+            .Setup(x => x.GetByUserIdAsync(userId))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Warning0004, "Not found", null!));
+
+        // Act
+        await _sut.SignOutAsync(userId, accessToken);
+
+        // Assert — expiry forwarded to blacklist must match the token's actual ValidTo
+        _tokenBlacklistServiceMock.Verify(
+            x => x.Revoke(expectedJti, It.Is<DateTime>(d =>
+                Math.Abs((d - parsedValidTo).TotalSeconds) < 2)),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task SignOutAsync_WithUnparsableToken_SkipsBlacklisting()
+    {
+        // Arrange — garbage string, CanReadToken() returns false; blacklist must be skipped
+        var userId = Guid.NewGuid();
+        const string garbageToken = "not.a.valid.jwt.at.all";
+
+        _refreshTokenServiceMock
+            .Setup(x => x.GetByUserIdAsync(userId))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Warning0004, "Not found", null!));
+
+        // Act
+        await _sut.SignOutAsync(userId, garbageToken);
+
+        // Assert — Revoke must never be called
+        _tokenBlacklistServiceMock.Verify(
+            x => x.Revoke(It.IsAny<string>(), It.IsAny<DateTime>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task SignOutAsync_WithJwtMissingJtiClaim_SkipsBlacklisting()
+    {
+        // Arrange — real JWT but no JTI claim; service should log warning and skip Revoke
+        var userId = Guid.NewGuid();
+        var accessToken = BuildRealJwt(jti: null); // no JTI
+
+        _refreshTokenServiceMock
+            .Setup(x => x.GetByUserIdAsync(userId))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Warning0004, "Not found", null!));
+
+        // Act
+        await _sut.SignOutAsync(userId, accessToken);
+
+        // Assert
+        _tokenBlacklistServiceMock.Verify(
+            x => x.Revoke(It.IsAny<string>(), It.IsAny<DateTime>()),
+            Times.Never);
+    }
+
+    // ── STEP 2: Refresh token deletion ───────────────────────────────────────────
+
+    [Fact]
+    public async Task SignOutAsync_WithValidJwt_ActiveSession_BlacklistsAndDeletesRefreshToken()
+    {
+        // Arrange — happy path: valid JWT + active refresh token
+        var userId = Guid.NewGuid();
+        var jti = Guid.NewGuid().ToString();
+        var accessToken = BuildRealJwt(jti: jti);
+        var refreshTokenDto = new RefreshTokenDto
+        {
+            Id = 42,
+            UserId = userId,
+            RefreshTokenId = "refresh-abc",
+            TokenId = jti,
+            CreateDate = DateTime.UtcNow,
+            ExpiryDate = DateTime.UtcNow.AddDays(7)
+        };
+
+        _refreshTokenServiceMock
+            .Setup(x => x.GetByUserIdAsync(userId))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, refreshTokenDto));
+        _refreshTokenServiceMock
+            .Setup(x => x.DeleteAsync(refreshTokenDto.Id))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0004, null!, true));
+
+        // Act
+        var result = await _sut.SignOutAsync(userId, accessToken);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.Auth_Success0009);
+        _tokenBlacklistServiceMock.Verify(x => x.Revoke(jti, It.IsAny<DateTime>()), Times.Once);
+        _refreshTokenServiceMock.Verify(x => x.DeleteAsync(refreshTokenDto.Id), Times.Once);
+    }
+
+    [Fact]
+    public async Task SignOutAsync_WithValidJwt_NoActiveSession_ReturnsSuccessWithoutDeletion()
+    {
+        // Arrange — no refresh token on record (already signed out / session expired)
+        var userId = Guid.NewGuid();
+        var accessToken = BuildRealJwt(jti: Guid.NewGuid().ToString());
+
+        _refreshTokenServiceMock
+            .Setup(x => x.GetByUserIdAsync(userId))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Warning0004, "Not found", null!));
+
+        // Act
+        var result = await _sut.SignOutAsync(userId, accessToken);
+
+        // Assert — still succeeds; token is blacklisted to prevent reuse
+        result.ResultCode.Should().Be(ResultCodeConst.Auth_Success0009);
+        _refreshTokenServiceMock.Verify(x => x.DeleteAsync(It.IsAny<int>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SignOutAsync_WithValidJwt_DeleteFails_ReturnsFailure()
+    {
+        // Arrange — blacklist succeeds but DB delete fails
+        var userId = Guid.NewGuid();
+        var jti = Guid.NewGuid().ToString();
+        var accessToken = BuildRealJwt(jti: jti);
+        var refreshTokenDto = new RefreshTokenDto
+        {
+            Id = 99,
+            UserId = userId,
+            RefreshTokenId = "refresh-xyz",
+            TokenId = jti
+        };
+
+        _refreshTokenServiceMock
+            .Setup(x => x.GetByUserIdAsync(userId))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, refreshTokenDto));
+        _refreshTokenServiceMock
+            .Setup(x => x.DeleteAsync(refreshTokenDto.Id))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Fail0001, "Delete failed", false));
+
+        // Act
+        var result = await _sut.SignOutAsync(userId, accessToken);
+
+        // Assert — JTI is still blacklisted even though delete failed
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Fail0001);
+        result.Data.Should().BeNull();
+        _tokenBlacklistServiceMock.Verify(x => x.Revoke(jti, It.IsAny<DateTime>()), Times.Once);
+        _refreshTokenServiceMock.Verify(x => x.DeleteAsync(refreshTokenDto.Id), Times.Once);
+    }
+
+    [Fact]
+    public async Task SignOutAsync_DeletesCorrectRefreshTokenId()
+    {
+        // Arrange — verifies DeleteAsync is called with the exact token ID from the lookup
+        var userId = Guid.NewGuid();
+        const int expectedTokenId = 77;
+        var accessToken = BuildRealJwt(jti: Guid.NewGuid().ToString());
+        var refreshTokenDto = new RefreshTokenDto
+        {
+            Id = expectedTokenId,
+            UserId = userId,
+            RefreshTokenId = "some-token",
+            TokenId = "some-jti"
+        };
+
+        _refreshTokenServiceMock
+            .Setup(x => x.GetByUserIdAsync(userId))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, refreshTokenDto));
+        _refreshTokenServiceMock
+            .Setup(x => x.DeleteAsync(expectedTokenId))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0004, null!, true));
+
+        // Act
+        await _sut.SignOutAsync(userId, accessToken);
+
+        // Assert
+        _refreshTokenServiceMock.Verify(x => x.DeleteAsync(expectedTokenId), Times.Once);
+        _refreshTokenServiceMock.Verify(
+            x => x.DeleteAsync(It.Is<int>(id => id != expectedTokenId)), Times.Never);
+    }
+
+    // ── Exception paths ───────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task SignOutAsync_GetByUserIdThrowsException_PropagatesException()
+    {
+        // Arrange — DB failure during refresh token lookup
+        var userId = Guid.NewGuid();
+        var accessToken = BuildRealJwt(jti: Guid.NewGuid().ToString());
+
+        _refreshTokenServiceMock
+            .Setup(x => x.GetByUserIdAsync(userId))
+            .ThrowsAsync(new InvalidOperationException("Database connection lost"));
+
+        // Act
+        Func<Task> act = async () => await _sut.SignOutAsync(userId, accessToken);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Database connection lost");
+        _refreshTokenServiceMock.Verify(x => x.DeleteAsync(It.IsAny<int>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SignOutAsync_DeleteThrowsException_PropagatesException()
+    {
+        // Arrange — delete blows up (e.g. concurrency conflict)
+        var userId = Guid.NewGuid();
+        var accessToken = BuildRealJwt(jti: Guid.NewGuid().ToString());
+        var refreshTokenDto = new RefreshTokenDto
+        {
+            Id = 5,
+            UserId = userId,
+            RefreshTokenId = "r-token",
+            TokenId = "j-token"
+        };
+
+        _refreshTokenServiceMock
+            .Setup(x => x.GetByUserIdAsync(userId))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, refreshTokenDto));
+        _refreshTokenServiceMock
+            .Setup(x => x.DeleteAsync(refreshTokenDto.Id))
+            .ThrowsAsync(new InvalidOperationException("Concurrency error"));
+
+        // Act
+        Func<Task> act = async () => await _sut.SignOutAsync(userId, accessToken);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Concurrency error");
+    }
+
+    // ── UserId routing ────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task SignOutAsync_LooksUpCorrectUserId()
+    {
+        // Arrange — verify GetByUserIdAsync receives the exact userId passed in
+        var userId = Guid.NewGuid();
+        var differentUserId = Guid.NewGuid();
+        var accessToken = BuildRealJwt(jti: Guid.NewGuid().ToString());
+
+        _refreshTokenServiceMock
+            .Setup(x => x.GetByUserIdAsync(userId))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Warning0004, null!, null!));
+
+        // Act
+        await _sut.SignOutAsync(userId, accessToken);
+
+        // Assert
+        _refreshTokenServiceMock.Verify(x => x.GetByUserIdAsync(userId), Times.Once);
+        _refreshTokenServiceMock.Verify(x => x.GetByUserIdAsync(differentUserId), Times.Never);
     }
 
     #endregion

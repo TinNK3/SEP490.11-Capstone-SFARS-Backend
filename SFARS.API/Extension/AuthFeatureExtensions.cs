@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using SFARS.Application.Configurations;
+using SFARS.Domain.Interfaces.Services;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 
 namespace SFARS.API.Extension
@@ -43,10 +46,10 @@ namespace SFARS.API.Extension
 
                     options.TokenValidationParameters = tokenValidationParameters;
 
-                    // SignalR: read JWT from query string (?access_token=...)
-                    // because WebSocket cannot send custom headers
                     options.Events = new JwtBearerEvents
                     {
+                        // SignalR: read JWT from query string (?access_token=...)
+                        // because WebSocket cannot send custom headers
                         OnMessageReceived = context =>
                         {
                             var accessToken = context.Request.Query["access_token"];
@@ -58,6 +61,47 @@ namespace SFARS.API.Extension
                             {
                                 context.Token = accessToken;
                             }
+
+                            return Task.CompletedTask;
+                        },
+
+                        OnTokenValidated = context =>
+                        {
+                            var blacklist = context.HttpContext.RequestServices
+                                .GetRequiredService<ITokenBlacklistService>();
+                            var logger = context.HttpContext.RequestServices
+                                .GetRequiredService<ILoggerFactory>()
+                                .CreateLogger("SFARS.API.JwtAuth");
+
+                            var jti = context.Principal
+                                ?.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+                            var userId = context.Principal
+                                ?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                            logger.LogDebug(
+                                "[JWT] Token validated — UserId: {UserId}, JTI: {Jti}, Path: {Path}",
+                                userId, jti, context.HttpContext.Request.Path);
+
+                            if (jti != null && blacklist.IsRevoked(jti))
+                            {
+                                logger.LogDebug(
+                                    "[JWT] ACCESS DENIED — JTI {Jti} is blacklisted (user already signed out).",
+                                    jti);
+                                context.Fail("Token has been revoked.");
+                            }
+
+                            return Task.CompletedTask;
+                        },
+
+                        OnAuthenticationFailed = context =>
+                        {
+                            var logger = context.HttpContext.RequestServices
+                                .GetRequiredService<ILoggerFactory>()
+                                .CreateLogger("SFARS.API.JwtAuth");
+                            logger.LogDebug(
+                                "[JWT] Authentication failed — Path: {Path}, Reason: {Reason}",
+                                context.HttpContext.Request.Path,
+                                context.Exception.Message);
                             return Task.CompletedTask;
                         }
                     };
