@@ -35,6 +35,7 @@ namespace SFARS.Application.Dtos.User
         [JsonIgnore]
         public string? PasswordHash { get; set; }
 
+        [JsonIgnore]
         public string? EmailVerificationCode { get; set; }
 
         [JsonIgnore]
@@ -64,6 +65,8 @@ namespace SFARS.Application.Dtos.User
                 Gender = userDto.Gender,
                 Dob = userDto.Dob,
                 Status = userDto.Status,
+                IsOnline = userDto.IsOnline,
+                LastActiveAt = userDto.LastActiveAt,
                 CreatedAt = userDto.CreatedAt,
                 UpdatedAt = userDto.UpdatedAt,
                 RoleName = role,

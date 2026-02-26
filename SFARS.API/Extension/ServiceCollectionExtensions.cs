@@ -123,7 +123,8 @@ namespace SFARS.API.Extension
             {
                 policy.WithOrigins(allowedOrigins)
                     .AllowAnyHeader()
-                    .AllowAnyMethod();
+                    .AllowAnyMethod()
+                    .AllowCredentials();
             }));
             return services;
         }

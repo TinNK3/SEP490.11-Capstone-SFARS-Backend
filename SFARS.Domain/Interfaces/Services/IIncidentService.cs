@@ -22,5 +22,10 @@ namespace SFARS.Domain.Interfaces.Services
             string contentType, 
             long fileSize, 
             MediaType mediaType);
+
+        // Tracking
+        Task<IServiceResult> GetIncidentTrackingAsync(Guid userId, Guid incidentId);
+        Task<IServiceResult> GetPublicTrackingAsync(string trackingCode);
+        Task<IServiceResult> RegenerateTrackingCodeAsync(Guid userId, Guid incidentId);
     }
 }

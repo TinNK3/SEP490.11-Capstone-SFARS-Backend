@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using MapsterMapper;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SFARS.Application.Common;
@@ -30,6 +31,7 @@ namespace SFARS.Tests.Application.Services.Users
         private readonly Mock<ISystemMessageService> _msgServiceMock;
         private readonly Mock<IMapper> _mapperMock;
         private readonly Mock<ILogger<UserService>> _loggerMock;
+        private readonly Mock<IPublisher> _publisherMock;
 
         private readonly UserService _sut;
 
@@ -40,6 +42,7 @@ namespace SFARS.Tests.Application.Services.Users
             _msgServiceMock = new Mock<ISystemMessageService>();
             _mapperMock = new Mock<IMapper>();
             _loggerMock = new Mock<ILogger<UserService>>();
+            _publisherMock = new Mock<IPublisher>();
 
             // Important: UnitOfWork.Repository<User, Guid>() must return our mocked repository.
             _unitOfWorkMock
@@ -55,7 +58,8 @@ namespace SFARS.Tests.Application.Services.Users
                 _msgServiceMock.Object,
                 _unitOfWorkMock.Object,
                 _mapperMock.Object,
-                _loggerMock.Object
+                _loggerMock.Object,
+                _publisherMock.Object
             );
         }
 

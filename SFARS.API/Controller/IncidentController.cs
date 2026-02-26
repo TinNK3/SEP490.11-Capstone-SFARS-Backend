@@ -119,5 +119,50 @@ namespace SFARS.API.Controller
                 
             return this.ToIActionResult(result);
         }
+
+        #region Tracking
+
+        /// <summary>
+        /// Get incident tracking data (locations of all participants)
+        /// </summary>
+        /// <param name="id">Incident ID</param>
+        /// <returns>Tracking data with participant locations</returns>
+        [Authorize]
+        [HttpGet(APIRoute.Incident.Tracking, Name = nameof(GetIncidentTracking))]
+        public async Task<IActionResult> GetIncidentTracking([FromRoute] Guid id)
+        {
+            var userId = User.GetUserId();
+            var result = await _incidentService.GetIncidentTrackingAsync(userId, id);
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
+        /// Get incident tracking via public code (QR sharing, no auth required)
+        /// </summary>
+        /// <param name="code">Tracking code</param>
+        /// <returns>Minimized tracking data</returns>
+        [AllowAnonymous]
+        [HttpGet(APIRoute.Incident.TrackingByCode, Name = nameof(GetPublicTracking))]
+        public async Task<IActionResult> GetPublicTracking([FromQuery] string code)
+        {
+            var result = await _incidentService.GetPublicTrackingAsync(code);
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
+        /// Generate or regenerate a tracking code for sharing (victim only)
+        /// </summary>
+        /// <param name="id">Incident ID</param>
+        /// <returns>Tracking code and expiry</returns>
+        [Authorize]
+        [HttpPost(APIRoute.Incident.RegenerateTrackingCode, Name = nameof(RegenerateTrackingCode))]
+        public async Task<IActionResult> RegenerateTrackingCode([FromRoute] Guid id)
+        {
+            var userId = User.GetUserId();
+            var result = await _incidentService.RegenerateTrackingCodeAsync(userId, id);
+            return this.ToIActionResult(result);
+        }
+
+        #endregion
     }
 }

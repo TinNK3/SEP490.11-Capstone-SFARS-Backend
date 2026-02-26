@@ -27,6 +27,8 @@ public class User : BaseEntity
 
     // Location (Real-time)
     public Point? CurrentLocation { get; set; }
+    public DateTime? LocationUpdatedAt { get; set; }
+    public double? LocationAccuracyMeters { get; set; }
 
     // Email Verification
     public string? EmailVerificationCode { get; set; }

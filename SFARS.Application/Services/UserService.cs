@@ -1,26 +1,36 @@
 ﻿using MapsterMapper;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using NetTopologySuite;
+using NetTopologySuite.Geometries;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos.User;
+using SFARS.Application.Events;
 using SFARS.Application.Validations;
+using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
 using SFARS.Domain.Specifications.Users;
+using SFARS.Infrastructure.Helpers;
 
 namespace SFARS.Application.Services
 {
     public class UserService : GenericService<User, UserDto, Guid>, IUserService<UserDto>
     {
+        private readonly IPublisher _publisher;
+
         public UserService(
             ISystemMessageService msgService,
             IUnitOfWork unitOfWork,
             IMapper mapper,
-            ILogger<UserService> logger) : base(msgService, unitOfWork, mapper, logger)
+            ILogger<UserService> logger,
+            IPublisher publisher) : base(msgService, unitOfWork, mapper, logger)
         {
+            _publisher = publisher;
         }
 
         /// <summary>
@@ -252,5 +262,140 @@ namespace SFARS.Application.Services
                 throw new Exception("Error occurred while updating password");
             }
         }
+
+        #region Location
+
+        /// <summary>
+        /// Get the current location of the authenticated user.
+        /// </summary>
+        public async Task<IServiceResult> GetUserLocationAsync(Guid userId)
+        {
+            if (userId == Guid.Empty)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0007,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0007));
+            }
+
+            var user = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(userId);
+            if (user == null)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
+            }
+
+            var dto = new UserLocationDto
+            {
+                Latitude = user.CurrentLocation?.Y,
+                Longitude = user.CurrentLocation?.X,
+                LocationUpdatedAt = user.LocationUpdatedAt,
+                AccuracyMeters = user.LocationAccuracyMeters,
+                AccuracyLevel = LocationHelper.GetAccuracyLevel(user.LocationAccuracyMeters)
+            };
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                dto);
+        }
+
+        /// <summary>
+        /// Update user's real-time location, optionally log tracking data, and broadcast to active incidents.
+        /// </summary>
+        public async Task<IServiceResult> UpdateUserLocationAsync(
+            Guid userId, double latitude, double longitude, double? accuracyMeters)
+        {
+            if (userId == Guid.Empty)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0007,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0007));
+            }
+
+            var user = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(userId);
+            if (user == null)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
+            }
+
+            // Build Point (SRID 4326 = WGS84)
+            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+            var newLocation = factory.CreatePoint(new Coordinate(longitude, latitude));
+
+            // Update user location fields
+            user.CurrentLocation = newLocation;
+            user.LocationUpdatedAt = DateTime.UtcNow;
+            user.LocationAccuracyMeters = accuracyMeters;
+            user.LastActiveAt = DateTime.UtcNow;
+
+            await _unitOfWork.Repository<User, Guid>().UpdateAsync(user);
+
+            // Append tracking log if rescuer has active mission (same UoW, no extra SaveChanges)
+            await AppendTrackingLogIfNeededAsync(userId, newLocation, accuracyMeters);
+
+            // Single SaveChanges for both user update and tracking log
+            await _unitOfWork.SaveChangesAsync();
+
+            // Publish MediatR event: cache write + SignalR broadcast (handled by LocationUpdatedEventHandler)
+            // Exceptions in handler are isolated — DB save already succeeded
+            await _publisher.Publish(new LocationUpdatedEvent(
+                userId, latitude, longitude, user.LocationUpdatedAt!.Value, accuracyMeters));
+
+            var dto = new UserLocationDto
+            {
+                Latitude = latitude,
+                Longitude = longitude,
+                LocationUpdatedAt = user.LocationUpdatedAt,
+                AccuracyMeters = accuracyMeters,
+                AccuracyLevel = LocationHelper.GetAccuracyLevel(accuracyMeters)
+            };
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0003,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0003),
+                dto);
+        }
+
+        /// <summary>
+        /// Append tracking log for active rescue missions if sampling criteria met.
+        /// Does NOT call SaveChanges — caller is responsible.
+        /// </summary>
+        private async Task AppendTrackingLogIfNeededAsync(Guid userId, Point newLocation, double? accuracy)
+        {
+            var activeMissions = await _unitOfWork.Repository<RescueMission, Guid>()
+                .GetAllWithSpecAsync(new BaseSpecification<RescueMission>(m =>
+                    m.RescuerId == userId
+                    && (m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Pending)));
+
+            foreach (var mission in activeMissions)
+            {
+                // Get last log for this mission
+                var lastLogSpec = new BaseSpecification<RescueTrackingLog>(l => l.MissionId == mission.Id);
+                lastLogSpec.AddOrderByDescending(l => l.LoggedAt);
+                lastLogSpec.ApplyPaging(take: 1, skip: 0);
+
+                var lastLog = await _unitOfWork.Repository<RescueTrackingLog, long>()
+                    .GetWithSpecAsync(lastLogSpec);
+
+                if (LocationHelper.ShouldLogTracking(
+                    newLocation, lastLog?.Location, lastLog?.LoggedAt, accuracy))
+                {
+                    await _unitOfWork.Repository<RescueTrackingLog, long>().AddAsync(
+                        new RescueTrackingLog
+                        {
+                            MissionId = mission.Id,
+                            RescuerId = userId,
+                            Location = newLocation,
+                            AccuracyMeters = accuracy,
+                            LoggedAt = DateTime.UtcNow
+                        });
+                }
+            }
+        }
+
+        #endregion
     }
 }

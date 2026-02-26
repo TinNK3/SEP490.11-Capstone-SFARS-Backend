@@ -50,5 +50,34 @@ namespace SFARS.API.Controller
             var result = await _userService.UpdateMeAsync(userId, req.ToUserForUpdate());
             return this.ToIActionResult(result);
         }
+
+        #region Location
+
+        /// <summary>
+        /// Get current user's real-time location
+        /// </summary>
+        [Authorize]
+        [HttpGet(APIRoute.User.MeLocation, Name = nameof(GetMyLocation))]
+        public async Task<IActionResult> GetMyLocation()
+        {
+            var userId = User.GetUserId();
+            var result = await _userService.GetUserLocationAsync(userId);
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
+        /// Update current user's real-time location (called from mobile GPS)
+        /// </summary>
+        [Authorize]
+        [HttpPut(APIRoute.User.MeLocation, Name = nameof(UpdateMyLocation))]
+        public async Task<IActionResult> UpdateMyLocation([FromBody] UpdateLocationRequest req)
+        {
+            var userId = User.GetUserId();
+            var result = await _userService.UpdateUserLocationAsync(
+                userId, req.Latitude, req.Longitude, req.AccuracyMeters);
+            return this.ToIActionResult(result);
+        }
+
+        #endregion
     }
 }
