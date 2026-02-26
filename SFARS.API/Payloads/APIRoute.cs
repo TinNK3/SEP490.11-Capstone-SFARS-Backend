@@ -18,7 +18,7 @@
             public const string RefreshToken = Base + "/auth/refresh-token";
             public const string ForgotPassword = Base + "/auth/forgot-password";
             public const string ResetPassword = Base + "/auth/reset-password";
-
+            public const string SignOut = Base + "/auth/sign-out";
             // [PUT]
 
         }

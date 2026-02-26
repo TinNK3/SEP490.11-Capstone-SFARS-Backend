@@ -37,6 +37,7 @@ namespace SFARS.Application.Services.Auth
         private readonly IExternalAuthService _externalAuthService;
         private readonly ILogger<AuthService> _logger;
         private readonly IEmailService _emailService;
+        private readonly ITokenBlacklistService _tokenBlacklistService;
 
         public AuthService(
             IUserService<UserDto> userService,
@@ -48,7 +49,8 @@ namespace SFARS.Application.Services.Auth
             IOptionsMonitor<WebTokenSettings> monitor,
             ILogger<AuthService> logger,
             IExternalAuthService externalAuthService,
-            IEmailService emailService)
+            IEmailService emailService,
+            ITokenBlacklistService tokenBlacklistService)
         {
             _userService = userService;
             _msgService = msgService;
@@ -60,7 +62,10 @@ namespace SFARS.Application.Services.Auth
             _logger = logger;
             _externalAuthService = externalAuthService;
             _emailService = emailService;
+            _tokenBlacklistService = tokenBlacklistService;
         }
+
+        #region Sign-In
 
         public async Task<IServiceResult> SignInAsync(string email)
         {
@@ -330,6 +335,10 @@ namespace SFARS.Application.Services.Auth
             return await AuthenticateUserAsync(user);
         }
 
+        #endregion
+
+        #region Sign-Up
+
         public async Task<IServiceResult> SignUpAsync(AuthUserDto user)
         {
             var validationResult = await ValidateUserInputAsync(user);
@@ -367,6 +376,10 @@ namespace SFARS.Application.Services.Auth
             return new ServiceResult(ResultCodeConst.SYS_Fail0001,
                     await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
         }
+
+        #endregion
+
+        #region Password Management
 
         public async Task<IServiceResult> ForgotPasswordAsync(string email)
         {
@@ -499,6 +512,10 @@ namespace SFARS.Application.Services.Auth
             return new ServiceResult(ResultCodeConst.SYS_Fail0001,
                 await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
         }
+
+        #endregion
+
+        #region Token Management
 
         // Handle refresh token
         private async Task<IServiceResult> HandleRefreshTokenAsync(AuthUserDto user, string tokenId)
@@ -674,6 +691,10 @@ namespace SFARS.Application.Services.Auth
 
             return new ServiceResult(ResultCodeConst.SYS_Success0003, null, refreshTokenDto);
         }
+
+        #endregion
+
+        #region Private Helpers
 
         /// <summary>
         /// Validate password
@@ -877,5 +898,84 @@ namespace SFARS.Application.Services.Auth
 
             return true;
         }
+
+        #endregion
+
+        #region Sign-Out
+
+        public async Task<IServiceResult> SignOutAsync(Guid userId, string accessToken)
+        {
+            try
+            {
+                // ── Step 1: Blacklist the access token by its JTI ────────────────────────
+                // JWT is stateless — even after deleting the refresh token the access token
+                // remains cryptographically valid until expiry. We must explicitly revoke it.
+                var jwtHandler = new JwtSecurityTokenHandler();
+                if (jwtHandler.CanReadToken(accessToken))
+                {
+                    var parsed = jwtHandler.ReadJwtToken(accessToken);
+                    var jti = parsed.Claims
+                        .FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Jti)?.Value;
+
+                    _logger.LogDebug(
+                        "[SignOut] UserId: {UserId} | JTI: {Jti} | TokenExpiry: {Expiry:u}",
+                        userId, jti, parsed.ValidTo);
+
+                    if (!string.IsNullOrEmpty(jti))
+                    {
+                        _tokenBlacklistService.Revoke(jti, parsed.ValidTo);
+                        _logger.LogDebug(
+                            "[SignOut] Access token blacklisted — JTI: {Jti} (any further API calls with this token will be rejected).",
+                            jti);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("[SignOut] UserId: {UserId} — access token has no JTI claim; blacklisting skipped.", userId);
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("[SignOut] UserId: {UserId} — could not parse access token; blacklisting skipped.", userId);
+                }
+
+                // ── Step 2: Delete refresh token to invalidate the refresh flow ──────────
+                var getTokenResult = await _refreshTokenService.GetByUserIdAsync(userId);
+                if (getTokenResult.Data is not RefreshTokenDto refreshTokenDto)
+                {
+                    // Already signed out or no refresh token on record (e.g. test env)
+                    _logger.LogDebug(
+                        "[SignOut] UserId: {UserId} — no active refresh token found (already signed out or session already expired).",
+                        userId);
+                    return new ServiceResult(
+                        ResultCodeConst.Auth_Success0009,
+                        await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0009));
+                }
+
+                var deleteResult = await _refreshTokenService.DeleteAsync(refreshTokenDto.Id);
+                if (deleteResult.ResultCode == ResultCodeConst.SYS_Success0004)
+                {
+                    _logger.LogInformation(
+                        "[SignOut] UserId: {UserId} signed out — access token blacklisted, refresh token deleted.",
+                        userId);
+                    return new ServiceResult(
+                        ResultCodeConst.Auth_Success0009,
+                        await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0009));
+                }
+
+                _logger.LogWarning(
+                    "[SignOut] UserId: {UserId} — failed to delete refresh token (id: {TokenId}).",
+                    userId, refreshTokenDto.Id);
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Fail0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[SignOut] Unexpected error for UserId: {UserId}.", userId);
+                throw;
+            }
+        }
+
+        #endregion
     }
 }

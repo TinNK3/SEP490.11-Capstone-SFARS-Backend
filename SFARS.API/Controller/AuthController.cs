@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using SFARS.API.Extension;
 using SFARS.API.Extensions;
 using SFARS.API.Payloads;
@@ -53,6 +54,8 @@ namespace SFARS.API.Controller
             return this.ToIActionResult(result);
         }
 
+
+
         [HttpPost(APIRoute.Auth.ForgotPassword, Name = nameof(ForgotPasswordAsync))]
         public async Task<IActionResult> ForgotPasswordAsync([FromBody] ForgotPasswordRequest req)
         {
@@ -71,6 +74,19 @@ namespace SFARS.API.Controller
         public async Task<IActionResult> RefreshTokenAsync([FromBody] RefreshTokenRequest req)
         {
             var result = await _authService.RefreshTokenAsync(req.RefreshToken, req.AccessToken);
+            return this.ToIActionResult(result);
+        }
+
+        [Authorize]
+        [HttpPost(APIRoute.Auth.SignOut, Name = nameof(SignOutAsync))]
+        public async Task<IActionResult> SignOutAsync()
+        {
+            var userId = User.GetUserId();
+            
+            // Extract access token from Authorization header
+            var accessToken = Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+            
+            var result = await _authService.SignOutAsync(userId, accessToken);
             return this.ToIActionResult(result);
         }
     }
