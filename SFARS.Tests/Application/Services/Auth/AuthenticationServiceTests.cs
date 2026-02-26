@@ -11,9 +11,12 @@ using SFARS.Application.Utils;
 using SFARS.Application.Services;
 using SFARS.Application.Services.Auth;
 using SFARS.Domain.Common.Enum;
+using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Infrastructure;
+using SFARS.Domain.Interfaces.Repositories.Base;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -33,6 +36,7 @@ public class AuthenticationServiceTests
     private readonly Mock<IExternalAuthService> _externalAuthServiceMock;
     private readonly Mock<IEmailService> _emailServiceMock;
     private readonly Mock<ITokenBlacklistService> _tokenBlacklistServiceMock;
+    private readonly Mock<IGenericRepository<OtpRequest, Guid>> _otpRepoMock;
     private readonly TokenValidationParameters _tokenValidationParameters;
     private readonly AuthService _sut; // System Under Test
 
@@ -48,6 +52,7 @@ public class AuthenticationServiceTests
         _externalAuthServiceMock = new Mock<IExternalAuthService>();
         _emailServiceMock = new Mock<IEmailService>();
         _tokenBlacklistServiceMock = new Mock<ITokenBlacklistService>();
+        _otpRepoMock = new Mock<IGenericRepository<OtpRequest, Guid>>();
         _tokenValidationParameters = new TokenValidationParameters();
 
         // Setup WebTokenSettings
@@ -70,6 +75,11 @@ public class AuthenticationServiceTests
             .ReturnsAsync(("test-access-token", DateTime.UtcNow.AddHours(1)));
         _jwtUtilsMock.Setup(x => x.GenerateRefreshTokenAsync())
             .ReturnsAsync("test-refresh-token");
+
+        // Setup UnitOfWork to return the OtpRequest repository mock
+        _unitOfWorkMock.Setup(x => x.Repository<OtpRequest, Guid>())
+            .Returns(_otpRepoMock.Object);
+        _unitOfWorkMock.Setup(x => x.SaveChangesAsync()).ReturnsAsync(1);
 
         _sut = new AuthService(
             _userServiceMock.Object,
@@ -336,7 +346,7 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task ForgotPasswordAsync_UserNotFound_ReturnsWarning()
     {
-        // Arrange - Trả về warning khi email không tồn tại
+        // Arrange
         var email = "notfound@test.com";
         
         _userServiceMock.Setup(x => x.GetByEmailAsync(email))
@@ -345,7 +355,7 @@ public class AuthenticationServiceTests
         // Act
         var result = await _sut.ForgotPasswordAsync(email);
 
-        // Assert - Trả về warning khi email không tồn tại
+        // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0002);
     }
 
@@ -379,11 +389,11 @@ public class AuthenticationServiceTests
         _userServiceMock.Setup(x => x.GetByEmailAsync(email))
             .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
 
+        _otpRepoMock.Setup(x => x.GetAllAsync(It.IsAny<bool>()))
+            .ReturnsAsync(Enumerable.Empty<OtpRequest>());
+
         _emailServiceMock.Setup(x => x.SendEmailAsync(It.Is<EmailMessageDto>(m => m.To == email), It.IsAny<bool>()))
             .ReturnsAsync(true);
-
-        _userServiceMock.Setup(x => x.UpdateEmailVerificationCodeAsync(userDto.Id, It.IsAny<string>()))
-            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0003, null!, true));
 
         // Act
         var result = await _sut.ForgotPasswordAsync(email);
@@ -404,9 +414,8 @@ public class AuthenticationServiceTests
         _userServiceMock.Setup(x => x.GetByEmailAsync(email))
             .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
 
-        // Phải setup UpdateEmailVerificationCodeAsync trả về success trước khi gửi email
-        _userServiceMock.Setup(x => x.UpdateEmailVerificationCodeAsync(userDto.Id, It.IsAny<string>()))
-            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0003, null!, true));
+        _otpRepoMock.Setup(x => x.GetAllAsync(It.IsAny<bool>()))
+            .ReturnsAsync(Enumerable.Empty<OtpRequest>());
 
         _emailServiceMock.Setup(x => x.SendEmailAsync(It.Is<EmailMessageDto>(m => m.To == email), It.IsAny<bool>()))
             .ReturnsAsync(false);
@@ -780,10 +789,24 @@ public class AuthenticationServiceTests
         
         var userDto = CreateValidUserDto();
         userDto.Email = email;
-        userDto.EmailVerificationCode = "correct-otp";
 
         _userServiceMock.Setup(x => x.GetByEmailAsync(email))
             .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
+
+        var existingOtp = new OtpRequest
+        {
+            Id = Guid.NewGuid(),
+            UserId = userDto.Id,
+            Code = "correct-otp",
+            Purpose = OtpPurpose.ResetPassword,
+            IsUsed = false,
+            AttemptCount = 0,
+            CreatedAt = DateTime.UtcNow.AddMinutes(-1),
+            ExpiredAt = DateTime.UtcNow.AddMinutes(2)
+        };
+
+        _otpRepoMock.Setup(x => x.GetAllAsync(It.IsAny<bool>()))
+            .ReturnsAsync(new List<OtpRequest> { existingOtp });
 
         // Act
         var result = await _sut.ResetPasswordAsync(email, otp, newPassword);
@@ -802,10 +825,24 @@ public class AuthenticationServiceTests
         
         var userDto = CreateValidUserDto();
         userDto.Email = email;
-        userDto.EmailVerificationCode = otp;
 
         _userServiceMock.Setup(x => x.GetByEmailAsync(email))
             .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
+
+        var existingOtp = new OtpRequest
+        {
+            Id = Guid.NewGuid(),
+            UserId = userDto.Id,
+            Code = otp,
+            Purpose = OtpPurpose.ResetPassword,
+            IsUsed = false,
+            AttemptCount = 0,
+            CreatedAt = DateTime.UtcNow.AddMinutes(-1),
+            ExpiredAt = DateTime.UtcNow.AddMinutes(2)
+        };
+
+        _otpRepoMock.Setup(x => x.GetAllAsync(It.IsAny<bool>()))
+            .ReturnsAsync(new List<OtpRequest> { existingOtp });
 
         _userServiceMock.Setup(x => x.UpdatePasswordAsync(userDto.Id, It.IsAny<string>()))
             .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0003, null!, true));
@@ -829,10 +866,24 @@ public class AuthenticationServiceTests
         var userDto = CreateValidUserDto();
         userDto.Email = email;
         userDto.PasswordHash = null; // Google user không có password
-        userDto.EmailVerificationCode = otp;
 
         _userServiceMock.Setup(x => x.GetByEmailAsync(email))
             .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
+
+        var existingOtp = new OtpRequest
+        {
+            Id = Guid.NewGuid(),
+            UserId = userDto.Id,
+            Code = otp,
+            Purpose = OtpPurpose.ResetPassword,
+            IsUsed = false,
+            AttemptCount = 0,
+            CreatedAt = DateTime.UtcNow.AddMinutes(-1),
+            ExpiredAt = DateTime.UtcNow.AddMinutes(2)
+        };
+
+        _otpRepoMock.Setup(x => x.GetAllAsync(It.IsAny<bool>()))
+            .ReturnsAsync(new List<OtpRequest> { existingOtp });
 
         _userServiceMock.Setup(x => x.UpdatePasswordAsync(userDto.Id, It.IsAny<string>()))
             .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0003, null!, true));
@@ -855,10 +906,24 @@ public class AuthenticationServiceTests
         
         var userDto = CreateValidUserDto();
         userDto.Email = email;
-        userDto.EmailVerificationCode = otp;
 
         _userServiceMock.Setup(x => x.GetByEmailAsync(email))
             .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
+
+        var existingOtp = new OtpRequest
+        {
+            Id = Guid.NewGuid(),
+            UserId = userDto.Id,
+            Code = otp,
+            Purpose = OtpPurpose.ResetPassword,
+            IsUsed = false,
+            AttemptCount = 0,
+            CreatedAt = DateTime.UtcNow.AddMinutes(-1),
+            ExpiredAt = DateTime.UtcNow.AddMinutes(2)
+        };
+
+        _otpRepoMock.Setup(x => x.GetAllAsync(It.IsAny<bool>()))
+            .ReturnsAsync(new List<OtpRequest> { existingOtp });
 
         _userServiceMock.Setup(x => x.UpdatePasswordAsync(userDto.Id, It.IsAny<string>()))
             .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Fail0001, null!, false));

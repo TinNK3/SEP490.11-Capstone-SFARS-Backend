@@ -121,44 +121,17 @@ namespace SFARS.Application.Services.Auth
                 // since user sign-up with external provider
                 else
                 {
-                    //
-                    var otpCode = StringUtils.GenerateUniqueCode();
-
-                    //Email Subject and Body
-                    var emailsubject = "Your One-Time Password (OTP) for SFARS Sign-In";
-                    var emailBody = $@"
-                        <div style='font-family: Arial, sans-serif; background:#f6f7fb; padding:24px;'>
-                            <div style='max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;'>
-                                <div style='background:#2C3E50;color:#fff;padding:16px 24px;'>
-                                    <h2 style='margin:0;font-size:20px;'>SFARS Verification</h2>
-                                </div>
-                                <div style='padding:24px;color:#333;line-height:1.6;'>
-                                    <p>Xin chào <strong>{authUser.FirstName} {authUser.LastName}</strong>,</p>
-                                    <p>Đây là mã OTP để đăng nhập:</p>
-                                    <div style='text-align:center;margin:20px 0;'>
-                                        <span style='display:inline-block;background:#f0f2f7;color:#2C3E50;
-                                            font-size:28px;letter-spacing:6px;padding:12px 18px;border-radius:10px;'>
-                                            {otpCode}
-                                        </span>
-                                    </div>
-                                    <p>Mã có hiệu lực trong thời gian ngắn. Vui lòng không chia sẻ mã này.</p>
-                                    <p style='margin-top:24px;'>Cảm ơn bạn đã sử dụng SFARS.</p>
-                                </div>
-                            </div>
-                        </div>";
-
-                    // Send OTP email and save to user
-                    var isOtpSent = await SendAndSaveOtpAsync(otpCode, authUser, emailsubject, emailBody);
-                    if (isOtpSent)
+                    // Use unified SendOtpAsync with SIGN_IN purpose
+                    var sendResult = await SendOtpAsync(email, "SIGN_IN");
+                    if (sendResult.ResultCode == ResultCodeConst.Auth_Success0005)
                     {
                         return new ServiceResult(ResultCodeConst.Auth_Success0005,
                             await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0005),
                             new SignInMethodDto { Method = "otp" });
                     }
-                    else //Failed to send OTP email
+                    else
                     {
-                        return new ServiceResult(ResultCodeConst.Auth_Fail0002,
-                            await _msgService.GetMessageAsync(ResultCodeConst.Auth_Fail0002));
+                        return sendResult;
                     }
                 }
             }
@@ -294,37 +267,36 @@ namespace SFARS.Application.Services.Auth
 
         public async Task<IServiceResult> SignInWithOtpAsync(string otp, AuthUserDto user)
         {
-            // Get user by email
+            // Verify OTP using the unified VerifyOtpAsync with SIGN_IN purpose
+            var verifyResult = await VerifyOtpAsync(user.Email, otp, "SIGN_IN");
+            if (verifyResult.ResultCode != ResultCodeConst.Auth_Success0010)
+            {
+                return verifyResult;
+            }
+
+            // Get user by email for authentication
             var userResult = await _userService.GetByEmailAsync(user.Email);
 
-            // Handle User authentication
             if (userResult.ResultCode == ResultCodeConst.SYS_Success0002
                 && userResult.Data is UserDto userDto)
             {
-                // Check match confirmation code 
-                if (userDto.EmailVerificationCode == otp)
+                user = new AuthUserDto
                 {
-                    user = new AuthUserDto
-                    {
-                        Id = userDto.Id,
-                        Email = userDto.Email,
-                        FirstName = userDto.FirstName ?? string.Empty,
-                        LastName = userDto.LastName ?? string.Empty,
-                        Phone = userDto.Phone,
-                        Dob = userDto.Dob,
-                        Avatar = userDto.Avatar,
-                        Address = userDto.Address,
-                        Status = userDto.Status,
-                        IsRescuer = userDto.Role == UserTypeConstants.Rescuer,
-                        RoleName = userDto.Role ?? UserTypeConstants.User,
-                        Password = string.Empty
-                    };
-                }
-                else
-                {
-                    return new ServiceResult(ResultCodeConst.Auth_Warning0005,
-                            await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0005));
-                }
+                    Id = userDto.Id,
+                    Email = userDto.Email,
+                    FirstName = userDto.FirstName ?? string.Empty,
+                    LastName = userDto.LastName ?? string.Empty,
+                    Phone = userDto.Phone,
+                    Dob = userDto.Dob,
+                    Avatar = userDto.Avatar,
+                    Address = userDto.Address,
+                    Status = userDto.Status,
+                    IsRescuer = userDto.Role == UserTypeConstants.Rescuer,
+                    RoleName = userDto.Role ?? UserTypeConstants.User,
+                    Password = string.Empty
+                };
+
+                return await AuthenticateUserAsync(user);
             }
             else
             {
@@ -332,7 +304,6 @@ namespace SFARS.Application.Services.Auth
                 return new ServiceResult(ResultCodeConst.SYS_Warning0002,
                     StringUtils.Format(message, "email"));
             }
-            return await AuthenticateUserAsync(user);
         }
 
         #endregion
@@ -383,78 +354,8 @@ namespace SFARS.Application.Services.Auth
 
         public async Task<IServiceResult> ForgotPasswordAsync(string email)
         {
-            // Validate using DTO
-            var dto = new ForgotPasswordDto { Email = email };
-            var validation = await ValidatorExtensions.ValidateAsync(dto);
-            if (validation != null && !validation.IsValid)
-            {
-                return new ServiceResult(ResultCodeConst.SYS_Warning0001,
-                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001),
-                    validation.ToProblemDetails().Errors);
-            }
-
-            // Get user by email
-            var userResult = await _userService.GetByEmailAsync(email);
-
-            if (userResult.ResultCode != ResultCodeConst.SYS_Success0002 || userResult.Data is not UserDto userDto)
-            {
-                // User not found - return error
-                _logger.LogWarning("Forgot password request for non-existent email: {Email}", email);
-                return new ServiceResult(ResultCodeConst.SYS_Warning0002,
-                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002));
-            }
-
-            // Check if user is active
-            if (userDto.Status != UserStatus.Active)
-            {
-                _logger.LogWarning("Forgot password request for inactive user: {Email}", email);
-                return new ServiceResult(ResultCodeConst.Auth_Warning0001,
-                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0001));
-            }
-
-            // Generate OTP code
-            var otpCode = StringUtils.GenerateUniqueCode();
-
-            // Map to AuthUserDto
-            var authUser = userDto.ToAuthUserDto();
-
-            // Email Subject and Body
-            var emailSubject = "Password Reset OTP for SFARS";
-            var emailBody = $@"
-                <div style='font-family: Arial, sans-serif; background:#f6f7fb; padding:24px;'>
-                    <div style='max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;'>
-                        <div style='background:#2C3E50;color:#fff;padding:16px 24px;'>
-                            <h2 style='margin:0;font-size:20px;'>SFARS Password Reset</h2>
-                        </div>
-                        <div style='padding:24px;color:#333;line-height:1.6;'>
-                            <p>Xin chào <strong>{authUser.FirstName} {authUser.LastName}</strong>,</p>
-                            <p>Bạn đã yêu cầu đặt lại mật khẩu. Đây là mã OTP của bạn:</p>
-                            <div style='text-align:center;margin:20px 0;'>
-                                <span style='display:inline-block;background:#f0f2f7;color:#2C3E50;
-                                    font-size:28px;letter-spacing:6px;padding:12px 18px;border-radius:10px;'>
-                                    {otpCode}
-                                </span>
-                            </div>
-                            <p>Mã có hiệu lực trong thời gian ngắn. Vui lòng không chia sẻ mã này với bất kỳ ai.</p>
-                            <p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
-                            <p style='margin-top:24px;'>Cảm ơn bạn đã sử dụng SFARS.</p>
-                        </div>
-                    </div>
-                </div>";
-
-            // Send OTP email and save to user
-            var isOtpSent = await SendAndSaveOtpAsync(otpCode, authUser, emailSubject, emailBody);
-
-            if (isOtpSent)
-            {
-                _logger.LogInformation("Password reset OTP sent to {Email}", email);
-                return new ServiceResult(ResultCodeConst.Auth_Success0005,
-                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0005));
-            }
-
-            _logger.LogError("Failed to send password reset OTP to {Email}", email);
-            return new ServiceResult(ResultCodeConst.Auth_Fail0002,
-                await _msgService.GetMessageAsync(ResultCodeConst.Auth_Fail0002));
+            // Delegate to unified SendOtpAsync with RESET_PASSWORD purpose
+            return await SendOtpAsync(email, "RESET_PASSWORD");
         }
 
         public async Task<IServiceResult> ResetPasswordAsync(string email, string otp, string newPassword)
@@ -479,10 +380,49 @@ namespace SFARS.Application.Services.Auth
                     await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002));
             }
 
-            // Verify OTP
-            if (userDto.EmailVerificationCode != otp)
+            // Find OtpRequest with RESET_PASSWORD purpose
+            var otpRequest = (await _unitOfWork.Repository<OtpRequest, Guid>()
+                .GetAllAsync())
+                .Where(o => o.UserId == userDto.Id
+                    && o.Purpose == OtpPurpose.ResetPassword
+                    && !o.IsUsed)
+                .OrderByDescending(o => o.CreatedAt)
+                .FirstOrDefault();
+
+            if (otpRequest == null)
             {
-                _logger.LogWarning("Reset password attempt with invalid OTP for {Email}", email);
+                _logger.LogWarning("Reset password attempt: no OTP request found for {Email}", email);
+                return new ServiceResult(ResultCodeConst.Auth_Warning0017,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0017));
+            }
+
+            // Check expiration
+            if (otpRequest.ExpiredAt < DateTime.UtcNow)
+            {
+                _logger.LogWarning("Reset password attempt with expired OTP for {Email}", email);
+                return new ServiceResult(ResultCodeConst.Auth_Warning0014,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0014));
+            }
+
+            // Check attempt limit
+            if (otpRequest.AttemptCount >= OtpConstants.MaxAttempts)
+            {
+                _logger.LogWarning("Reset password attempt: OTP locked for {Email}", email);
+                return new ServiceResult(ResultCodeConst.Auth_Warning0015,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0015));
+            }
+
+            // Verify OTP code
+            if (otpRequest.Code != otp)
+            {
+                // Increment attempt count
+                otpRequest.AttemptCount++;
+                otpRequest.UpdatedAt = DateTime.UtcNow;
+                await _unitOfWork.Repository<OtpRequest, Guid>().UpdateAsync(otpRequest);
+                await _unitOfWork.SaveChangesAsync();
+
+                _logger.LogWarning("Reset password attempt with invalid OTP for {Email} (attempt {Attempt}/{Max})",
+                    email, otpRequest.AttemptCount, OtpConstants.MaxAttempts);
                 return new ServiceResult(ResultCodeConst.Auth_Warning0005,
                     await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0005));
             }
@@ -498,11 +438,34 @@ namespace SFARS.Application.Services.Auth
             // Hash new password
             var newPasswordHash = HashUtils.HashPassword(newPassword);
 
-            // Update user password and clear OTP
+            // Update user password
             var updateResult = await _userService.UpdatePasswordAsync(userDto.Id, newPasswordHash);
 
             if (updateResult.ResultCode == ResultCodeConst.SYS_Success0003)
             {
+                // Mark OTP as used
+                otpRequest.IsUsed = true;
+                otpRequest.UpdatedAt = DateTime.UtcNow;
+                await _unitOfWork.Repository<OtpRequest, Guid>().UpdateAsync(otpRequest);
+
+                // Invalidate all remaining RESET_PASSWORD OTPs for this user
+                var remainingOtps = (await _unitOfWork.Repository<OtpRequest, Guid>()
+                    .GetAllAsync())
+                    .Where(o => o.UserId == userDto.Id
+                        && o.Purpose == OtpPurpose.ResetPassword
+                        && !o.IsUsed
+                        && o.Id != otpRequest.Id)
+                    .ToList();
+
+                foreach (var remainingOtp in remainingOtps)
+                {
+                    remainingOtp.IsUsed = true;
+                    remainingOtp.UpdatedAt = DateTime.UtcNow;
+                    await _unitOfWork.Repository<OtpRequest, Guid>().UpdateAsync(remainingOtp);
+                }
+
+                await _unitOfWork.SaveChangesAsync();
+
                 _logger.LogInformation("Password reset successful for {Email}", email);
                 return new ServiceResult(ResultCodeConst.SYS_Success0003,
                     await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0003));
@@ -858,7 +821,7 @@ namespace SFARS.Application.Services.Auth
                 authResult);
         }
 
-        //Send OTP Email
+        // Send OTP Email (legacy helper - kept for backward compatibility)
         public async Task<bool> SendAndSaveOtpAsync(string otpCode, AuthUserDto user,
             string subject, string emailBody)
         {
@@ -868,24 +831,11 @@ namespace SFARS.Application.Services.Auth
                 return false;
             }
 
-            // Save OTP to user
-            user.EmailVerificationCode = otpCode;
-            var updateResult = await _userService.UpdateEmailVerificationCodeAsync(user.Id, otpCode);
-
-            if (updateResult.Data is not true)
-            {
-                _logger.LogWarning("Failed to update OTP for user {UserId}.", user.Id);
-                return false;
-            }
-
             // Process send email
             var emailMessageDto = new EmailMessageDto
             {
-                // Define Recipients
                 To = user.Email,
-                // Define Subject
                 Subject = subject,
-                // Define Body
                 Body = StringUtils.Format(emailBody, otpCode)
             };
 
@@ -897,6 +847,277 @@ namespace SFARS.Application.Services.Auth
             }
 
             return true;
+        }
+
+        #endregion
+
+        #region OTP Management
+
+        /// <summary>
+        /// Send OTP - unified endpoint for both SIGN_IN and RESET_PASSWORD purposes
+        /// </summary>
+        public async Task<IServiceResult> SendOtpAsync(string email, string purpose)
+        {
+            // Validate using DTO
+            var dto = new SendOtpDto { Email = email, Purpose = purpose };
+            var validation = await ValidatorExtensions.ValidateAsync(dto);
+            if (validation != null && !validation.IsValid)
+            {
+                return new ServiceResult(ResultCodeConst.SYS_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001),
+                    validation.ToProblemDetails().Errors);
+            }
+
+            // Parse purpose enum
+            var otpPurpose = purpose == "RESET_PASSWORD" ? OtpPurpose.ResetPassword : OtpPurpose.SignIn;
+
+            // Get user by email
+            var userResult = await _userService.GetByEmailAsync(email);
+
+            if (userResult.ResultCode != ResultCodeConst.SYS_Success0002 || userResult.Data is not UserDto userDto)
+            {
+                _logger.LogWarning("Send OTP request for non-existent email: {Email}", email);
+                return new ServiceResult(ResultCodeConst.SYS_Warning0002,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002));
+            }
+
+            // Check if user is active
+            if (userDto.Status != UserStatus.Active)
+            {
+                _logger.LogWarning("Send OTP request for inactive user: {Email}", email);
+                return new ServiceResult(ResultCodeConst.Auth_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0001));
+            }
+
+            // Check lockout: find most recent OTP with max attempts reached within lockout period
+            var lockedOtp = (await _unitOfWork.Repository<OtpRequest, Guid>()
+                .GetAllAsync())
+                .Where(o => o.UserId == userDto.Id
+                    && o.Purpose == otpPurpose
+                    && o.AttemptCount >= OtpConstants.MaxAttempts
+                    && o.CreatedAt.AddMinutes(OtpConstants.LockoutMinutes) > DateTime.UtcNow)
+                .FirstOrDefault();
+
+            if (lockedOtp != null)
+            {
+                _logger.LogWarning("Send OTP: locked due to too many attempts for {Email} ({Purpose})", email, purpose);
+                return new ServiceResult(ResultCodeConst.Auth_Warning0015,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0015));
+            }
+
+            // Check cooldown: find most recent OTP within cooldown period
+            var recentOtp = (await _unitOfWork.Repository<OtpRequest, Guid>()
+                .GetAllAsync())
+                .Where(o => o.UserId == userDto.Id
+                    && o.Purpose == otpPurpose
+                    && o.CreatedAt.AddSeconds(OtpConstants.CooldownSeconds) > DateTime.UtcNow)
+                .FirstOrDefault();
+
+            if (recentOtp != null)
+            {
+                _logger.LogWarning("Send OTP: cooldown not expired for {Email} ({Purpose})", email, purpose);
+                return new ServiceResult(ResultCodeConst.Auth_Warning0016,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0016));
+            }
+
+            // Invalidate all existing OTPs for this user + purpose
+            var existingOtps = (await _unitOfWork.Repository<OtpRequest, Guid>()
+                .GetAllAsync())
+                .Where(o => o.UserId == userDto.Id
+                    && o.Purpose == otpPurpose
+                    && !o.IsUsed)
+                .ToList();
+
+            foreach (var existingOtp in existingOtps)
+            {
+                existingOtp.IsUsed = true;
+                existingOtp.UpdatedAt = DateTime.UtcNow;
+                await _unitOfWork.Repository<OtpRequest, Guid>().UpdateAsync(existingOtp);
+            }
+
+            // Generate OTP code
+            var otpCode = StringUtils.GenerateUniqueCode();
+
+            // Create new OtpRequest
+            var otpRequest = new OtpRequest
+            {
+                Id = Guid.NewGuid(),
+                UserId = userDto.Id,
+                Code = otpCode,
+                Purpose = otpPurpose,
+                ExpiredAt = DateTime.UtcNow.AddMinutes(OtpConstants.OtpExpirationMinutes),
+                IsUsed = false,
+                AttemptCount = 0,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _unitOfWork.Repository<OtpRequest, Guid>().AddAsync(otpRequest);
+            await _unitOfWork.SaveChangesAsync();
+
+            // Map to AuthUserDto for email
+            var authUser = userDto.ToAuthUserDto();
+
+            // Build email template based on purpose
+            string emailSubject;
+            string emailBody;
+
+            if (otpPurpose == OtpPurpose.ResetPassword)
+            {
+                emailSubject = "Password Reset OTP for SFARS";
+                emailBody = $@"
+                    <div style='font-family: Arial, sans-serif; background:#f6f7fb; padding:24px;'>
+                        <div style='max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;'>
+                            <div style='background:#C0392B;color:#fff;padding:16px 24px;'>
+                                <h2 style='margin:0;font-size:20px;'>⚠️ SFARS - Yêu Cầu Đặt Lại Mật Khẩu</h2>
+                            </div>
+                            <div style='padding:24px;color:#333;line-height:1.6;'>
+                                <p>Xin chào <strong>{authUser.FirstName} {authUser.LastName}</strong>,</p>
+                                <p>Chúng tôi nhận được yêu cầu <strong>đặt lại mật khẩu</strong> cho tài khoản của bạn. Đây là mã OTP:</p>
+                                <div style='text-align:center;margin:20px 0;'>
+                                    <span style='display:inline-block;background:#fdf2f2;color:#C0392B;
+                                        font-size:28px;letter-spacing:6px;padding:12px 18px;border-radius:10px;border:2px solid #C0392B;'>
+                                        {otpCode}
+                                    </span>
+                                </div>
+                                <p>Mã có hiệu lực trong <strong>{OtpConstants.OtpExpirationMinutes} phút</strong>. Vui lòng không chia sẻ mã này với bất kỳ ai.</p>
+                                <div style='background:#fdf2f2;border-left:4px solid #C0392B;padding:12px;margin:16px 0;border-radius:4px;'>
+                                    <p style='margin:0;color:#C0392B;'><strong>⚠️ Cảnh báo bảo mật:</strong> Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này và đổi mật khẩu ngay lập tức.</p>
+                                </div>
+                                <p style='margin-top:24px;'>Cảm ơn bạn đã sử dụng SFARS.</p>
+                            </div>
+                        </div>
+                    </div>";
+            }
+            else // SIGN_IN
+            {
+                emailSubject = "Your One-Time Password (OTP) for SFARS Sign-In";
+                emailBody = $@"
+                    <div style='font-family: Arial, sans-serif; background:#f6f7fb; padding:24px;'>
+                        <div style='max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;'>
+                            <div style='background:#2C3E50;color:#fff;padding:16px 24px;'>
+                                <h2 style='margin:0;font-size:20px;'>SFARS Verification</h2>
+                            </div>
+                            <div style='padding:24px;color:#333;line-height:1.6;'>
+                                <p>Xin chào <strong>{authUser.FirstName} {authUser.LastName}</strong>,</p>
+                                <p>Đây là mã OTP để đăng nhập:</p>
+                                <div style='text-align:center;margin:20px 0;'>
+                                    <span style='display:inline-block;background:#f0f2f7;color:#2C3E50;
+                                        font-size:28px;letter-spacing:6px;padding:12px 18px;border-radius:10px;'>
+                                        {otpCode}
+                                    </span>
+                                </div>
+                                <p>Mã có hiệu lực trong <strong>{OtpConstants.OtpExpirationMinutes} phút</strong>. Vui lòng không chia sẻ mã này.</p>
+                                <p style='margin-top:24px;'>Cảm ơn bạn đã sử dụng SFARS.</p>
+                            </div>
+                        </div>
+                    </div>";
+            }
+
+            // Send OTP email
+            var isOtpSent = await SendAndSaveOtpAsync(otpCode, authUser, emailSubject, emailBody);
+
+            if (isOtpSent)
+            {
+                _logger.LogInformation("OTP sent to {Email} for {Purpose}", email, purpose);
+                return new ServiceResult(ResultCodeConst.Auth_Success0005,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0005));
+            }
+
+            _logger.LogError("Failed to send OTP to {Email} for {Purpose}", email, purpose);
+            return new ServiceResult(ResultCodeConst.Auth_Fail0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.Auth_Fail0002));
+        }
+
+        /// <summary>
+        /// Verify OTP - validates OTP code against OtpRequest table with purpose isolation
+        /// </summary>
+        public async Task<IServiceResult> VerifyOtpAsync(string email, string otp, string purpose)
+        {
+            // Validate using DTO
+            var dto = new VerifyOtpDto { Email = email, Otp = otp, Purpose = purpose };
+            var validation = await ValidatorExtensions.ValidateAsync(dto);
+            if (validation != null && !validation.IsValid)
+            {
+                return new ServiceResult(ResultCodeConst.SYS_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001),
+                    validation.ToProblemDetails().Errors);
+            }
+
+            // Parse purpose enum
+            var otpPurpose = purpose == "RESET_PASSWORD" ? OtpPurpose.ResetPassword : OtpPurpose.SignIn;
+
+            // Get user by email
+            var userResult = await _userService.GetByEmailAsync(email);
+
+            if (userResult.ResultCode != ResultCodeConst.SYS_Success0002 || userResult.Data is not UserDto userDto)
+            {
+                _logger.LogWarning("Verify OTP attempt for non-existent email: {Email}", email);
+                return new ServiceResult(ResultCodeConst.SYS_Warning0002,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002));
+            }
+
+            // Find most recent OtpRequest matching userId + purpose + not used
+            var otpRequest = (await _unitOfWork.Repository<OtpRequest, Guid>()
+                .GetAllAsync())
+                .Where(o => o.UserId == userDto.Id
+                    && o.Purpose == otpPurpose
+                    && !o.IsUsed)
+                .OrderByDescending(o => o.CreatedAt)
+                .FirstOrDefault();
+
+            if (otpRequest == null)
+            {
+                _logger.LogWarning("Verify OTP: no OTP request found for {Email} ({Purpose})", email, purpose);
+                return new ServiceResult(ResultCodeConst.Auth_Warning0017,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0017));
+            }
+
+            // Check expiration
+            if (otpRequest.ExpiredAt < DateTime.UtcNow)
+            {
+                _logger.LogWarning("Verify OTP: expired OTP for {Email} ({Purpose})", email, purpose);
+                return new ServiceResult(ResultCodeConst.Auth_Warning0014,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0014));
+            }
+
+            // Check attempt limit
+            if (otpRequest.AttemptCount >= OtpConstants.MaxAttempts)
+            {
+                _logger.LogWarning("Verify OTP: locked for {Email} ({Purpose})", email, purpose);
+                return new ServiceResult(ResultCodeConst.Auth_Warning0015,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0015));
+            }
+
+            // Compare OTP code
+            if (otpRequest.Code != otp)
+            {
+                // Increment attempt count
+                otpRequest.AttemptCount++;
+                otpRequest.UpdatedAt = DateTime.UtcNow;
+                await _unitOfWork.Repository<OtpRequest, Guid>().UpdateAsync(otpRequest);
+                await _unitOfWork.SaveChangesAsync();
+
+                _logger.LogWarning("Verify OTP: invalid OTP for {Email} ({Purpose}) attempt {Attempt}/{Max}",
+                    email, purpose, otpRequest.AttemptCount, OtpConstants.MaxAttempts);
+                return new ServiceResult(ResultCodeConst.Auth_Warning0005,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0005));
+            }
+
+            // OTP is valid!
+            if (otpPurpose == OtpPurpose.SignIn)
+            {
+                // For SIGN_IN: mark as used immediately
+                otpRequest.IsUsed = true;
+                otpRequest.UpdatedAt = DateTime.UtcNow;
+                await _unitOfWork.Repository<OtpRequest, Guid>().UpdateAsync(otpRequest);
+                await _unitOfWork.SaveChangesAsync();
+            }
+            // For RESET_PASSWORD: do NOT mark as used yet (will be used by ResetPasswordAsync)
+
+            _logger.LogInformation("OTP verified successfully for {Email} ({Purpose})", email, purpose);
+            return new ServiceResult(ResultCodeConst.Auth_Success0010,
+                await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0010),
+                new { OtpVerified = true });
         }
 
         #endregion

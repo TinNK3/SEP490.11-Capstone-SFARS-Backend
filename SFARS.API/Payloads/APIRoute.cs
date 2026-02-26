@@ -18,6 +18,8 @@
             public const string RefreshToken = Base + "/auth/refresh-token";
             public const string ForgotPassword = Base + "/auth/forgot-password";
             public const string ResetPassword = Base + "/auth/reset-password";
+            public const string SendOtp = Base + "/auth/otp/send";
+            public const string VerifyOtp = Base + "/auth/otp/verify";
             public const string SignOut = Base + "/auth/sign-out";
             // [PUT]
 

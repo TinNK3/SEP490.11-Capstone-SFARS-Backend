@@ -44,8 +44,14 @@ namespace SFARS.Application.Common
         public const string Auth_Warning0010 = "Auth.Warning0010";
         public const string Auth_Warning0011 = "Auth.Warning0011"; // New password same as old password
         public const string Auth_Warning0013 = "Auth.Warning0013";
+        public const string Auth_Warning0014 = "Auth.Warning0014"; // OTP expired
+        public const string Auth_Warning0015 = "Auth.Warning0015"; // OTP locked (exceeded max attempts)
+        public const string Auth_Warning0016 = "Auth.Warning0016"; // OTP cooldown (too soon to resend)
+        public const string Auth_Warning0017 = "Auth.Warning0017"; // OTP not found / invalid
 
         public const string Auth_Fail0002 = "Auth.Fail0002";
+
+        public const string Auth_Success0010 = "Auth.Success0010"; // OTP verified successfully
         #endregion
 
         #region User
