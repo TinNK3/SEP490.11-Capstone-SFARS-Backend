@@ -8,6 +8,7 @@ using SFARS.Application.Validations.Auth;
 using SFARS.Application.Validations.Incident;
 using SFARS.Application.Validations.User;
 
+
 namespace SFARS.Application.Validations
 {
     public class ValidatorExtensions
@@ -25,6 +26,8 @@ namespace SFARS.Application.Validations
                 { } when typeof(T) == typeof(UserDto) => (IValidator<T>)(object)new UpdateProfileRequestValidator(),
                 { } when typeof(T) == typeof(ForgotPasswordDto) => (IValidator<T>)(object)new ForgotPasswordDtoValidator(),
                 { } when typeof(T) == typeof(ResetPasswordDto) => (IValidator<T>)(object)new ResetPasswordDtoValidator(),
+                { } when typeof(T) == typeof(SendOtpDto) => (IValidator<T>)(object)new SendOtpDtoValidator(),
+                { } when typeof(T) == typeof(VerifyOtpDto) => (IValidator<T>)(object)new VerifyOtpDtoValidator(),
                 { } when typeof(T) == typeof(IncidentDto) => (IValidator<T>)(object)new CreateIncidentValidator(),
                 _ => null
             };
