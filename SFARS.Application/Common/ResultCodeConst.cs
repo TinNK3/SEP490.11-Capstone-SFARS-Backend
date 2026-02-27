@@ -108,6 +108,9 @@ namespace SFARS.Application.Common
         public const string AI_Warning0001 = "AI.Warning0001";
         public const string AI_Warning0002 = "AI.Warning0002";
         public const string AI_Warning0003 = "AI.Warning0003";
+        public const string AI_Warning0004 = "AI.Warning0004";   // Invalid image type for analysis
+        public const string AI_Warning0005 = "AI.Warning0005";   // Snake not found in DB
+        public const string AI_Warning0006 = "AI.Warning0006";   // First-aid not available for toxin group
         #endregion
 
         #region Comm

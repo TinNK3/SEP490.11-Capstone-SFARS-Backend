@@ -1,3 +1,4 @@
+using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Interfaces.Services.Base;
 
 namespace SFARS.Domain.Interfaces.Services;
@@ -8,14 +9,16 @@ namespace SFARS.Domain.Interfaces.Services;
 public interface IAiInferenceService
 {
     /// <summary>
-    /// Create AI inference for an incident based on uploaded media
+    /// Upload media + run AI inference in a single flow.
+    /// Uploads to cloud storage, runs YOLO on original stream, queries DB for first-aid,
+    /// creates AI chat initial message, and saves all in 1 transaction.
     /// </summary>
-    /// <param name="userId">User requesting the inference (must be incident owner)</param>
-    /// <param name="incidentId">Incident ID</param>
-    /// <param name="incidentMediaId">Media ID to analyze (must belong to incident)</param>
-    /// <returns>AI inference result with snake detection and first aid</returns>
-    Task<IServiceResult> CreateInferenceAsync(
+    Task<IServiceResult> AnalyzeAsync(
         Guid userId,
         Guid incidentId,
-        Guid incidentMediaId);
+        Stream imageStream,
+        string fileName,
+        string contentType,
+        long fileSize,
+        MediaType mediaType);
 }

@@ -78,6 +78,9 @@ namespace SFARS.Infrastructure.Data
 
             // [Snakes] - Master data for snake species (Sync Data)
             await SeedSnakesAsync();
+
+            // [FirstAidDetails] - First aid steps by toxin group (Sync Data)
+            await SeedFirstAidDetailsAsync();
         }
 
         //  Summary:
@@ -379,6 +382,103 @@ namespace SFARS.Infrastructure.Data
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[Seeding] Error seeding snakes.");
+                throw;
+            }
+        }
+
+        //  Summary:
+        //      Seeding First Aid Details by ToxinGroup (Upsert by ToxinGroup + StepOrder + LanguageCode)
+        //      ToxinGroup.Unknown = General prohibitions ("Không nên làm") — always returned with any result
+        private async Task SeedFirstAidDetailsAsync()
+        {
+            var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Seeds", "first_aid_seed.json");
+
+            if (!File.Exists(filePath))
+            {
+                _logger.LogWarning("[Seeding] FirstAid seed file NOT found at: {FilePath}", filePath);
+                return;
+            }
+
+            try
+            {
+                var jsonData = await File.ReadAllTextAsync(filePath);
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip,
+                    Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+                };
+
+                var seedItems = System.Text.Json.JsonSerializer.Deserialize<List<FirstAidDetail>>(jsonData, options);
+
+                if (seedItems == null || !seedItems.Any())
+                {
+                    _logger.LogWarning("[Seeding] FirstAid list is empty or null after deserialization.");
+                    return;
+                }
+
+                // 1. Get existing records keyed by composite key (ToxinGroup, StepOrder, LanguageCode)
+                var existingItems = await _context.FirstAidDetails
+                    .Where(f => f.SnakeId == null) // Only general (non-snake-specific) records
+                    .ToListAsync();
+
+                var existingLookup = existingItems
+                    .ToDictionary(
+                        f => (f.ToxinGroup, f.StepOrder, f.LanguageCode),
+                        f => f);
+
+                var newItems = new List<FirstAidDetail>();
+                var updatedCount = 0;
+                var now = DateTime.UtcNow;
+
+                // 2. Iterate and compare
+                foreach (var seed in seedItems)
+                {
+                    var key = (seed.ToxinGroup, seed.StepOrder, seed.LanguageCode);
+
+                    if (existingLookup.TryGetValue(key, out var existing))
+                    {
+                        // Update if content changed
+                        bool isChanged = false;
+                        if (existing.Title != seed.Title) { existing.Title = seed.Title; isChanged = true; }
+                        if (existing.ContentMarkdown != seed.ContentMarkdown) { existing.ContentMarkdown = seed.ContentMarkdown; isChanged = true; }
+
+                        if (isChanged)
+                        {
+                            existing.UpdatedAt = now;
+                            updatedCount++;
+                        }
+                    }
+                    else
+                    {
+                        // New record
+                        seed.Id = Guid.NewGuid();
+                        seed.SnakeId = null; // General (not snake-specific)
+                        seed.CreatedAt = now;
+                        newItems.Add(seed);
+                    }
+                }
+
+                // 3. Batch save
+                if (newItems.Any())
+                {
+                    await _context.FirstAidDetails.AddRangeAsync(newItems);
+                }
+
+                if (newItems.Any() || updatedCount > 0)
+                {
+                    var rows = await _context.SaveChangesAsync();
+                    _logger.LogInformation("[Seeding] FirstAidDetails sync completed. Inserted: {Inserted}, Updated: {Updated}, DB rows: {Rows}.",
+                        newItems.Count, updatedCount, rows);
+                }
+                else
+                {
+                    _logger.LogInformation("[Seeding] FirstAidDetails are up-to-date. No changes needed.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Seeding] Error seeding FirstAidDetails.");
                 throw;
             }
         }

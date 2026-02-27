@@ -10,8 +10,11 @@ public class AiInferenceResultDto
     public Guid InferenceId { get; set; }
     public SnakeCandidateDto PrimarySnake { get; set; } = null!;
     public List<FirstAidStepDto> FirstAidSteps { get; set; } = new();
+    public List<string> Prohibitions { get; set; } = new();
+
     public List<SnakeCandidateDto> OtherCandidates { get; set; } = new();
-    public string AiNote { get; set; } = null!;
+    public string? Note { get; set; }
+
     public DateTime AnalyzedAt { get; set; }
 }
 
@@ -26,7 +29,8 @@ public class SnakeCandidateDto
     public double Confidence { get; set; }
     public SnakeRiskLevel ToxicityLevel { get; set; }
     public ToxinGroup ToxinGroup { get; set; }
-    public string DangerSummary { get; set; } = null!; // "⚠️ CỰC KỲ NGUY HIỂM"
+    public string DangerSummary { get; set; } = null!;
+    public string? TypicalSymptoms { get; set; }
 }
 
 /// <summary>
@@ -35,7 +39,7 @@ public class SnakeCandidateDto
 public class FirstAidStepDto
 {
     public int StepOrder { get; set; }
-    public string Title { get; set; } = null!;        // With emoji: "🚑 GỌI CẤP CỨU"
-    public string Content { get; set; } = null!;      // Short actionable text
-    public string? ImageUrl { get; set; }             // Optional illustration
+    public string Title { get; set; } = null!;
+    public string? Content { get; set; }
+    public string? ImageUrl { get; set; }
 }

@@ -66,59 +66,39 @@ namespace SFARS.API.Controller
         }
 
         /// <summary>
-        /// Upload media (photo/video) for an incident
+        /// Upload media and run AI snake detection in a single flow.
+        /// Combines: upload to cloud → YOLO inference → DB first-aid → save all in 1 transaction.
         /// </summary>
         /// <param name="id">Incident ID</param>
-        /// <param name="req">Media file and type</param>
-        /// <returns>Created media record</returns>
+        /// <param name="req">Photo file and media type</param>
+        /// <returns>AI analysis with snake detection, first aid steps, and prohibitions</returns>
         [Authorize]
-        [HttpPost(APIRoute.Incident.UploadMedia, Name = nameof(UploadMediaAsync))]
+        [HttpPost(APIRoute.Incident.Analyze, Name = nameof(AnalyzeAsync))]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(10 * 1024 * 1024)] // 10MB limit
-        public async Task<IActionResult> UploadMediaAsync(
+        public async Task<IActionResult> AnalyzeAsync(
             [FromRoute] Guid id,
-            [FromForm] UploadIncidentMediaRequest req)
+            [FromForm] AnalyzeIncidentRequest req)
         {
             var userId = User.GetUserId();
 
+            var aiInferenceService = HttpContext.RequestServices
+                .GetRequiredService<IAiInferenceService>();
+
             await using var stream = req.File.OpenReadStream();
 
-            var result = await _incidentService.UploadMediaAsync(
+            var result = await aiInferenceService.AnalyzeAsync(
                 userId: userId,
                 incidentId: id,
-                stream: stream,
+                imageStream: stream,
                 fileName: req.File.FileName,
                 contentType: req.File.ContentType,
                 fileSize: req.File.Length,
                 mediaType: req.MediaType);
-                
+
             return this.ToIActionResult(result);
         }
 
-        /// <summary>
-        /// Create AI inference for incident media (snake detection + first aid)
-        /// </summary>
-        /// <param name="id">Incident ID</param>
-        /// <param name="req">Media to analyze</param>
-        /// <returns>AI analysis with snake detection and first aid steps</returns>
-        [Authorize]
-        [HttpPost(APIRoute.Incident.CreateAiInference, Name = nameof(CreateAiInferenceAsync))]
-        public async Task<IActionResult> CreateAiInferenceAsync(
-            [FromRoute] Guid id,
-            [FromBody] CreateAiInferenceRequest req)
-        {
-            var userId = User.GetUserId();
-            
-            var aiInferenceService = HttpContext.RequestServices
-                .GetRequiredService<IAiInferenceService>();
-            
-            var result = await aiInferenceService.CreateInferenceAsync(
-                userId: userId,
-                incidentId: id,
-                incidentMediaId: req.IncidentMediaId);
-                
-            return this.ToIActionResult(result);
-        }
 
         #region Tracking
 

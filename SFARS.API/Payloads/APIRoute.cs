@@ -72,8 +72,7 @@
             public const string TrackingByCode = Base + "/tracking";
             // [POST]
             public const string Create = Base + "/incidents";
-            public const string UploadMedia = Base + "/incidents/{id}/media";
-            public const string CreateAiInference = Base + "/incidents/{id}/ai-inferences";
+            public const string Analyze = Base + "/incidents/{id}/analyze";
             public const string RegenerateTrackingCode = Base + "/incidents/{id}/tracking-code/regenerate";
         }
 
