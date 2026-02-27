@@ -29,11 +29,11 @@ namespace SFARS.Infrastructure.Data.Configurations
                 .HasMaxLength(10)
                 .HasColumnName("code");
 
-            builder.Property(e => e.Purpose)
+            builder.Property(e => e.Type)
                 .IsRequired()
                 .HasConversion<string>()
                 .HasMaxLength(20)
-                .HasColumnName("purpose");
+                .HasColumnName("type");
 
             builder.Property(e => e.ExpiredAt)
                 .IsRequired()
@@ -62,7 +62,7 @@ namespace SFARS.Infrastructure.Data.Configurations
                 .HasColumnName("updated_by");
 
             // Indexes for better query performance
-            builder.HasIndex(e => new { e.UserId, e.Purpose })
+            builder.HasIndex(e => new { e.UserId, e.Type })
                 .HasDatabaseName("IX_OtpRequest_UserId_Purpose");
 
             // Relationships with named constraints

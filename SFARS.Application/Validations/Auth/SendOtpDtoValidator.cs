@@ -26,17 +26,10 @@ namespace SFARS.Application.Validations.Auth
                 .MaximumLength(256)
                 .WithMessage(isVi ? "Email không được vượt quá 256 ký tự" : "Email must not exceed 256 characters");
 
-            // Purpose validation
-            RuleFor(x => x.Purpose)
-                .NotEmpty()
-                .WithMessage(isVi ? "Mục đích OTP không được để trống" : "OTP purpose must not be empty")
-                .Must(BeAValidPurpose)
-                .WithMessage(isVi ? "Mục đích OTP không hợp lệ. Chỉ chấp nhận: SIGN_IN, RESET_PASSWORD" : "Invalid OTP purpose. Accepted values: SIGN_IN, RESET_PASSWORD");
-        }
-
-        private bool BeAValidPurpose(string purpose)
-        {
-            return purpose == "SIGN_IN" || purpose == "RESET_PASSWORD";
+            // Type validation
+            RuleFor(x => x.Type)
+                .IsInEnum()
+                .WithMessage(isVi ? "Loại OTP không hợp lệ. Chỉ chấp nhận: SignIn, ResetPassword" : "Invalid OTP type. Accepted values: SignIn, ResetPassword");
         }
     }
 }

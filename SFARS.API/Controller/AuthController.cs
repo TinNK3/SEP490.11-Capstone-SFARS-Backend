@@ -73,14 +73,14 @@ namespace SFARS.API.Controller
         [HttpPost(APIRoute.Auth.SendOtp, Name = nameof(SendOtpAsync))]
         public async Task<IActionResult> SendOtpAsync([FromBody] SendOtpRequest req)
         {
-            var result = await _authService.SendOtpAsync(req.Email, req.Purpose);
+            var result = await _authService.SendOtpAsync(req.Email, req.Type);
             return this.ToIActionResult(result);
         }
 
         [HttpPost(APIRoute.Auth.VerifyOtp, Name = nameof(VerifyOtpAsync))]
         public async Task<IActionResult> VerifyOtpAsync([FromBody] VerifyOtpRequest req)
         {
-            var result = await _authService.VerifyOtpAsync(req.Email, req.Otp, req.Purpose);
+            var result = await _authService.VerifyOtpAsync(req.Email, req.Otp, req.Type);
             return this.ToIActionResult(result);
         }
 

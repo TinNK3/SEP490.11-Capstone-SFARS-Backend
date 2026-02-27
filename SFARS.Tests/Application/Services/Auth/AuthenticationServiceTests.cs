@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -313,7 +313,7 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task SignInWithGoogleAsync_InvalidToken_ThrowsUnauthorized()
     {
-        // Arrange (token đủ dài để qua validator)
+        // Arrange (token �? d�i �? qua validator)
         var token = "invalid-token-which-is-long-enough";
         _externalAuthServiceMock.Setup(x => x.VerifyGoogleTokenAsync(token))
             .ThrowsAsync(new UnauthorizedAccessException("Invalid Google Token."));
@@ -431,11 +431,11 @@ public class AuthenticationServiceTests
 
     #region SignOutAsync Tests
 
-    // ──────────────────────────────────────────────────────────────────────────────
+    // ??????????????????????????????????????????????????????????????????????????????
     // Helper: build a real signed JWT so CanReadToken() + ReadJwtToken() work.
-    // SignOutAsync parses the token inline (not via IJwtUtils) — tests must supply
+    // SignOutAsync parses the token inline (not via IJwtUtils) � tests must supply
     // an actual JWT string to exercise the blacklisting branch.
-    // ──────────────────────────────────────────────────────────────────────────────
+    // ??????????????????????????????????????????????????????????????????????????????
     private static string BuildRealJwt(
         string? jti = null,
         int expiresInMinutes = 60,
@@ -463,12 +463,12 @@ public class AuthenticationServiceTests
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    // ── STEP 1: Blacklisting ──────────────────────────────────────────────────────
+    // ?? STEP 1: Blacklisting ??????????????????????????????????????????????????????
 
     [Fact]
     public async Task SignOutAsync_WithValidJwt_RevokesJtiOnBlacklist()
     {
-        // Arrange — real JWT so CanReadToken() returns true and JTI is extracted
+        // Arrange � real JWT so CanReadToken() returns true and JTI is extracted
         var userId = Guid.NewGuid();
         var expectedJti = Guid.NewGuid().ToString();
         var accessToken = BuildRealJwt(jti: expectedJti);
@@ -480,7 +480,7 @@ public class AuthenticationServiceTests
         // Act
         await _sut.SignOutAsync(userId, accessToken);
 
-        // Assert — Revoke must be called with the exact JTI extracted from the token
+        // Assert � Revoke must be called with the exact JTI extracted from the token
         _tokenBlacklistServiceMock.Verify(
             x => x.Revoke(expectedJti, It.IsAny<DateTime>()),
             Times.Once);
@@ -489,7 +489,7 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task SignOutAsync_WithValidJwt_RevokesWithCorrectExpiry()
     {
-        // Arrange — verify the expiry passed to Revoke matches the token's ValidTo
+        // Arrange � verify the expiry passed to Revoke matches the token's ValidTo
         var userId = Guid.NewGuid();
         var expectedJti = Guid.NewGuid().ToString();
         var accessToken = BuildRealJwt(jti: expectedJti, expiresInMinutes: 30);
@@ -505,7 +505,7 @@ public class AuthenticationServiceTests
         // Act
         await _sut.SignOutAsync(userId, accessToken);
 
-        // Assert — expiry forwarded to blacklist must match the token's actual ValidTo
+        // Assert � expiry forwarded to blacklist must match the token's actual ValidTo
         _tokenBlacklistServiceMock.Verify(
             x => x.Revoke(expectedJti, It.Is<DateTime>(d =>
                 Math.Abs((d - parsedValidTo).TotalSeconds) < 2)),
@@ -515,7 +515,7 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task SignOutAsync_WithUnparsableToken_SkipsBlacklisting()
     {
-        // Arrange — garbage string, CanReadToken() returns false; blacklist must be skipped
+        // Arrange � garbage string, CanReadToken() returns false; blacklist must be skipped
         var userId = Guid.NewGuid();
         const string garbageToken = "not.a.valid.jwt.at.all";
 
@@ -526,7 +526,7 @@ public class AuthenticationServiceTests
         // Act
         await _sut.SignOutAsync(userId, garbageToken);
 
-        // Assert — Revoke must never be called
+        // Assert � Revoke must never be called
         _tokenBlacklistServiceMock.Verify(
             x => x.Revoke(It.IsAny<string>(), It.IsAny<DateTime>()),
             Times.Never);
@@ -535,7 +535,7 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task SignOutAsync_WithJwtMissingJtiClaim_SkipsBlacklisting()
     {
-        // Arrange — real JWT but no JTI claim; service should log warning and skip Revoke
+        // Arrange � real JWT but no JTI claim; service should log warning and skip Revoke
         var userId = Guid.NewGuid();
         var accessToken = BuildRealJwt(jti: null); // no JTI
 
@@ -552,12 +552,12 @@ public class AuthenticationServiceTests
             Times.Never);
     }
 
-    // ── STEP 2: Refresh token deletion ───────────────────────────────────────────
+    // ?? STEP 2: Refresh token deletion ???????????????????????????????????????????
 
     [Fact]
     public async Task SignOutAsync_WithValidJwt_ActiveSession_BlacklistsAndDeletesRefreshToken()
     {
-        // Arrange — happy path: valid JWT + active refresh token
+        // Arrange � happy path: valid JWT + active refresh token
         var userId = Guid.NewGuid();
         var jti = Guid.NewGuid().ToString();
         var accessToken = BuildRealJwt(jti: jti);
@@ -590,7 +590,7 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task SignOutAsync_WithValidJwt_NoActiveSession_ReturnsSuccessWithoutDeletion()
     {
-        // Arrange — no refresh token on record (already signed out / session expired)
+        // Arrange � no refresh token on record (already signed out / session expired)
         var userId = Guid.NewGuid();
         var accessToken = BuildRealJwt(jti: Guid.NewGuid().ToString());
 
@@ -601,7 +601,7 @@ public class AuthenticationServiceTests
         // Act
         var result = await _sut.SignOutAsync(userId, accessToken);
 
-        // Assert — still succeeds; token is blacklisted to prevent reuse
+        // Assert � still succeeds; token is blacklisted to prevent reuse
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Success0009);
         _refreshTokenServiceMock.Verify(x => x.DeleteAsync(It.IsAny<int>()), Times.Never);
     }
@@ -609,7 +609,7 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task SignOutAsync_WithValidJwt_DeleteFails_ReturnsFailure()
     {
-        // Arrange — blacklist succeeds but DB delete fails
+        // Arrange � blacklist succeeds but DB delete fails
         var userId = Guid.NewGuid();
         var jti = Guid.NewGuid().ToString();
         var accessToken = BuildRealJwt(jti: jti);
@@ -631,7 +631,7 @@ public class AuthenticationServiceTests
         // Act
         var result = await _sut.SignOutAsync(userId, accessToken);
 
-        // Assert — JTI is still blacklisted even though delete failed
+        // Assert � JTI is still blacklisted even though delete failed
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Fail0001);
         result.Data.Should().BeNull();
         _tokenBlacklistServiceMock.Verify(x => x.Revoke(jti, It.IsAny<DateTime>()), Times.Once);
@@ -641,7 +641,7 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task SignOutAsync_DeletesCorrectRefreshTokenId()
     {
-        // Arrange — verifies DeleteAsync is called with the exact token ID from the lookup
+        // Arrange � verifies DeleteAsync is called with the exact token ID from the lookup
         var userId = Guid.NewGuid();
         const int expectedTokenId = 77;
         var accessToken = BuildRealJwt(jti: Guid.NewGuid().ToString());
@@ -669,12 +669,12 @@ public class AuthenticationServiceTests
             x => x.DeleteAsync(It.Is<int>(id => id != expectedTokenId)), Times.Never);
     }
 
-    // ── Exception paths ───────────────────────────────────────────────────────────
+    // ?? Exception paths ???????????????????????????????????????????????????????????
 
     [Fact]
     public async Task SignOutAsync_GetByUserIdThrowsException_PropagatesException()
     {
-        // Arrange — DB failure during refresh token lookup
+        // Arrange � DB failure during refresh token lookup
         var userId = Guid.NewGuid();
         var accessToken = BuildRealJwt(jti: Guid.NewGuid().ToString());
 
@@ -694,7 +694,7 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task SignOutAsync_DeleteThrowsException_PropagatesException()
     {
-        // Arrange — delete blows up (e.g. concurrency conflict)
+        // Arrange � delete blows up (e.g. concurrency conflict)
         var userId = Guid.NewGuid();
         var accessToken = BuildRealJwt(jti: Guid.NewGuid().ToString());
         var refreshTokenDto = new RefreshTokenDto
@@ -720,12 +720,12 @@ public class AuthenticationServiceTests
             .WithMessage("Concurrency error");
     }
 
-    // ── UserId routing ────────────────────────────────────────────────────────────
+    // ?? UserId routing ????????????????????????????????????????????????????????????
 
     [Fact]
     public async Task SignOutAsync_LooksUpCorrectUserId()
     {
-        // Arrange — verify GetByUserIdAsync receives the exact userId passed in
+        // Arrange � verify GetByUserIdAsync receives the exact userId passed in
         var userId = Guid.NewGuid();
         var differentUserId = Guid.NewGuid();
         var accessToken = BuildRealJwt(jti: Guid.NewGuid().ToString());
@@ -798,7 +798,7 @@ public class AuthenticationServiceTests
             Id = Guid.NewGuid(),
             UserId = userDto.Id,
             Code = "correct-otp",
-            Purpose = OtpPurpose.ResetPassword,
+            Type = OtpType.ResetPassword,
             IsUsed = false,
             AttemptCount = 0,
             CreatedAt = DateTime.UtcNow.AddMinutes(-1),
@@ -834,7 +834,7 @@ public class AuthenticationServiceTests
             Id = Guid.NewGuid(),
             UserId = userDto.Id,
             Code = otp,
-            Purpose = OtpPurpose.ResetPassword,
+            Type = OtpType.ResetPassword,
             IsUsed = false,
             AttemptCount = 0,
             CreatedAt = DateTime.UtcNow.AddMinutes(-1),
@@ -858,14 +858,14 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task ResetPasswordAsync_GoogleUser_CanSetPassword()
     {
-        // Arrange - User đăng ký qua Google (không có password), muốn đặt password mới
+        // Arrange - User ��ng k? qua Google (kh�ng c� password), mu?n �?t password m?i
         var email = "googleuser@test.com";
         var otp = "123456";
         var newPassword = "MyFirstPassword123!";
         
         var userDto = CreateValidUserDto();
         userDto.Email = email;
-        userDto.PasswordHash = null; // Google user không có password
+        userDto.PasswordHash = null; // Google user kh�ng c� password
 
         _userServiceMock.Setup(x => x.GetByEmailAsync(email))
             .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
@@ -875,7 +875,7 @@ public class AuthenticationServiceTests
             Id = Guid.NewGuid(),
             UserId = userDto.Id,
             Code = otp,
-            Purpose = OtpPurpose.ResetPassword,
+            Type = OtpType.ResetPassword,
             IsUsed = false,
             AttemptCount = 0,
             CreatedAt = DateTime.UtcNow.AddMinutes(-1),
@@ -915,7 +915,7 @@ public class AuthenticationServiceTests
             Id = Guid.NewGuid(),
             UserId = userDto.Id,
             Code = otp,
-            Purpose = OtpPurpose.ResetPassword,
+            Type = OtpType.ResetPassword,
             IsUsed = false,
             AttemptCount = 0,
             CreatedAt = DateTime.UtcNow.AddMinutes(-1),

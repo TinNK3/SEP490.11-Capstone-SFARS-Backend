@@ -17,7 +17,6 @@ using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
 using SFARS.Infrastructure.Configurations;
 using SFARS.Infrastructure.Helpers;
-using SFARS.Domain.Common.Constants;
 
 namespace SFARS.Application.Services
 {
