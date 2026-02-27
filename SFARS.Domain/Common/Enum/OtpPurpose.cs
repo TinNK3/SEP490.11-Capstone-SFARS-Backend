@@ -2,7 +2,7 @@ using System.ComponentModel;
 
 namespace SFARS.Domain.Common.Enum
 {
-    public enum OtpPurpose
+    public enum OtpType
     {
         [Description("Đăng nhập")]
         SignIn,

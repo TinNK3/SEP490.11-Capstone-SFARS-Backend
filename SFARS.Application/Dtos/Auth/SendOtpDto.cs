@@ -8,6 +8,6 @@ namespace SFARS.Application.Dtos.Auth
     public class SendOtpDto
     {
         public string Email { get; set; } = string.Empty;
-        public string Purpose { get; set; } = string.Empty;
+        public OtpType Type { get; set; }
     }
 }

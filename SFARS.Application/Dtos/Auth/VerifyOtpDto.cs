@@ -1,3 +1,5 @@
+using SFARS.Domain.Common.Enum;
+
 namespace SFARS.Application.Dtos.Auth
 {
     /// <summary>
@@ -7,6 +9,6 @@ namespace SFARS.Application.Dtos.Auth
     {
         public string Email { get; set; } = string.Empty;
         public string Otp { get; set; } = string.Empty;
-        public string Purpose { get; set; } = string.Empty;
+        public OtpType Type { get; set; }
     }
 }

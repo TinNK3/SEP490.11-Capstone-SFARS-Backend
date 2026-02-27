@@ -109,17 +109,7 @@ public class OtpServiceTests
     public async Task SendOtpAsync_EmptyEmail_ReturnsValidationWarning()
     {
         // Arrange & Act
-        var result = await _sut.SendOtpAsync("", "RESET_PASSWORD");
-
-        // Assert
-        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0001);
-    }
-
-    [Fact]
-    public async Task SendOtpAsync_InvalidPurpose_ReturnsValidationWarning()
-    {
-        // Arrange & Act
-        var result = await _sut.SendOtpAsync(TestEmail, "INVALID_PURPOSE");
+        var result = await _sut.SendOtpAsync("", OtpType.ResetPassword);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0001);
@@ -133,7 +123,7 @@ public class OtpServiceTests
             .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Warning0002, "Not found", null!));
 
         // Act
-        var result = await _sut.SendOtpAsync(TestEmail, "RESET_PASSWORD");
+        var result = await _sut.SendOtpAsync(TestEmail, OtpType.ResetPassword);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0002);
@@ -148,7 +138,7 @@ public class OtpServiceTests
         SetupUserFound(userDto);
 
         // Act
-        var result = await _sut.SendOtpAsync(TestEmail, "RESET_PASSWORD");
+        var result = await _sut.SendOtpAsync(TestEmail, OtpType.ResetPassword);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0001);
@@ -164,14 +154,14 @@ public class OtpServiceTests
         // Simulate locked OTP (max attempts reached recently)
         var lockedOtp = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.ResetPassword,
+            type: OtpType.ResetPassword,
             attemptCount: OtpConstants.MaxAttempts,
             createdMinutesAgo: 5); // within lockout period
 
         SetupOtpRepository(new List<OtpRequest> { lockedOtp });
 
         // Act
-        var result = await _sut.SendOtpAsync(TestEmail, "RESET_PASSWORD");
+        var result = await _sut.SendOtpAsync(TestEmail, OtpType.ResetPassword);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0015);
@@ -187,13 +177,13 @@ public class OtpServiceTests
         // Simulate recent OTP (within cooldown period)
         var recentOtp = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.ResetPassword,
+            type: OtpType.ResetPassword,
             createdMinutesAgo: 0); // just created
 
         SetupOtpRepository(new List<OtpRequest> { recentOtp });
 
         // Act
-        var result = await _sut.SendOtpAsync(TestEmail, "RESET_PASSWORD");
+        var result = await _sut.SendOtpAsync(TestEmail, OtpType.ResetPassword);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0016);
@@ -211,7 +201,7 @@ public class OtpServiceTests
             .ReturnsAsync(true);
 
         // Act
-        var result = await _sut.SendOtpAsync(TestEmail, "RESET_PASSWORD");
+        var result = await _sut.SendOtpAsync(TestEmail, OtpType.ResetPassword);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Success0005);
@@ -232,7 +222,7 @@ public class OtpServiceTests
             .ReturnsAsync(false);
 
         // Act
-        var result = await _sut.SendOtpAsync(TestEmail, "RESET_PASSWORD");
+        var result = await _sut.SendOtpAsync(TestEmail, OtpType.ResetPassword);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Fail0002);
@@ -248,7 +238,7 @@ public class OtpServiceTests
         // Old unused OTP that's past cooldown
         var oldOtp = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.ResetPassword,
+            type: OtpType.ResetPassword,
             createdMinutesAgo: 5,
             isUsed: false);
 
@@ -258,7 +248,7 @@ public class OtpServiceTests
             .ReturnsAsync(true);
 
         // Act
-        var result = await _sut.SendOtpAsync(TestEmail, "RESET_PASSWORD");
+        var result = await _sut.SendOtpAsync(TestEmail, OtpType.ResetPassword);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Success0005);
@@ -267,27 +257,27 @@ public class OtpServiceTests
     }
 
     [Fact]
-    public async Task SendOtpAsync_PurposeIsolation_SignInDoesNotAffectResetPassword()
+    public async Task SendOtpAsync_TypeIsolation_SignInDoesNotAffectResetPassword()
     {
         // Arrange
         var userDto = CreateValidUserDto();
         SetupUserFound(userDto);
 
-        // Existing OTP for SIGN_IN purpose (should NOT block RESET_PASSWORD)
+        // Existing OTP for SignIn type (should NOT block ResetPassword)
         var signInOtp = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.SignIn,
-            createdMinutesAgo: 0); // within cooldown for SIGN_IN
+            type: OtpType.SignIn,
+            createdMinutesAgo: 0); // within cooldown for SignIn
 
         SetupOtpRepository(new List<OtpRequest> { signInOtp });
 
         _emailServiceMock.Setup(x => x.SendEmailAsync(It.IsAny<EmailMessageDto>(), true))
             .ReturnsAsync(true);
 
-        // Act - Send RESET_PASSWORD OTP
-        var result = await _sut.SendOtpAsync(TestEmail, "RESET_PASSWORD");
+        // Act - Send ResetPassword OTP
+        var result = await _sut.SendOtpAsync(TestEmail, OtpType.ResetPassword);
 
-        // Assert - Should succeed because SIGN_IN cooldown doesn't affect RESET_PASSWORD
+        // Assert - Should succeed because SignIn cooldown doesn't affect ResetPassword
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Success0005);
     }
 
@@ -299,7 +289,7 @@ public class OtpServiceTests
     public async Task VerifyOtpAsync_EmptyInputs_ReturnsValidationWarning()
     {
         // Arrange & Act
-        var result = await _sut.VerifyOtpAsync("", "", "");
+        var result = await _sut.VerifyOtpAsync("", "", OtpType.SignIn);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0001);
@@ -313,7 +303,7 @@ public class OtpServiceTests
             .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Warning0002, "Not found", null!));
 
         // Act
-        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", "RESET_PASSWORD");
+        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", OtpType.ResetPassword);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0002);
@@ -328,7 +318,7 @@ public class OtpServiceTests
         SetupOtpRepository(new List<OtpRequest>()); // no OTPs
 
         // Act
-        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", "RESET_PASSWORD");
+        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", OtpType.ResetPassword);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0017);
@@ -343,7 +333,7 @@ public class OtpServiceTests
 
         var expiredOtp = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.ResetPassword,
+            type: OtpType.ResetPassword,
             code: "123456",
             createdMinutesAgo: 10,
             expiredMinutesFromNow: -5); // already expired
@@ -351,7 +341,7 @@ public class OtpServiceTests
         SetupOtpRepository(new List<OtpRequest> { expiredOtp });
 
         // Act
-        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", "RESET_PASSWORD");
+        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", OtpType.ResetPassword);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0014);
@@ -366,14 +356,14 @@ public class OtpServiceTests
 
         var lockedOtp = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.ResetPassword,
+            type: OtpType.ResetPassword,
             code: "123456",
             attemptCount: OtpConstants.MaxAttempts);
 
         SetupOtpRepository(new List<OtpRequest> { lockedOtp });
 
         // Act
-        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", "RESET_PASSWORD");
+        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", OtpType.ResetPassword);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0015);
@@ -388,14 +378,14 @@ public class OtpServiceTests
 
         var otpRequest = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.ResetPassword,
+            type: OtpType.ResetPassword,
             code: "123456",
             attemptCount: 0);
 
         SetupOtpRepository(new List<OtpRequest> { otpRequest });
 
         // Act
-        var result = await _sut.VerifyOtpAsync(TestEmail, "wrong-code", "RESET_PASSWORD");
+        var result = await _sut.VerifyOtpAsync(TestEmail, "wrong-code", OtpType.ResetPassword);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0005);
@@ -413,13 +403,13 @@ public class OtpServiceTests
 
         var validOtp = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.ResetPassword,
+            type: OtpType.ResetPassword,
             code: "123456");
 
         SetupOtpRepository(new List<OtpRequest> { validOtp });
 
         // Act
-        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", "RESET_PASSWORD");
+        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", OtpType.ResetPassword);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Success0010);
@@ -434,17 +424,17 @@ public class OtpServiceTests
 
         var signInOtp = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.SignIn,
+            type: OtpType.SignIn,
             code: "123456");
 
         SetupOtpRepository(new List<OtpRequest> { signInOtp });
 
         // Act
-        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", "SIGN_IN");
+        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", OtpType.SignIn);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Success0010);
-        signInOtp.IsUsed.Should().BeTrue(); // SIGN_IN marks used immediately
+        signInOtp.IsUsed.Should().BeTrue(); // SignIn marks used immediately
     }
 
     [Fact]
@@ -456,38 +446,38 @@ public class OtpServiceTests
 
         var resetOtp = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.ResetPassword,
+            type: OtpType.ResetPassword,
             code: "123456");
 
         SetupOtpRepository(new List<OtpRequest> { resetOtp });
 
         // Act
-        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", "RESET_PASSWORD");
+        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", OtpType.ResetPassword);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Success0010);
-        resetOtp.IsUsed.Should().BeFalse(); // RESET_PASSWORD keeps it for ResetPasswordAsync
+        resetOtp.IsUsed.Should().BeFalse(); // ResetPassword keeps it for ResetPasswordAsync
     }
 
     [Fact]
-    public async Task VerifyOtpAsync_PurposeIsolation_SignInOtpCannotVerifyResetPassword()
+    public async Task VerifyOtpAsync_TypeIsolation_SignInOtpCannotVerifyResetPassword()
     {
         // Arrange
         var userDto = CreateValidUserDto();
         SetupUserFound(userDto);
 
-        // Only a SIGN_IN OTP exists
+        // Only a SignIn OTP exists
         var signInOtp = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.SignIn,
+            type: OtpType.SignIn,
             code: "123456");
 
         SetupOtpRepository(new List<OtpRequest> { signInOtp });
 
-        // Act - Try to verify with RESET_PASSWORD purpose
-        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", "RESET_PASSWORD");
+        // Act - Try to verify with ResetPassword type
+        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", OtpType.ResetPassword);
 
-        // Assert - Should fail because no RESET_PASSWORD OTP exists
+        // Assert - Should fail because no ResetPassword OTP exists
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0017);
     }
 
@@ -501,14 +491,14 @@ public class OtpServiceTests
         // OTP that was already used
         var usedOtp = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.ResetPassword,
+            type: OtpType.ResetPassword,
             code: "123456",
             isUsed: true);
 
         SetupOtpRepository(new List<OtpRequest> { usedOtp });
 
         // Act
-        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", "RESET_PASSWORD");
+        var result = await _sut.VerifyOtpAsync(TestEmail, "123456", OtpType.ResetPassword);
 
         // Assert - used OTPs should be filtered out
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0017);
@@ -527,7 +517,7 @@ public class OtpServiceTests
 
         var validOtp = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.ResetPassword,
+            type: OtpType.ResetPassword,
             code: "123456");
 
         SetupOtpRepository(new List<OtpRequest> { validOtp });
@@ -568,7 +558,7 @@ public class OtpServiceTests
 
         var expiredOtp = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.ResetPassword,
+            type: OtpType.ResetPassword,
             code: "123456",
             expiredMinutesFromNow: -5);
 
@@ -590,7 +580,7 @@ public class OtpServiceTests
 
         var otpRequest = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.ResetPassword,
+            type: OtpType.ResetPassword,
             code: "123456",
             attemptCount: 0);
 
@@ -615,7 +605,7 @@ public class OtpServiceTests
 
         var validOtp = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.ResetPassword,
+            type: OtpType.ResetPassword,
             code: "123456");
 
         SetupOtpRepository(new List<OtpRequest> { validOtp });
@@ -636,12 +626,12 @@ public class OtpServiceTests
 
         var validOtp = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.ResetPassword,
+            type: OtpType.ResetPassword,
             code: "123456");
 
         var otherOtp = CreateOtpRequest(
             userId: userDto.Id,
-            purpose: OtpPurpose.ResetPassword,
+            type: OtpType.ResetPassword,
             code: "654321",
             createdMinutesAgo: 5);
 
@@ -729,7 +719,7 @@ public class OtpServiceTests
 
     private OtpRequest CreateOtpRequest(
         Guid userId,
-        OtpPurpose purpose,
+        OtpType type,
         string code = "123456",
         int attemptCount = 0,
         bool isUsed = false,
@@ -741,7 +731,7 @@ public class OtpServiceTests
             Id = Guid.NewGuid(),
             UserId = userId,
             Code = code,
-            Purpose = purpose,
+            Type = type,
             AttemptCount = attemptCount,
             IsUsed = isUsed,
             CreatedAt = DateTime.UtcNow.AddMinutes(-createdMinutesAgo),
