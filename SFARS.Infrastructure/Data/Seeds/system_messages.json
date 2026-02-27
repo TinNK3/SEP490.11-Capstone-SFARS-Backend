@@ -366,6 +366,24 @@
     "Vi": "Tải thêm ảnh để tăng độ chính xác."
   },
   {
+    "MsgId": "AI.Warning0004",
+    "MsgContent": "Only image files (JPEG, PNG) are allowed for AI analysis.",
+    "En": "Only image files (JPEG, PNG) are allowed for AI analysis.",
+    "Vi": "Chỉ hỗ trợ phân tích file ảnh (JPEG, PNG)."
+  },
+  {
+    "MsgId": "AI.Warning0005",
+    "MsgContent": "Snake species not found in the system.",
+    "En": "Snake species not found in the system.",
+    "Vi": "Không tìm thấy thông tin loài rắn này trong hệ thống."
+  },
+  {
+    "MsgId": "AI.Warning0006",
+    "MsgContent": "First-aid instructions are not yet available for this toxin group. Please go to the hospital immediately.",
+    "En": "First-aid instructions are not yet available for this toxin group. Please go to the hospital immediately.",
+    "Vi": "Chưa có hướng dẫn sơ cứu riêng cho nhóm độc này. Vui lòng đến bệnh viện ngay."
+  },
+  {
     "MsgId": "Comm.Success0001",
     "MsgContent": "Post published successfully.",
     "En": "Post published successfully.",

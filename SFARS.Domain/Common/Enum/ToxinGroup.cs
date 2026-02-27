@@ -24,6 +24,9 @@ namespace SFARS.Domain.Common.Enum
 
         // optional: nhiều loài có độc phối hợp
         [Description("Độc hỗn hợp")]
-        Mixed = 6
+        Mixed = 6,
+
+        [Description("Những điều không nên làm")]
+        GeneralProhibition = 7
     }
 }
