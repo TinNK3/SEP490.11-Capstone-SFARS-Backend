@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SFARS.Infrastructure.Data.Context;
@@ -12,13 +13,15 @@ using SFARS.Infrastructure.Data.Context;
 namespace SFARS.Infrastructure.Migrations
 {
     [DbContext(typeof(SFARSDbContext))]
-    partial class SFARSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260228131312_AddGeneralChatEntities")]
+    partial class AddGeneralChatEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.11")
+                .HasAnnotation("ProductVersion", "9.0.1")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -911,70 +914,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasDatabaseName("IX_NotificationLog_UserId");
 
                     b.ToTable("NotificationLog", (string)null);
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.OtpRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<int>("AttemptCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("attempt_count");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)")
-                        .HasColumnName("code");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("created_by");
-
-                    b.Property<DateTime>("ExpiredAt")
-                        .HasColumnType("datetime")
-                        .HasColumnName("expired_at");
-
-                    b.Property<bool>("IsUsed")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_used");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasColumnName("type");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("updated_by");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id")
-                        .HasName("PK_OtpRequest_Id");
-
-                    b.HasIndex("UserId", "Type")
-                        .HasDatabaseName("IX_OtpRequest_UserId_Purpose");
-
-                    b.ToTable("OtpRequest", (string)null);
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.PointTransaction", b =>
@@ -2313,18 +2252,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("SFARS.Domain.Entities.OtpRequest", b =>
-                {
-                    b.HasOne("SFARS.Domain.Entities.User", "User")
-                        .WithMany("OtpRequests")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("FK_OtpRequest_User_UserId");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("SFARS.Domain.Entities.PointTransaction", b =>
                 {
                     b.HasOne("SFARS.Domain.Entities.User", "User")
@@ -2602,8 +2529,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Navigation("LoginHistories");
 
                     b.Navigation("NotificationLogs");
-
-                    b.Navigation("OtpRequests");
 
                     b.Navigation("PointTransactions");
 

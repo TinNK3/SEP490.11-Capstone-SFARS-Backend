@@ -46,6 +46,9 @@ public static class DependencyInjection
 
         // Admin services — methods added directly to IUserService / UserService
 
+        // Chat services
+        services.AddScoped<IChatService, ChatService>();
+
         // Facility services
         services.AddScoped<IMedicalFacilityService, MedicalFacilityService>();
 

@@ -42,9 +42,7 @@ public static class DependencyInjection
             
             // AI Services
             services.AddSingleton<IYoloInferenceService, YoloInferenceService>();
-            // [Gemini AI] Commented out — not used in current inference pipeline.
-            // Kept for future features (chatbot, content generation).
-            // services.AddHttpClient<IGeminiAiService, GeminiAiService>();
+            services.AddHttpClient<IGeminiAiService, GeminiAiService>();
             
             // Register repositories
             services.AddScoped(typeof(IGenericRepository<,>), typeof(GenericRepository<,>));

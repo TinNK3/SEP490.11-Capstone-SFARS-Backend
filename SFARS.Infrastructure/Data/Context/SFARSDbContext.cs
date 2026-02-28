@@ -53,10 +53,14 @@ public partial class SFARSDbContext : DbContext
     public DbSet<AiInferenceCandidate> AiInferenceCandidates { get; set; }
     public DbSet<IncidentSymptom> IncidentSymptoms { get; set; }
 
-    // Chat
+    // Chat (Incident-specific)
     public DbSet<IncidentChat> IncidentChats { get; set; }
     public DbSet<IncidentChatMessage> IncidentChatMessages { get; set; }
     public DbSet<IncidentChatMessageMedia> IncidentChatMessageMedias { get; set; }
+
+    // Chat (General — RAG-based AI chatbox)
+    public DbSet<ChatSession> ChatSessions { get; set; }
+    public DbSet<ChatMessage> ChatMessages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

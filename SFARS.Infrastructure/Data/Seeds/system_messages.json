@@ -1,5 +1,29 @@
 [
   {
+    "MsgId": "Chat.Success0001",
+    "MsgContent": "Message sent successfully.",
+    "En": "Message sent successfully.",
+    "Vi": "Gửi tin nhắn thành công."
+  },
+  {
+    "MsgId": "Chat.Warning0001",
+    "MsgContent": "This chat session has ended.",
+    "En": "This chat session has ended.",
+    "Vi": "Phiên chat này đã kết thúc."
+  },
+  {
+    "MsgId": "Chat.Fail0001",
+    "MsgContent": "AI assistant is temporarily unavailable. Please try again later.",
+    "En": "AI assistant is temporarily unavailable. Please try again later.",
+    "Vi": "Hệ thống AI đang tạm thời không khả dụng. Vui lòng thử lại sau."
+  },
+  {
+    "MsgId": "Chat.Guard0001",
+    "MsgContent": "Make sure to: IMMOBILIZE - DO NOT tourniquet/cut/suck - GO TO HOSPITAL IMMEDIATELY. I cannot provide detailed medical instructions.",
+    "En": "Make sure to: IMMOBILIZE - DO NOT tourniquet/cut/suck - GO TO HOSPITAL IMMEDIATELY. I cannot provide detailed medical instructions.",
+    "Vi": "Mình không thể đưa ra hướng dẫn điều trị chi tiết. Nhưng YÊU CẦU LÀM NGAY: 1. BẤT ĐỘNG vùng bị cắn. 2. KHÔNG thắt garo, KHÔNG rạch/hút nọc. 3. ĐẾN NGAY CƠ SỞ Y TẾ."
+  },
+  {
     "MsgId": "SYS.Success0001",
     "MsgContent": "Created successfully.",
     "En": "Created successfully.",
