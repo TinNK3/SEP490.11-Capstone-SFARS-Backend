@@ -17,6 +17,8 @@ public class GeminiAiService : IGeminiAiService
     private readonly GeminiOptions _options;
     private readonly HttpClient _httpClient;
 
+    public string ModelName => _options.Model;
+
     public GeminiAiService(
         ILogger<GeminiAiService> logger,
         IOptions<GeminiOptions> options,
@@ -231,6 +233,117 @@ Response format (JSON):
             new(3, "RỬA VẾT THƯƠNG", "Rửa nhẹ bằng nước sạch, không chà xát"),
             new(4, "KHÔNG TỰ XỬ LÝ", "Không bóp, cắt, hút độc - rất nguy hiểm")
         };
+    }
+
+    /// <summary>
+    /// RAG-based chat with Gemini. Sends system prompt + DB context + conversation history.
+    /// </summary>
+    public async Task<string> ChatWithContextAsync(
+        string systemPrompt,
+        string contextData,
+        string userMessage,
+        List<ChatHistoryItem>? history = null)
+    {
+        // Build multi-turn contents
+        var contents = new List<object>();
+
+        // First message: context + first user message OR just context
+        if (history != null && history.Count > 0)
+        {
+            // Add context as first user turn
+            contents.Add(new { role = "user", parts = new[] { new { text = $"[DỮ LIỆU HỆ THỐNG]\n{contextData}" } } });
+            contents.Add(new { role = "model", parts = new[] { new { text = "Đã nhận dữ liệu hệ thống. Tôi sẽ chỉ trả lời dựa trên dữ liệu này." } } });
+
+            // Add history
+            foreach (var item in history)
+            {
+                contents.Add(new { role = item.Role, parts = new[] { new { text = item.Content } } });
+            }
+        }
+
+        // Add current user message (with context if no history)
+        if (history == null || history.Count == 0)
+        {
+            contents.Add(new
+            {
+                role = "user",
+                parts = new[] { new { text = $"[DỮ LIỆU HỆ THỐNG]\n{contextData}\n\n[CÂU HỎI]\n{userMessage}" } }
+            });
+        }
+        else
+        {
+            contents.Add(new { role = "user", parts = new[] { new { text = userMessage } } });
+        }
+
+        var body = new
+        {
+            systemInstruction = new
+            {
+                parts = new[] { new { text = systemPrompt } }
+            },
+            contents,
+            generationConfig = new
+            {
+                temperature = _options.Temperature,
+                maxOutputTokens = 1024
+            }
+        };
+
+        var url = $"{_options.BaseUrl}/models/{_options.Model}:generateContent?key={_options.ApiKey}";
+
+        int maxRetries = 3;
+        int delay = 500;
+
+        for (int attempt = 0; attempt < maxRetries; attempt++)
+        {
+            try
+            {
+                using var requestMsg = new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = new StringContent(
+                        JsonSerializer.Serialize(body),
+                        Encoding.UTF8,
+                        "application/json")
+                };
+
+                var response = await _httpClient.SendAsync(requestMsg);
+
+                if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
+                {
+                    if (attempt < maxRetries - 1)
+                    {
+                        _logger.LogWarning("Gemini 503 (chat), retry {Attempt} after {Delay}ms", attempt + 1, delay);
+                        await Task.Delay(delay);
+                        delay *= 2;
+                        continue;
+                    }
+                }
+
+                response.EnsureSuccessStatusCode();
+
+                    var json = await response.Content.ReadAsStringAsync();
+
+                // var result = JsonSerializer.Deserialize<GeminiApiResponse>(json);
+
+                var options = new JsonSerializerOptions 
+                { 
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    PropertyNameCaseInsensitive = true
+                };
+                var result = JsonSerializer.Deserialize<GeminiApiResponse>(json, options);
+                var text = result?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+
+                return text ?? "Xin lỗi, mình không thể trả lời lúc này. Vui lòng thử lại.";
+            }
+            catch (HttpRequestException ex) when (attempt < maxRetries - 1)
+            {
+                _logger.LogWarning(ex, "Gemini chat HTTP error, retry {Attempt}", attempt + 1);
+                await Task.Delay(delay);
+                delay *= 2;
+            }
+        }
+
+        return "Hệ thống AI đang tạm thời quá tải. Vui lòng thử lại sau.";
     }
 
     // Gemini API response models

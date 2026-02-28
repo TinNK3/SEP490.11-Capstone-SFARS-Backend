@@ -86,6 +86,18 @@
         }
 
         /// <summary>
+        /// General AI chatbox endpoints (RAG-based)
+        /// </summary>
+        public static class Chat
+        {
+            // [POST]
+            public const string SendMessage = Base + "/chat/messages";
+            // [GET]
+            public const string GetSessions = Base + "/chat/sessions";
+            public const string GetMessages = Base + "/chat/sessions/{id}/messages";
+        }
+
+        /// <summary>
         /// Admin — User Management endpoints
         /// </summary>
         public static class Admin
