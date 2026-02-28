@@ -4,25 +4,28 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SFARS.Application.Common;
+using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.User;
 using SFARS.Application.Services;
+using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Repositories.Base;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Domain.Specifications;
 using SFARS.Domain.Specifications.Interfaces;
+using SFARS.Domain.Specifications.Params;
 using SFARS.Domain.Specifications.Users;
 
 namespace SFARS.Tests.Application.Services.Users
 {
     /// <summary>
     /// Unit tests for UserService:
-    /// - GetMeAsync (GET /api/me)
-    /// - UpdateMeAsync (PUT /api/me)
+    /// - GetMeAsync       (GET  /api/me)
+    /// - UpdateMeAsync    (PUT  /api/me)
+    /// - GetAllUsersAsync (GET  /admin/users)
     ///
-    /// Scope:
-    /// We only test the Application Service behavior (business flow + result codes),
-    /// not EF Core internals or real database behaviors.
+    /// Scope: Application service layer only — no EF Core, no real DB.
     /// </summary>
     public class UserServiceTests
     {
@@ -38,18 +41,16 @@ namespace SFARS.Tests.Application.Services.Users
         public UserServiceTests()
         {
             _unitOfWorkMock = new Mock<IUnitOfWork>();
-            _userRepoMock = new Mock<IGenericRepository<User, Guid>>();
+            _userRepoMock   = new Mock<IGenericRepository<User, Guid>>();
             _msgServiceMock = new Mock<ISystemMessageService>();
-            _mapperMock = new Mock<IMapper>();
-            _loggerMock = new Mock<ILogger<UserService>>();
-            _publisherMock = new Mock<IPublisher>();
+            _mapperMock     = new Mock<IMapper>();
+            _loggerMock     = new Mock<ILogger<UserService>>();
+            _publisherMock  = new Mock<IPublisher>();
 
-            // Important: UnitOfWork.Repository<User, Guid>() must return our mocked repository.
             _unitOfWorkMock
                 .Setup(x => x.Repository<User, Guid>())
                 .Returns(_userRepoMock.Object);
 
-            // Default behavior for message service to avoid null/empty message noise.
             _msgServiceMock
                 .Setup(x => x.GetMessageAsync(It.IsAny<string>()))
                 .ReturnsAsync((string code) => $"Message for {code}");
@@ -127,7 +128,7 @@ namespace SFARS.Tests.Application.Services.Users
             };
 
             _userRepoMock
-                .Setup(r => r.GetWithSpecAsync(It.IsAny<UserByIdWithRoleSpecification>(), It.IsAny<bool>()))
+                .Setup(r => r.GetWithSpecAsync(It.IsAny<UserSpecification>(), It.IsAny<bool>()))
                 .ReturnsAsync(userEntity);
 
             _mapperMock
@@ -244,7 +245,7 @@ namespace SFARS.Tests.Application.Services.Users
             // 4️⃣ Reload user WITH ROLE after update (CRITICAL FIX)
             _userRepoMock
                 .Setup(r => r.GetWithSpecAsync(
-                    It.IsAny<UserByIdWithRoleSpecification>(),
+                    It.IsAny<UserSpecification>(),
                     It.IsAny<bool>()))
                 .ReturnsAsync(userWithRole);
 
@@ -267,7 +268,7 @@ namespace SFARS.Tests.Application.Services.Users
             _userRepoMock.Verify(r => r.GetByIdAsync(userId), Times.Once);
             _userRepoMock.Verify(r => r.UpdateAsync(It.IsAny<User>()), Times.Once);
             _userRepoMock.Verify(
-                r => r.GetWithSpecAsync(It.IsAny<UserByIdWithRoleSpecification>(), It.IsAny<bool>()),
+                r => r.GetWithSpecAsync(It.IsAny<UserSpecification>(), It.IsAny<bool>()),
                 Times.Once);
             _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
         }
@@ -276,22 +277,660 @@ namespace SFARS.Tests.Application.Services.Users
 
         #region Helpers
 
-        /// <summary>
-        /// Creates a valid UserDto used as input for update profile tests.
-        /// Keep it minimal but valid according to your UpdateProfileRequestValidator.
-        /// </summary>
-        private static UserDto CreateValidUserDto()
+        /// <summary>Creates a valid UserDto used as input for update profile tests.</summary>
+        private static UserDto CreateValidUserDto() => new UserDto
         {
-            return new UserDto
+            FirstName = "Test",
+            LastName  = "User",
+            Phone     = "0123456789",
+            Address   = "HCM City",
+            Avatar    = "https://example.com/avatar.png",
+            Dob       = new DateTime(2000, 1, 1)
+        };
+
+        /// <summary>Returns a minimal empty UserSpecParams (no filters).</summary>
+        private static UserSpecParams EmptyParams() => new UserSpecParams();
+
+        /// <summary>Creates a list of fake User entities (no navigation props needed for count/list tests).</summary>
+        private static List<User> FakeUsers(int count) =>
+            Enumerable.Range(1, count)
+                      .Select(i => new User
+                      {
+                          Id        = Guid.NewGuid(),
+                          FirstName = $"User{i}",
+                          LastName  = "Test",
+                          Email     = $"user{i}@test.com",
+                          Status    = UserStatus.Active,
+                          UserRoles = new List<UserRole>()
+                      })
+                      .ToList();
+
+        /// <summary>Creates a list of typed UserDto stubs.</summary>
+        private static List<UserDto> FakeDtos(int count) =>
+            Enumerable.Range(1, count)
+                      .Select(i => new UserDto
+                      {
+                          Id        = Guid.NewGuid(),
+                          FirstName = $"User{i}",
+                          LastName  = "Test",
+                          Email     = $"user{i}@test.com",
+                          Status    = UserStatus.Active,
+                          Role      = "User"
+                      })
+                      .ToList();
+
+        #endregion
+
+        #region GET /admin/users - GetAllUsersAsync Tests
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 1. No users found
+        // ─────────────────────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task GetAllUsersAsync_WhenNoUsersExist_ReturnsWarning0004_WithEmptyPaginated()
+        {
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(0);
+
+            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: 10);
+
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
+            result.Data.Should().NotBeNull();
+            var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
+            paged.TotalActualItem.Should().Be(0);
+            paged.TotalPage.Should().Be(0);
+            paged.Sources.Should().BeEmpty();
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 2. Happy path — users exist, no filters
+        // ─────────────────────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task GetAllUsersAsync_WhenUsersExist_ReturnsSuccess_WithPaginatedDtos()
+        {
+            var users = FakeUsers(3);
+            var dtos  = FakeDtos(3);
+
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(3);
+
+            _userRepoMock
+                .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()))
+                .ReturnsAsync(users);
+
+            _mapperMock
+                .Setup(m => m.Map<IEnumerable<UserDto>>(users))
+                .Returns(dtos);
+
+            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: 10);
+
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
+            var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
+            paged.TotalActualItem.Should().Be(3);
+            paged.Sources.Should().HaveCount(3);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 3. TotalPages — exact multiple (25 items / 5 per page = 5 pages)
+        // ─────────────────────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task GetAllUsersAsync_TotalPages_ExactMultiple_IsCorrect()
+        {
+            const int total    = 25;
+            const int pageSize = 5;
+
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(total);
+
+            _userRepoMock
+                .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()))
+                .ReturnsAsync(FakeUsers(pageSize));
+
+            _mapperMock
+                .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
+                .Returns(FakeDtos(pageSize));
+
+            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: pageSize);
+
+            var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
+            paged.TotalPage.Should().Be(5);
+            paged.TotalActualItem.Should().Be(total);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 4. TotalPages — remainder causes one extra page (11 items / 5 = 3 pages)
+        // ─────────────────────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task GetAllUsersAsync_TotalPages_WithRemainder_RoundsUp()
+        {
+            const int total    = 11;
+            const int pageSize = 5;
+
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(total);
+
+            _userRepoMock
+                .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()))
+                .ReturnsAsync(FakeUsers(pageSize));
+
+            _mapperMock
+                .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
+                .Returns(FakeDtos(pageSize));
+
+            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: pageSize);
+
+            var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
+            paged.TotalPage.Should().Be(3); // ceil(11/5) = 3
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 5. Guard: pageSize = 0 → defaults to 10, no divide-by-zero
+        // ─────────────────────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task GetAllUsersAsync_PageSizeZero_DefaultsToTen_NoException()
+        {
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(3);
+
+            _userRepoMock
+                .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()))
+                .ReturnsAsync(FakeUsers(3));
+
+            _mapperMock
+                .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
+                .Returns(FakeDtos(3));
+
+            var act = () => _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: 0);
+            await act.Should().NotThrowAsync();
+
+            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: 0);
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
+            var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
+            paged.PageSize.Should().Be(10);   // corrected from 0 → 10
+            paged.TotalPage.Should().Be(1);   // ceil(3/10)
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 6. Guard: pageIndex = -1 → defaults to 0, no negative Skip
+        // ─────────────────────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task GetAllUsersAsync_NegativePageIndex_DefaultsToZero_NoException()
+        {
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(3);
+
+            _userRepoMock
+                .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()))
+                .ReturnsAsync(FakeUsers(3));
+
+            _mapperMock
+                .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
+                .Returns(FakeDtos(3));
+
+            var act = () => _sut.GetAllUsersAsync(EmptyParams(), pageIndex: -1, pageSize: 10);
+            await act.Should().NotThrowAsync();
+
+            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: -1, pageSize: 10);
+            var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
+            paged.PageIndex.Should().Be(0);   // corrected from -1 → 0
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 7. Repository methods are called the correct number of times
+        // ─────────────────────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task GetAllUsersAsync_WhenUsersExist_CallsCountAndGetAll_ExactlyOnce()
+        {
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(5);
+
+            _userRepoMock
+                .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()))
+                .ReturnsAsync(FakeUsers(5));
+
+            _mapperMock
+                .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
+                .Returns(FakeDtos(5));
+
+            await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: 10);
+
+            _userRepoMock.Verify(
+                r => r.CountAsync(It.IsAny<ISpecification<User>>()),
+                Times.Once);
+
+            _userRepoMock.Verify(
+                r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()),
+                Times.Once);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 8. When no users, GetAllWithSpecAsync is never called (short-circuit)
+        // ─────────────────────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task GetAllUsersAsync_WhenNoUsers_NeverCallsGetAllWithSpec()
+        {
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(0);
+
+            await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: 10);
+
+            _userRepoMock.Verify(
+                r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()),
+                Times.Never);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 9. Filter by Status — happy path still produces correct result
+        // ─────────────────────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task GetAllUsersAsync_WithStatusFilter_Active_ReturnsSuccess()
+        {
+            var specParams = new UserSpecParams { Status = UserStatus.Active };
+            var users = FakeUsers(2);
+            var dtos  = FakeDtos(2);
+
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(2);
+
+            _userRepoMock
+                .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()))
+                .ReturnsAsync(users);
+
+            _mapperMock
+                .Setup(m => m.Map<IEnumerable<UserDto>>(users))
+                .Returns(dtos);
+
+            var result = await _sut.GetAllUsersAsync(specParams, pageIndex: 0, pageSize: 10);
+
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
+            var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
+            paged.TotalActualItem.Should().Be(2);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 10. Filter by Role — happy path
+        // ─────────────────────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task GetAllUsersAsync_WithRoleFilter_Rescuer_ReturnsSuccess()
+        {
+            var specParams = new UserSpecParams { Role = "Rescuer" };
+            var users = FakeUsers(1);
+            var dtos  = FakeDtos(1);
+
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(1);
+
+            _userRepoMock
+                .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()))
+                .ReturnsAsync(users);
+
+            _mapperMock
+                .Setup(m => m.Map<IEnumerable<UserDto>>(users))
+                .Returns(dtos);
+
+            var result = await _sut.GetAllUsersAsync(specParams, pageIndex: 0, pageSize: 10);
+
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
+            var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
+            paged.TotalActualItem.Should().Be(1);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 11. Search term — happy path
+        // ─────────────────────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task GetAllUsersAsync_WithSearchTerm_ReturnsMatchingResults()
+        {
+            var specParams = new UserSpecParams { Search = "nguyen" };
+            var users = FakeUsers(2);
+            var dtos  = FakeDtos(2);
+
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(2);
+
+            _userRepoMock
+                .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()))
+                .ReturnsAsync(users);
+
+            _mapperMock
+                .Setup(m => m.Map<IEnumerable<UserDto>>(users))
+                .Returns(dtos);
+
+            var result = await _sut.GetAllUsersAsync(specParams, pageIndex: 0, pageSize: 10);
+
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
+            result.Data.Should().NotBeNull();
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 12. CreateDateRange filter — both bounds provided
+        // ─────────────────────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task GetAllUsersAsync_WithCreateDateRange_BothBounds_ReturnsSuccess()
+        {
+            var specParams = new UserSpecParams
             {
-                FirstName = "Test",
-                LastName = "User",
-                Phone = "0123456789",
-                Address = "HCM City",
-                Avatar = "https://example.com/avatar.png",
-                // Gender and Dob are optional in your validator (Dob must be in the past if provided)
-                Dob = new DateTime(2000, 1, 1)
+                CreateDateRange = new DateTime?[] { new DateTime(2025, 1, 1), new DateTime(2025, 12, 31) }
             };
+            var users = FakeUsers(4);
+            var dtos  = FakeDtos(4);
+
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(4);
+
+            _userRepoMock
+                .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()))
+                .ReturnsAsync(users);
+
+            _mapperMock
+                .Setup(m => m.Map<IEnumerable<UserDto>>(users))
+                .Returns(dtos);
+
+            var result = await _sut.GetAllUsersAsync(specParams, pageIndex: 0, pageSize: 10);
+
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
+            var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
+            paged.TotalActualItem.Should().Be(4);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 13. PaginatedResultDto shape — all fields populated correctly
+        // ─────────────────────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task GetAllUsersAsync_PaginatedResultShape_AllFieldsCorrect()
+        {
+            const int total     = 15;
+            const int pageIndex = 1;
+            const int pageSize  = 5;
+
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(total);
+
+            _userRepoMock
+                .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()))
+                .ReturnsAsync(FakeUsers(pageSize));
+
+            _mapperMock
+                .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
+                .Returns(FakeDtos(pageSize));
+
+            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex, pageSize);
+
+            var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
+            paged.PageIndex.Should().Be(pageIndex);
+            paged.PageSize.Should().Be(pageSize);
+            paged.TotalActualItem.Should().Be(total);
+            paged.TotalPage.Should().Be(3);           // ceil(15/5) = 3
+            paged.Sources.Should().HaveCount(pageSize);
+        }
+
+        #endregion
+
+        #region POST /admin/users - CreateUserAsync Tests
+
+        [Fact]
+        public async Task CreateUserAsync_EmailAlreadyTaken_ReturnsAuthWarning0006()
+        {
+            _userRepoMock
+                .Setup(r => r.AnyAsync(It.IsAny<System.Linq.Expressions.Expression<Func<User, bool>>>()))
+                .ReturnsAsync(true);
+
+            var result = await _sut.CreateUserAsync(new UserDto
+            {
+                FirstName = "John", LastName = "Doe",
+                Email = "existing@test.com", Password = "Pass123!",
+                Role = RoleType.User.ToString()
+            });
+
+            result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0006);
+        }
+
+        [Fact]
+        public async Task CreateUserAsync_RoleNotFoundInDb_ReturnsWarning0004()
+        {
+            _userRepoMock
+                .Setup(r => r.AnyAsync(It.IsAny<System.Linq.Expressions.Expression<Func<User, bool>>>()))
+                .ReturnsAsync(false);
+
+            var roleRepoMock = new Mock<IGenericRepository<Role, Guid>>();
+            roleRepoMock
+                .Setup(r => r.GetWithSpecAsync(It.IsAny<ISpecification<Role>>(), It.IsAny<bool>()))
+                .ReturnsAsync((Role?)null);
+
+            _unitOfWorkMock
+                .Setup(u => u.Repository<Role, Guid>())
+                .Returns(roleRepoMock.Object);
+
+            var result = await _sut.CreateUserAsync(new UserDto
+            {
+                FirstName = "John", LastName = "Doe",
+                Email = "new@test.com", Password = "Pass123!",
+                Role = RoleType.Rescuer.ToString()
+            });
+
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
+        }
+
+        [Theory]
+        [InlineData(RoleType.User)]
+        [InlineData(RoleType.Rescuer)]
+        [InlineData(RoleType.Admin)]
+        public async Task CreateUserAsync_HappyPath_CreatesUser_ReturnsSuccess0001(RoleType roleType)
+        {
+            var role = new Role { Id = Guid.NewGuid(), RoleName = roleType.ToString() };
+
+            _userRepoMock
+                .Setup(r => r.AnyAsync(It.IsAny<System.Linq.Expressions.Expression<Func<User, bool>>>()))
+                .ReturnsAsync(false);
+
+            _userRepoMock
+                .Setup(r => r.AddAsync(It.IsAny<User>()))
+                .Returns(Task.CompletedTask);
+
+            var roleRepoMock     = new Mock<IGenericRepository<Role, Guid>>();
+            var userRoleRepoMock = new Mock<IGenericRepository<UserRole, Guid>>();
+
+            roleRepoMock
+                .Setup(r => r.GetWithSpecAsync(It.IsAny<ISpecification<Role>>(), It.IsAny<bool>()))
+                .ReturnsAsync(role);
+
+            userRoleRepoMock
+                .Setup(r => r.AddAsync(It.IsAny<UserRole>()))
+                .Returns(Task.CompletedTask);
+
+            _unitOfWorkMock.Setup(u => u.Repository<Role, Guid>()).Returns(roleRepoMock.Object);
+            _unitOfWorkMock.Setup(u => u.Repository<UserRole, Guid>()).Returns(userRoleRepoMock.Object);
+            _unitOfWorkMock.Setup(u => u.SaveChangesWithTransactionAsync()).ReturnsAsync(1);
+
+            _mapperMock
+                .Setup(m => m.Map<UserDto>(It.IsAny<User>()))
+                .Returns(new UserDto { Email = "new@test.com", FirstName = "John" });
+
+            var result = await _sut.CreateUserAsync(new UserDto
+            {
+                FirstName = "John", LastName = "Doe",
+                Email = "new@test.com", Password = "Pass123!",
+                Role = roleType.ToString()
+            });
+
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
+            result.Data.Should().NotBeNull();
+            ((UserDto)result.Data!).Role.Should().Be(roleType.ToString());
+
+            _userRepoMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Once);
+            userRoleRepoMock.Verify(r => r.AddAsync(It.IsAny<UserRole>()), Times.Once);
+            _unitOfWorkMock.Verify(u => u.SaveChangesWithTransactionAsync(), Times.Once);
+        }
+
+        #endregion
+
+        #region PUT /admin/users/{id}/status - UpdateUserStatusAsync Tests
+
+        [Fact]
+        public async Task UpdateUserStatusAsync_TargetIdEmpty_ReturnsAuthWarning()
+        {
+            var result = await _sut.UpdateUserStatusAsync(Guid.NewGuid(), Guid.Empty, UserStatus.Banned, null);
+
+            result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0007);
+            result.Data.Should().BeNull();
+        }
+
+        [Fact]
+        public async Task UpdateUserStatusAsync_UserNotFound_ReturnsAdminWarning0001()
+        {
+            var adminId  = Guid.NewGuid();
+            var targetId = Guid.NewGuid();
+
+            _userRepoMock
+                .Setup(r => r.GetByIdAsync(targetId))
+                .ReturnsAsync((User?)null);
+
+            var result = await _sut.UpdateUserStatusAsync(adminId, targetId, UserStatus.Banned, null);
+
+            result.ResultCode.Should().Be(ResultCodeConst.Admin_Warning0001);
+        }
+
+        [Fact]
+        public async Task UpdateUserStatusAsync_SelfModify_ReturnsAdminWarning0002()
+        {
+            var adminId = Guid.NewGuid(); // same as targetId
+
+            _userRepoMock
+                .Setup(r => r.GetByIdAsync(adminId))
+                .ReturnsAsync(new User { Id = adminId, Status = UserStatus.Active });
+
+            var result = await _sut.UpdateUserStatusAsync(adminId, adminId, UserStatus.Banned, null);
+
+            result.ResultCode.Should().Be(ResultCodeConst.Admin_Warning0002);
+        }
+
+        [Theory]
+        [InlineData(UserStatus.Active)]
+        [InlineData(UserStatus.Inactive)]
+        [InlineData(UserStatus.Banned)]
+        [InlineData(UserStatus.Deleted)]
+        public async Task UpdateUserStatusAsync_HappyPath_UpdatesStatus_ReturnsAdminSuccess0002(UserStatus newStatus)
+        {
+            var adminId  = Guid.NewGuid();
+            var targetId = Guid.NewGuid();
+
+            var user = new User { Id = targetId, Status = UserStatus.Active };
+
+            _userRepoMock
+                .Setup(r => r.GetByIdAsync(targetId))
+                .ReturnsAsync(user);
+
+            _userRepoMock
+                .Setup(r => r.UpdateAsync(It.IsAny<User>()))
+                .Returns(Task.CompletedTask);
+
+            _unitOfWorkMock
+                .Setup(u => u.SaveChangesAsync())
+                .ReturnsAsync(1);
+
+            var result = await _sut.UpdateUserStatusAsync(adminId, targetId, newStatus, "test reason");
+
+            result.ResultCode.Should().Be(ResultCodeConst.Admin_Success0002);
+            user.Status.Should().Be(newStatus);
+            _userRepoMock.Verify(r => r.UpdateAsync(user), Times.Once);
+            _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
+        }
+
+        #endregion
+
+        #region GET /admin/users/{id} - GetUserByIdAsync Tests
+
+        [Fact]
+        public async Task GetUserByIdAsync_UserIdEmpty_ReturnsAuthWarning()
+        {
+            var result = await _sut.GetUserByIdAsync(Guid.Empty);
+
+            result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0007);
+            result.Data.Should().BeNull();
+        }
+
+        [Fact]
+        public async Task GetUserByIdAsync_UserNotFound_ReturnsWarning0004()
+        {
+            var userId = Guid.NewGuid();
+
+            _userRepoMock
+                .Setup(r => r.GetWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()))
+                .ReturnsAsync((User?)null);
+
+            var result = await _sut.GetUserByIdAsync(userId);
+
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
+            result.Data.Should().BeNull();
+        }
+
+        [Fact]
+        public async Task GetUserByIdAsync_UserFound_ReturnsSuccess_WithDto()
+        {
+            var userId = Guid.NewGuid();
+
+            var userEntity = new User
+            {
+                Id        = userId,
+                Email     = "admin@test.com",
+                FirstName = "John",
+                LastName  = "Doe",
+                UserRoles = new List<UserRole>
+                {
+                    new UserRole { Role = new Role { RoleName = "Rescuer" } }
+                }
+            };
+
+            var expectedDto = new UserDto
+            {
+                Id        = userId,
+                Email     = "admin@test.com",
+                FirstName = "John",
+                LastName  = "Doe",
+                Role      = "Rescuer"
+            };
+
+            _userRepoMock
+                .Setup(r => r.GetWithSpecAsync(It.IsAny<UserSpecification>(), It.IsAny<bool>()))
+                .ReturnsAsync(userEntity);
+
+            _mapperMock
+                .Setup(m => m.Map<UserDto>(userEntity))
+                .Returns(expectedDto);
+
+            var result = await _sut.GetUserByIdAsync(userId);
+
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
+            result.Data.Should().NotBeNull();
+            var dto = (UserDto)result.Data!;
+            dto.Id.Should().Be(userId);
+            dto.Role.Should().Be("Rescuer");
         }
 
         #endregion
