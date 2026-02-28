@@ -33,6 +33,7 @@ namespace SFARS.Application.Common
         public const string Auth_Success0003 = "Auth.Success0003";
         public const string Auth_Success0005 = "Auth.Success0005";
         public const string Auth_Success0008 = "Auth.Success0008";
+        public const string Auth_Success0009 = "Auth.Success0009";
 
         public const string Auth_Warning0001 = "Auth.Warning0001";
         public const string Auth_Warning0002 = "Auth.Warning0002";
@@ -43,8 +44,14 @@ namespace SFARS.Application.Common
         public const string Auth_Warning0010 = "Auth.Warning0010";
         public const string Auth_Warning0011 = "Auth.Warning0011"; // New password same as old password
         public const string Auth_Warning0013 = "Auth.Warning0013";
+        public const string Auth_Warning0014 = "Auth.Warning0014"; // OTP expired
+        public const string Auth_Warning0015 = "Auth.Warning0015"; // OTP locked (exceeded max attempts)
+        public const string Auth_Warning0016 = "Auth.Warning0016"; // OTP cooldown (too soon to resend)
+        public const string Auth_Warning0017 = "Auth.Warning0017"; // OTP not found / invalid
 
         public const string Auth_Fail0002 = "Auth.Fail0002";
+
+        public const string Auth_Success0010 = "Auth.Success0010"; // OTP verified successfully
         #endregion
 
         #region User
@@ -131,6 +138,20 @@ namespace SFARS.Application.Common
         public const string Trans_Warning0002 = "Trans.Warning0002";
 
         public const string Trans_Fail0001 = "Trans.Fail0001";
+        #endregion
+
+        #region Admin
+        public const string Admin_Success0001 = "Admin.Success0001"; // User list retrieved
+        public const string Admin_Success0002 = "Admin.Success0002"; // User status updated
+        public const string Admin_Success0003 = "Admin.Success0003"; // Admin account created
+        public const string Admin_Success0004 = "Admin.Success0004"; // Rescuer account created
+
+        public const string Admin_Warning0001 = "Admin.Warning0001"; // User not found
+        public const string Admin_Warning0002 = "Admin.Warning0002"; // Cannot modify own account
+        public const string Admin_Warning0003 = "Admin.Warning0003"; // Cannot remove last admin
+        public const string Admin_Warning0004 = "Admin.Warning0004"; // Invalid status transition
+
+        public const string Admin_Fail0001 = "Admin.Fail0001";       // Status transition invalid
         #endregion
     }
 }

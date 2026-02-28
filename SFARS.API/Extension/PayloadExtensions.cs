@@ -1,4 +1,5 @@
-﻿using SFARS.API.Payloads.Request.Auth;
+﻿using SFARS.API.Payloads.Request.Admin;
+using SFARS.API.Payloads.Request.Auth;
 using SFARS.API.Payloads.Request.Incident;
 using SFARS.API.Payloads.Request.Snake;
 using SFARS.API.Payloads.Request.User;
@@ -110,6 +111,22 @@ namespace SFARS.API.Extension
                 AddressString = req.AddressString,
                 Description = req.Description,
                 PriorityLevel = req.PriorityLevel
+            };
+        }
+        #endregion
+
+        #region Admin
+        // Mapping from typeof(CreateUserRequest) to typeof(UserDto)
+        public static UserDto ToUserDto(this CreateUserRequest req)
+        {
+            return new UserDto
+            {
+                FirstName = req.FirstName,
+                LastName  = req.LastName,
+                Email     = req.Email,
+                Password  = req.Password,
+                Phone     = req.Phone,
+                Role      = req.Role.ToString()
             };
         }
         #endregion

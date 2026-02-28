@@ -18,7 +18,9 @@
             public const string RefreshToken = Base + "/auth/refresh-token";
             public const string ForgotPassword = Base + "/auth/forgot-password";
             public const string ResetPassword = Base + "/auth/reset-password";
-
+            public const string SendOtp = Base + "/auth/otp/send";
+            public const string VerifyOtp = Base + "/auth/otp/verify";
+            public const string SignOut = Base + "/auth/sign-out";
             // [PUT]
 
         }
@@ -93,6 +95,17 @@
             // [GET]
             public const string GetSessions = Base + "/chat/sessions";
             public const string GetMessages = Base + "/chat/sessions/{id}/messages";
+        /// Admin — User Management endpoints
+        /// </summary>
+        public static class Admin
+        {
+            // [GET]
+            public const string GetAllUsers      = Base + "/admin/users";
+            public const string GetUserById      = Base + "/admin/users/{id}";
+            // [POST]
+            public const string CreateUser       = Base + "/admin/users";
+            // [PUT]
+            public const string UpdateUserStatus = Base + "/admin/users/{id}/status";
         }
 
         /// <summary>

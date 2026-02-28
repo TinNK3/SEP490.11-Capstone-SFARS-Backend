@@ -1,0 +1,42 @@
+using FluentValidation;
+using SFARS.Application.Common;
+using SFARS.Application.Dtos.Auth;
+using SFARS.Application.Extensions;
+using SFARS.Domain.Common.Enum;
+
+namespace SFARS.Application.Validations.Auth
+{
+    /// <summary>
+    /// Validator for VerifyOtpDto
+    /// </summary>
+    public class VerifyOtpDtoValidator : AbstractValidator<VerifyOtpDto>
+    {
+        public VerifyOtpDtoValidator()
+        {
+            var langContext = LanguageContext.CurrentLanguage ?? "en";
+            var langEnum = (SystemLanguage?)EnumExtensions.GetValueFromDescription<SystemLanguage>(langContext);
+            var isVi = langEnum == SystemLanguage.Vietnamese;
+
+            // Email validation
+            RuleFor(x => x.Email)
+                .NotEmpty()
+                .WithMessage(isVi ? "Email không được để trống" : "Email must not be empty")
+                .EmailAddress()
+                .WithMessage(isVi ? "Email không hợp lệ" : "Invalid email format")
+                .MaximumLength(256)
+                .WithMessage(isVi ? "Email không được vượt quá 256 ký tự" : "Email must not exceed 256 characters");
+
+            // OTP validation
+            RuleFor(x => x.Otp)
+                .NotEmpty()
+                .WithMessage(isVi ? "Mã OTP không được để trống" : "OTP code must not be empty")
+                .MaximumLength(10)
+                .WithMessage(isVi ? "Mã OTP không được vượt quá 10 ký tự" : "OTP code must not exceed 10 characters");
+
+            // Type validation
+            RuleFor(x => x.Type)
+                .IsInEnum()
+                .WithMessage(isVi ? "Loại OTP không hợp lệ. Chỉ chấp nhận: SignIn, ResetPassword" : "Invalid OTP type. Accepted values: SignIn, ResetPassword");
+        }
+    }
+}

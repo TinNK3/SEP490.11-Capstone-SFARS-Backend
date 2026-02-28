@@ -23,6 +23,10 @@ public static class DependencyInjection
     //		This class is to configure services for application layer
     public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
     {
+        // In-memory cache used by TokenBlacklistService (must be Singleton)
+        services.AddMemoryCache();
+        services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
+
         // Register application services
         services.AddScoped<ISystemMessageService, SystemMessageService>();
         services.AddScoped(typeof(IGenericService<,,>), typeof(GenericService<,,>));
@@ -42,6 +46,7 @@ public static class DependencyInjection
 
         // Chat services
         services.AddScoped<IChatService, ChatService>();
+        // Admin services — methods added directly to IUserService / UserService
 
         // Facility services
         services.AddScoped<IMedicalFacilityService, MedicalFacilityService>();
