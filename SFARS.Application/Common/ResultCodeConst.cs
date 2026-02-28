@@ -106,6 +106,13 @@ namespace SFARS.Application.Common
         public const string AI_Warning0006 = "AI.Warning0006";   // First-aid not available for toxin group
         #endregion
 
+        #region Chat
+        public const string Chat_Success0001 = "Chat.Success0001";   // Message sent
+        public const string Chat_Warning0001 = "Chat.Warning0001";   // Session ended
+        public const string Chat_Fail0001 = "Chat.Fail0001";         // AI unavailable
+        public const string Chat_Guard0001 = "Chat.Guard0001";       // Guardrail fallback
+        #endregion
+
         #region Comm
         public const string Comm_Success0001 = "Comm.Success0001";
         public const string Comm_Success0002 = "Comm.Success0002";

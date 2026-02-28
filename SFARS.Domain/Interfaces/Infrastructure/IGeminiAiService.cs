@@ -6,16 +6,28 @@ namespace SFARS.Domain.Interfaces.Infrastructure;
 public interface IGeminiAiService
 {
     /// <summary>
+    /// The AI model name configured (e.g. "gemini-2.0-flash").
+    /// </summary>
+    string ModelName { get; }
+
+    /// <summary>
     /// Get enriched snake information and first aid recommendations from Gemini
     /// </summary>
-    /// <param name="request">Context with YOLO predictions and snake data</param>
-    /// <returns>Gemini's analysis with first aid steps</returns>
     Task<GeminiAnalysisResult> AnalyzeSnakeBiteAsync(GeminiAnalysisRequest request);
+
+    /// <summary>
+    /// RAG-based chat: send user message with system prompt + DB context → receive AI response.
+    /// Supports multi-turn conversation via history parameter.
+    /// </summary>
+    Task<string> ChatWithContextAsync(
+        string systemPrompt,
+        string contextData,
+        string userMessage,
+        List<ChatHistoryItem>? history = null);
 }
 
-/// <summary>
-/// Request payload for Gemini analysis
-/// </summary>
+// ─── Existing records (snake analysis) ───
+
 public record GeminiAnalysisRequest(
     string PrimarySnakeName,
     string PrimarySnakeScientificName,
@@ -31,17 +43,21 @@ public record AlternativeSnake(
     float Confidence
 );
 
-/// <summary>
-/// Gemini's structured response
-/// </summary>
 public record GeminiAnalysisResult(
     string DangerSummary,
     List<FirstAidStep> FirstAidSteps,
-    string AiNote                   // Additional context/warnings
+    string AiNote
 );
 
 public record FirstAidStep(
     int StepOrder,
     string Title,
-    string Content                  // Short actionable instruction
+    string Content
+);
+
+// ─── Chat records ───
+
+public record ChatHistoryItem(
+    string Role,   // "user" or "model"
+    string Content
 );

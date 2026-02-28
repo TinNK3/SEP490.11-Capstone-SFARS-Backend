@@ -40,6 +40,9 @@ public static class DependencyInjection
         services.AddScoped<IIncidentService<IncidentDto>, IncidentService>();
         services.AddScoped<IAiInferenceService, AiInferenceService>();
 
+        // Chat services
+        services.AddScoped<IChatService, ChatService>();
+
         // Facility services
         services.AddScoped<IMedicalFacilityService, MedicalFacilityService>();
 
