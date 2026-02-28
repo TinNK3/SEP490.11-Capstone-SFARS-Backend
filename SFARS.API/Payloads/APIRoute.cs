@@ -86,6 +86,20 @@
         }
 
         /// <summary>
+        /// Admin — User Management endpoints
+        /// </summary>
+        public static class Admin
+        {
+            // [GET]
+            public const string GetAllUsers      = Base + "/admin/users";
+            public const string GetUserById      = Base + "/admin/users/{id}";
+            // [POST]
+            public const string CreateUser       = Base + "/admin/users";
+            // [PUT]
+            public const string UpdateUserStatus = Base + "/admin/users/{id}/status";
+        }
+
+        /// <summary>
 		/// System service healthcheck endpoints
 		/// </summary>
 		public static class HealthCheck

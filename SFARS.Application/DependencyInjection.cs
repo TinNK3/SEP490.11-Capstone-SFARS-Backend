@@ -44,6 +44,8 @@ public static class DependencyInjection
         services.AddScoped<IIncidentService<IncidentDto>, IncidentService>();
         services.AddScoped<IAiInferenceService, AiInferenceService>();
 
+        // Admin services — methods added directly to IUserService / UserService
+
         // Facility services
         services.AddScoped<IMedicalFacilityService, MedicalFacilityService>();
 

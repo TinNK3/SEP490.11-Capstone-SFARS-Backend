@@ -33,6 +33,9 @@ namespace SFARS.Application.Dtos.User
 
         // Security - internal use only (not serialized to response)
         [JsonIgnore]
+        public string? Password { get; set; }
+
+        [JsonIgnore]
         public string? PasswordHash { get; set; }
 
         [JsonIgnore]

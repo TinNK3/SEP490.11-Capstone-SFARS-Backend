@@ -132,5 +132,19 @@ namespace SFARS.Application.Common
 
         public const string Trans_Fail0001 = "Trans.Fail0001";
         #endregion
+
+        #region Admin
+        public const string Admin_Success0001 = "Admin.Success0001"; // User list retrieved
+        public const string Admin_Success0002 = "Admin.Success0002"; // User status updated
+        public const string Admin_Success0003 = "Admin.Success0003"; // Admin account created
+        public const string Admin_Success0004 = "Admin.Success0004"; // Rescuer account created
+
+        public const string Admin_Warning0001 = "Admin.Warning0001"; // User not found
+        public const string Admin_Warning0002 = "Admin.Warning0002"; // Cannot modify own account
+        public const string Admin_Warning0003 = "Admin.Warning0003"; // Cannot remove last admin
+        public const string Admin_Warning0004 = "Admin.Warning0004"; // Invalid status transition
+
+        public const string Admin_Fail0001 = "Admin.Fail0001";       // Status transition invalid
+        #endregion
     }
 }

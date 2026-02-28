@@ -5,8 +5,10 @@ using Microsoft.Extensions.Logging;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
 using SFARS.Application.Common;
+using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.User;
 using SFARS.Application.Events;
+using SFARS.Application.Utils;
 using SFARS.Application.Validations;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
@@ -14,6 +16,7 @@ using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
+using SFARS.Domain.Specifications.Params;
 using SFARS.Domain.Specifications.Users;
 using SFARS.Infrastructure.Helpers;
 
@@ -73,9 +76,42 @@ namespace SFARS.Application.Services
                 );
             }
 
-            var spec = new UserByIdWithRoleSpecification(userId);
+            var spec = UserSpecification.ById(userId);
             var user = await _unitOfWork.Repository<User, Guid>()
                                         .GetWithSpecAsync(spec);
+
+            if (user == null)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004)
+                );
+            }
+
+            var dto = _mapper.Map<UserDto>(user);
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                dto
+            );
+        }
+
+        /// <summary>
+        /// [Admin] Get a single user by their ID.
+        /// </summary>
+        public async Task<IServiceResult> GetUserByIdAsync(Guid userId)
+        {
+            if (userId == Guid.Empty)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0007,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0007)
+                );
+            }
+
+            var spec = UserSpecification.ById(userId);
+            var user = await _unitOfWork.Repository<User, Guid>().GetWithSpecAsync(spec);
 
             if (user == null)
             {
@@ -143,7 +179,7 @@ namespace SFARS.Application.Services
             await _unitOfWork.Repository<User, Guid>().UpdateAsync(user);
             await _unitOfWork.SaveChangesAsync();
 
-            var spec = new UserByIdWithRoleSpecification(userId);
+            var spec = UserSpecification.ById(userId);
             var userWithRole = await _unitOfWork.Repository<User, Guid>()
                 .GetWithSpecAsync(spec, tracked: false);
 
@@ -394,6 +430,166 @@ namespace SFARS.Application.Services
                         });
                 }
             }
+        }
+
+        #endregion
+
+        #region Admin
+
+        /// <summary>
+        /// [Admin] Returns a paginated, filtered list of all users.
+        /// Filters: role name, status, registration date range, free-text search.
+        /// </summary>
+        public async Task<IServiceResult> GetAllUsersAsync(
+            UserSpecParams specParams, int pageIndex, int pageSize)
+        {
+            if (pageSize <= 0) pageSize = 10;
+            if (pageIndex < 0) pageIndex = 0;
+
+            try
+            {
+                var countSpec = UserSpecification.Count(specParams);
+                var totalItems = await _unitOfWork.Repository<User, Guid>().CountAsync(countSpec);
+
+                if (totalItems == 0)
+                {
+                    return new ServiceResult(
+                        ResultCodeConst.SYS_Warning0004,
+                        await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004),
+                        new PaginatedResultDto<UserDto>(
+                            Enumerable.Empty<UserDto>(), pageIndex, pageSize, 0, 0));
+                }
+
+                var spec = UserSpecification.List(specParams, pageIndex, pageSize);
+                var users = await _unitOfWork.Repository<User, Guid>().GetAllWithSpecAsync(spec, tracked: false);
+                var dtos = _mapper.Map<IEnumerable<UserDto>>(users);
+                var totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Success0002,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                    new PaginatedResultDto<UserDto>(dtos, pageIndex, pageSize, totalPages, totalItems));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving user list");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// [Admin] Update the status of any user account.
+        /// Logs the optional reason server-side.
+        /// </summary>
+        public async Task<IServiceResult> UpdateUserStatusAsync(
+            Guid adminId, Guid targetUserId, UserStatus newStatus, string? reason)
+        {
+            if (targetUserId == Guid.Empty)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0007,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0007));
+            }
+
+            var user = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(targetUserId);
+
+            if (user == null)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Admin_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Admin_Warning0001));
+            }
+
+            if (adminId == targetUserId)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Admin_Warning0002,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Admin_Warning0002));
+            }
+
+            var previous = user.Status;
+            user.Status = newStatus;
+
+            await _unitOfWork.Repository<User, Guid>().UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "[Admin] User {TargetId} status changed {From} -> {To} by admin {AdminId}. Reason: {Reason}",
+                targetUserId, previous, newStatus, adminId, reason ?? "(none)");
+
+            return new ServiceResult(
+                ResultCodeConst.Admin_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.Admin_Success0002));
+        }
+
+        /// <summary>
+        /// [Admin] Create a new user account and assign the given role.
+        /// Password is hashed before storage. Status defaults to Active.
+        /// </summary>
+        public async Task<IServiceResult> CreateUserAsync(UserDto dto)
+        {
+            // 1. Duplicate email check
+            var emailTaken = await _unitOfWork.Repository<User, Guid>()
+                .AnyAsync(u => u.Email == dto.Email);
+
+            if (emailTaken)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0006,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0006));
+            }
+
+            // 2. Lookup role by enum name ("User" | "Rescuer" | "Admin")
+            var roleName   = dto.Role ?? RoleType.User.ToString();
+            var roleEntity = await _unitOfWork.Repository<Role, Guid>()
+                .GetWithSpecAsync(new RoleSpecification(roleName));
+
+            if (roleEntity == null)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
+            }
+
+            // 3. Build user entity
+            var newUser = new User
+            {
+                Id           = Guid.NewGuid(),
+                FirstName    = dto.FirstName,
+                LastName     = dto.LastName,
+                Email        = dto.Email,
+                PasswordHash = HashUtils.HashPassword(dto.Password!),
+                Phone        = dto.Phone,
+                Status       = UserStatus.Active,
+                IsOnline     = false,
+                CreatedAt    = DateTime.UtcNow
+            };
+
+            await _unitOfWork.Repository<User, Guid>().AddAsync(newUser);
+
+            // 4. Assign role
+            await _unitOfWork.Repository<UserRole, Guid>().AddAsync(new UserRole
+            {
+                UserId     = newUser.Id,
+                RoleId     = roleEntity.Id,
+                AssignedAt = DateTime.UtcNow
+            });
+
+            // 5. Persist with transaction
+            if (await _unitOfWork.SaveChangesWithTransactionAsync() > 0)
+            {
+                var createdDto = _mapper.Map<UserDto>(newUser);
+                createdDto.Role = roleEntity.RoleName;
+
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Success0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0001),
+                    createdDto);
+            }
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Fail0001,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
         }
 
         #endregion
