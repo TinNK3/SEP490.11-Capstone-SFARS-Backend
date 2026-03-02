@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SFARS.Infrastructure.Data.Context;
@@ -12,9 +13,11 @@ using SFARS.Infrastructure.Data.Context;
 namespace SFARS.Infrastructure.Migrations
 {
     [DbContext(typeof(SFARSDbContext))]
-    partial class SFARSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260228172515_AddAdminAuditLog")]
+    partial class AddAdminAuditLog
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -225,90 +228,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasDatabaseName("IX_AiInferenceCandidate_Inference_Rank");
 
                     b.ToTable("AiInferenceCandidate", (string)null);
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.ChatMessage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ChatSessionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ContextSnapshotJson")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("ModelName")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("SenderType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ChatSessionId");
-
-                    b.ToTable("ChatMessages", (string)null);
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.ChatSession", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<DateTime?>("LastMessageAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Title")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("ChatSessions", (string)null);
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.ContentPost", b =>
@@ -2220,28 +2139,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Navigation("Snake");
                 });
 
-            modelBuilder.Entity("SFARS.Domain.Entities.ChatMessage", b =>
-                {
-                    b.HasOne("SFARS.Domain.Entities.ChatSession", "ChatSession")
-                        .WithMany("Messages")
-                        .HasForeignKey("ChatSessionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ChatSession");
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.ChatSession", b =>
-                {
-                    b.HasOne("SFARS.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("SFARS.Domain.Entities.ContentPost", b =>
                 {
                     b.HasOne("SFARS.Domain.Entities.User", "Author")
@@ -2634,11 +2531,6 @@ namespace SFARS.Infrastructure.Migrations
             modelBuilder.Entity("SFARS.Domain.Entities.AiInference", b =>
                 {
                     b.Navigation("Candidates");
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.ChatSession", b =>
-                {
-                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.Incident", b =>

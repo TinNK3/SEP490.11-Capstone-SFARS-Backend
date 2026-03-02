@@ -24,7 +24,7 @@ namespace SFARS.Domain.Interfaces.Services
         Task<IServiceResult> UpdateUserStatusAsync(Guid adminId, Guid targetUserId, UserStatus newStatus, string? reason);
 
         // Admin — create a new user account and assign a role
-        Task<IServiceResult> CreateUserAsync(TDto dto);
+        Task<IServiceResult> CreateUserAsync(Guid adminId, TDto dto);
 
         // Location
         Task<IServiceResult> GetUserLocationAsync(Guid userId);

@@ -35,6 +35,7 @@ namespace SFARS.Tests.Application.Services.Users
         private readonly Mock<IMapper> _mapperMock;
         private readonly Mock<ILogger<UserService>> _loggerMock;
         private readonly Mock<IPublisher> _publisherMock;
+        private readonly Mock<IAdminAuditLogService> _auditLogServiceMock;
 
         private readonly UserService _sut;
 
@@ -46,6 +47,7 @@ namespace SFARS.Tests.Application.Services.Users
             _mapperMock     = new Mock<IMapper>();
             _loggerMock     = new Mock<ILogger<UserService>>();
             _publisherMock  = new Mock<IPublisher>();
+            _auditLogServiceMock = new Mock<IAdminAuditLogService>();
 
             _unitOfWorkMock
                 .Setup(x => x.Repository<User, Guid>())
@@ -60,7 +62,8 @@ namespace SFARS.Tests.Application.Services.Users
                 _unitOfWorkMock.Object,
                 _mapperMock.Object,
                 _loggerMock.Object,
-                _publisherMock.Object
+                _publisherMock.Object,
+                _auditLogServiceMock.Object
             );
         }
 
@@ -701,7 +704,7 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(r => r.AnyAsync(It.IsAny<System.Linq.Expressions.Expression<Func<User, bool>>>()))
                 .ReturnsAsync(true);
 
-            var result = await _sut.CreateUserAsync(new UserDto
+            var result = await _sut.CreateUserAsync(Guid.NewGuid(), new UserDto
             {
                 FirstName = "John", LastName = "Doe",
                 Email = "existing@test.com", Password = "Pass123!",
@@ -727,7 +730,7 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(u => u.Repository<Role, Guid>())
                 .Returns(roleRepoMock.Object);
 
-            var result = await _sut.CreateUserAsync(new UserDto
+            var result = await _sut.CreateUserAsync(Guid.NewGuid(), new UserDto
             {
                 FirstName = "John", LastName = "Doe",
                 Email = "new@test.com", Password = "Pass123!",
@@ -772,7 +775,7 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(m => m.Map<UserDto>(It.IsAny<User>()))
                 .Returns(new UserDto { Email = "new@test.com", FirstName = "John" });
 
-            var result = await _sut.CreateUserAsync(new UserDto
+            var result = await _sut.CreateUserAsync(Guid.NewGuid(), new UserDto
             {
                 FirstName = "John", LastName = "Doe",
                 Email = "new@test.com", Password = "Pass123!",

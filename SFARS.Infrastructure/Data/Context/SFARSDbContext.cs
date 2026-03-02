@@ -49,6 +49,9 @@ public partial class SFARSDbContext : DbContext
     public DbSet<NotificationLog> NotificationLogs { get; set; }
     public DbSet<SystemMessage> SystemMessages { get; set; }
 
+    // Admin
+    public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
+
     public DbSet<AiInference> AiInferences { get; set; }
     public DbSet<AiInferenceCandidate> AiInferenceCandidates { get; set; }
     public DbSet<IncidentSymptom> IncidentSymptoms { get; set; }

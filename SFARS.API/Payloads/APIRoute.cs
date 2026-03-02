@@ -105,6 +105,8 @@
             // [GET]
             public const string GetAllUsers      = Base + "/admin/users";
             public const string GetUserById      = Base + "/admin/users/{id}";
+            public const string GetAuditLogs     = Base + "/admin/audit-logs";
+            public const string GetUserAuditLogs = Base + "/admin/users/{id}/audit-logs";
             // [POST]
             public const string CreateUser       = Base + "/admin/users";
             // [PUT]
