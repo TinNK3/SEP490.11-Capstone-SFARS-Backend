@@ -81,7 +81,8 @@ namespace SFARS.API.Controller.Admin
         [HttpPost(APIRoute.Admin.CreateUser, Name = nameof(CreateUserAsync))]
         public async Task<IActionResult> CreateUserAsync([FromBody] CreateUserRequest req)
         {
-            var result = await _service.CreateUserAsync(req.ToUserDto());
+            var adminId = User.GetUserId();
+            var result = await _service.CreateUserAsync(adminId, req.ToUserDto());
             return this.ToIActionResult(result);
         }
     }

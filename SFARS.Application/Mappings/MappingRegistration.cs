@@ -1,5 +1,6 @@
 ﻿using Mapster;
 using SFARS.Application.Dtos;
+using SFARS.Application.Dtos.Admin;
 using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Dtos.Role;
 using SFARS.Application.Dtos.User;
@@ -19,6 +20,15 @@ namespace SFARS.Application.Mappings
                  src => src.UserRoles != null
                      ? src.UserRoles.Select(x => x.Role.RoleName).FirstOrDefault()
                      : null);
+
+            // AdminAuditLog mapping: Admin navigation → AdminName, enum Description → ActionDisplay
+            config.NewConfig<AdminAuditLog, AdminAuditLogDto>()
+                .Map(dest => dest.AdminName,
+                     src => src.Admin != null
+                         ? src.Admin.FirstName + " " + src.Admin.LastName
+                         : null)
+                .Map(dest => dest.ActionDisplay,
+                     src => src.Action.ToString());
 
             // Incident mapping: Point → Lat/Lon, Victim → VictimName
             config.NewConfig<Incident, IncidentDto>()

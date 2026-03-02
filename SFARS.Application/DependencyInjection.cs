@@ -45,6 +45,7 @@ public static class DependencyInjection
         services.AddScoped<IAiInferenceService, AiInferenceService>();
 
         // Admin services — methods added directly to IUserService / UserService
+        services.AddScoped<IAdminAuditLogService, AdminAuditLogService>();
 
         // Chat services
         services.AddScoped<IChatService, ChatService>();

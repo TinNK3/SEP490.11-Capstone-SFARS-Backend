@@ -19,21 +19,25 @@ using SFARS.Domain.Specifications;
 using SFARS.Domain.Specifications.Params;
 using SFARS.Domain.Specifications.Users;
 using SFARS.Infrastructure.Helpers;
+using System.Text.Json;
 
 namespace SFARS.Application.Services
 {
     public class UserService : GenericService<User, UserDto, Guid>, IUserService<UserDto>
     {
         private readonly IPublisher _publisher;
+        private readonly IAdminAuditLogService _auditLogService;
 
         public UserService(
             ISystemMessageService msgService,
             IUnitOfWork unitOfWork,
             IMapper mapper,
             ILogger<UserService> logger,
-            IPublisher publisher) : base(msgService, unitOfWork, mapper, logger)
+            IPublisher publisher,
+            IAdminAuditLogService auditLogService) : base(msgService, unitOfWork, mapper, logger)
         {
             _publisher = publisher;
+            _auditLogService = auditLogService;
         }
 
         /// <summary>
@@ -513,9 +517,15 @@ namespace SFARS.Application.Services
             await _unitOfWork.Repository<User, Guid>().UpdateAsync(user);
             await _unitOfWork.SaveChangesAsync();
 
-            _logger.LogInformation(
-                "[Admin] User {TargetId} status changed {From} -> {To} by admin {AdminId}. Reason: {Reason}",
-                targetUserId, previous, newStatus, adminId, reason ?? "(none)");
+            // Audit log
+            await _auditLogService.LogAsync(
+                adminId,
+                AdminAction.UpdateUserStatus,
+                "User",
+                targetUserId,
+                JsonSerializer.Serialize(new { Status = previous.ToString() }),
+                JsonSerializer.Serialize(new { Status = newStatus.ToString() }),
+                reason);
 
             return new ServiceResult(
                 ResultCodeConst.Admin_Success0002,
@@ -526,7 +536,7 @@ namespace SFARS.Application.Services
         /// [Admin] Create a new user account and assign the given role.
         /// Password is hashed before storage. Status defaults to Active.
         /// </summary>
-        public async Task<IServiceResult> CreateUserAsync(UserDto dto)
+        public async Task<IServiceResult> CreateUserAsync(Guid adminId, UserDto dto)
         {
             // 1. Duplicate email check
             var emailTaken = await _unitOfWork.Repository<User, Guid>()
@@ -580,6 +590,22 @@ namespace SFARS.Application.Services
             {
                 var createdDto = _mapper.Map<UserDto>(newUser);
                 createdDto.Role = roleEntity.RoleName;
+
+                // Audit log
+                await _auditLogService.LogAsync(
+                    adminId,
+                    AdminAction.CreateUser,
+                    "User",
+                    newUser.Id,
+                    null,
+                    JsonSerializer.Serialize(new
+                    {
+                        Email     = newUser.Email,
+                        FirstName = newUser.FirstName,
+                        LastName  = newUser.LastName,
+                        Role      = roleEntity.RoleName,
+                        Status    = newUser.Status.ToString()
+                    }));
 
                 return new ServiceResult(
                     ResultCodeConst.SYS_Success0001,
