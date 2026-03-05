@@ -496,5 +496,35 @@
     "MsgContent": "Incident created by user",
     "En": "Incident created by user",
     "Vi": "Người dùng tạo sự cố"
+  },
+  {
+    "MsgId": "Incident.Reason0002",
+    "MsgContent": "Victim cancelled during grace period",
+    "En": "Victim cancelled during grace period",
+    "Vi": "Nạn nhân huỷ trong thời gian cho phép"
+  },
+  {
+    "MsgId": "Incident.Success0005",
+    "MsgContent": "SOS cancelled successfully.",
+    "En": "SOS cancelled successfully.",
+    "Vi": "Huỷ SOS thành công."
+  },
+  {
+    "MsgId": "Incident.Warning0004",
+    "MsgContent": "Your account is temporarily blocked from creating SOS due to repeated cancellations. Please try again in 30 minutes.",
+    "En": "Your account is temporarily blocked from creating SOS due to repeated cancellations. Please try again in 30 minutes.",
+    "Vi": "Tài khoản tạm thời bị khoá tạo SOS do quá nhiều lần huỷ liên tiếp. Vui lòng thử lại sau 30 phút."
+  },
+  {
+    "MsgId": "Incident.Warning0005",
+    "MsgContent": "AI analysis has not been completed yet. Cancellation is not available at this stage.",
+    "En": "AI analysis has not been completed yet. Cancellation is not available at this stage.",
+    "Vi": "Phân tích AI chưa hoàn tất. Chức năng huỷ chưa khả dụng ở bước này."
+  },
+  {
+    "MsgId": "Incident.Warning0006",
+    "MsgContent": "The cancellation window has expired. Your SOS has already been dispatched to rescuers.",
+    "En": "The cancellation window has expired. Your SOS has already been dispatched to rescuers.",
+    "Vi": "Thời gian cho phép huỷ đã hết. SOS của bạn đã được gửi đến nhân viên cứu hộ."
   }
 ]

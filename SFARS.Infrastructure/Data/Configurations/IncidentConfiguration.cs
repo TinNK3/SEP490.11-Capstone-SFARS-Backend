@@ -95,5 +95,9 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
             .IsUnique()
             .HasDatabaseName("IX_Incident_TrackingCode")
             .HasFilter("[tracking_code] IS NOT NULL");
+
+        // SOS grace period (set by AnalyzeAsync; null until AI analysis completes)
+        builder.Property(e => e.GraceExpiresAt)
+            .HasColumnName("grace_expires_at");
     }
 }

@@ -85,16 +85,25 @@ namespace SFARS.API.Controller
             var aiInferenceService = HttpContext.RequestServices
                 .GetRequiredService<IAiInferenceService>();
 
-            await using var stream = req.File.OpenReadStream();
+            Stream? stream = null;
+            if (req.File != null)
+            {
+                stream = req.File.OpenReadStream();
+            }
 
             var result = await aiInferenceService.AnalyzeAsync(
                 userId: userId,
                 incidentId: id,
                 imageStream: stream,
-                fileName: req.File.FileName,
-                contentType: req.File.ContentType,
-                fileSize: req.File.Length,
+                fileName: req.File?.FileName,
+                contentType: req.File?.ContentType,
+                fileSize: req.File?.Length,
                 mediaType: req.MediaType);
+
+            if (stream != null)
+            {
+                await stream.DisposeAsync();
+            }
 
             return this.ToIActionResult(result);
         }
@@ -140,6 +149,40 @@ namespace SFARS.API.Controller
         {
             var userId = User.GetUserId();
             var result = await _incidentService.RegenerateTrackingCodeAsync(userId, id);
+            return this.ToIActionResult(result);
+        }
+
+        #endregion
+
+        #region SOS Grace Period & Anti-Spam
+
+        /// <summary>
+        /// Pre-check SOS eligibility before the user triggers the SOS button.
+        /// Pure Redis read — no incident is created.
+        /// Returns IsEligible and RequiresWarningConfirmation flags.
+        /// FE calls this on SOS screen open; caches result for the session.
+        /// </summary>
+        [Authorize]
+        [HttpGet(APIRoute.Incident.SosPreCheck, Name = nameof(GetSosEligibilityAsync))]
+        public async Task<IActionResult> GetSosEligibilityAsync()
+        {
+            var userId = User.GetUserId();
+            var result = await _incidentService.GetSosEligibilityAsync(userId);
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
+        /// Cancel a pending SOS incident within the grace period.
+        /// Grace period starts when AI analysis is returned to the user.
+        /// Recording cancellations feeds the anti-spam guard.
+        /// </summary>
+        /// <param name="id">Incident ID to cancel</param>
+        [Authorize]
+        [HttpPatch(APIRoute.Incident.Cancel, Name = nameof(CancelIncidentAsync))]
+        public async Task<IActionResult> CancelIncidentAsync([FromRoute] Guid id)
+        {
+            var userId = User.GetUserId();
+            var result = await _incidentService.CancelIncidentAsync(userId, id);
             return this.ToIActionResult(result);
         }
 

@@ -52,6 +52,9 @@ public static class DependencyInjection
             services.AddSingleton<ILocationCacheService, RedisLocationCacheService>();
             services.AddScoped<ILocationBroadcastService, LocationBroadcastService>();
 
+            // SOS-specific services
+            services.AddSingleton<ISosSpamGuardService, SosSpamGuardService>();
+
             return services;
         }
 }

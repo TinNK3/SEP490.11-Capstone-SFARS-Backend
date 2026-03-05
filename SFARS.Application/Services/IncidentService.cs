@@ -24,6 +24,7 @@ namespace SFARS.Application.Services
     {
         private readonly IFileStorageService _fileStorageService;
         private readonly IOptions<StorageOptions> _storageOptions;
+        private readonly ISosSpamGuardService _spamGuard;
 
         public IncidentService(
             ISystemMessageService msgService,
@@ -31,11 +32,13 @@ namespace SFARS.Application.Services
             IMapper mapper,
             ILogger<IncidentService> logger,
             IFileStorageService fileStorageService,
-            IOptions<StorageOptions> storageOptions)
+            IOptions<StorageOptions> storageOptions,
+            ISosSpamGuardService spamGuard)
             : base(msgService, unitOfWork, mapper, logger)
         {
             _fileStorageService = fileStorageService;
             _storageOptions = storageOptions;
+            _spamGuard = spamGuard;
         }
 
 
@@ -58,6 +61,16 @@ namespace SFARS.Application.Services
                 return new ServiceResult(
                     ResultCodeConst.SYS_Warning0002,
                     string.Format(await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002), "User")
+                );
+            }
+
+            // Anti-spam check
+            var spamStatus = await _spamGuard.CheckAsync(userId);
+            if (spamStatus == SosSpamStatus.HardBlocked)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Incident_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0004)
                 );
             }
 
@@ -154,7 +167,7 @@ namespace SFARS.Application.Services
             {
                 var resultDto = _mapper.Map<IncidentDto>(incident);
                 resultDto.VictimName = user.FullName;
-                resultDto.Latitude = dto.Latitude;
+                resultDto.Latitude  = dto.Latitude;
                 resultDto.Longitude = dto.Longitude;
 
                 return new ServiceResult(
@@ -163,7 +176,6 @@ namespace SFARS.Application.Services
                     resultDto
                 );
             }
-
             return new ServiceResult(ResultCodeConst.SYS_Fail0001, failMsg);
         }
 
@@ -299,8 +311,8 @@ namespace SFARS.Application.Services
             if (incident == null)
             {
                 return new ServiceResult(
-                    ResultCodeConst.SYS_Warning0002,
-                    string.Format(await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002), "Incident")
+                    ResultCodeConst.Incident_Warning0002,
+                    string.Format(await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0002), "Incident")
                 );
             }
 
@@ -540,7 +552,7 @@ namespace SFARS.Application.Services
 
             var publicParticipants = users.Select(u => new PublicTrackingParticipantDto
             {
-                Role = u.Id == incident.VictimId ? "victim" : "rescuer",
+                Role = u.Id == incident.VictimId ? "User" : "Rescuer",
                 Latitude = u.CurrentLocation?.Y,
                 Longitude = u.CurrentLocation?.X,
                 LocationUpdatedAt = u.LocationUpdatedAt,
@@ -619,13 +631,129 @@ namespace SFARS.Application.Services
             {
                 UserId = u.Id,
                 UserName = u.FullName ?? u.Email ?? "Unknown",
-                Role = u.Id == victimId ? "victim" : "rescuer",
+                Role = u.Id == victimId ? "User" : "Rescuer",
                 Latitude = u.CurrentLocation?.Y,
                 Longitude = u.CurrentLocation?.X,
                 LocationUpdatedAt = u.LocationUpdatedAt,
                 AccuracyMeters = u.LocationAccuracyMeters,
                 AccuracyLevel = LocationHelper.GetAccuracyLevel(u.LocationAccuracyMeters)
             }).ToList();
+        }
+
+        #endregion
+
+        #region Grace Period Cancel
+
+        /// <inheritdoc />
+        public async Task<IServiceResult> CancelIncidentAsync(Guid userId, Guid incidentId)
+        {
+            // Load incident and verify ownership
+            var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
+
+            if (incident == null)
+                return new ServiceResult(
+                    ResultCodeConst.Incident_Warning0002,
+                    string.Format(await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0002), "Incident")
+                );
+
+            if (incident.VictimId != userId)
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0013,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0013)
+                );
+
+            // Only Pending incidents can be cancelled in grace period
+            if (incident.CurrentStatus != IncidentStatus.Pending)
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004)
+                );
+
+            // Validate against server-authoritative grace period
+            if (incident.GraceExpiresAt == null)
+                return new ServiceResult(
+                    ResultCodeConst.Incident_Warning0005,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0005)
+                );
+
+            if (DateTime.UtcNow > incident.GraceExpiresAt.Value)
+                return new ServiceResult(
+                    ResultCodeConst.Incident_Warning0006,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0006)
+                );
+
+            // Transition to Cancelled + audit
+            var now = DateTime.UtcNow;
+            incident.CurrentStatus = IncidentStatus.Cancelled;
+            incident.UpdatedAt = now;
+            incident.UpdatedBy = userId;
+
+            var statusHistory = new IncidentStatusHistory
+            {
+                Id = Guid.NewGuid(),
+                IncidentId = incidentId,
+                StatusFrom = IncidentStatus.Pending,
+                StatusTo = IncidentStatus.Cancelled,
+                ChangedBy = userId,
+                ChangeReason = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Reason0002),
+                CreatedAt = now,
+                CreatedBy = userId
+            };
+
+            await _unitOfWork.Repository<Incident, Guid>().UpdateAsync(incident);
+            await _unitOfWork.Repository<IncidentStatusHistory, Guid>().AddAsync(statusHistory);
+
+            var saved = await _unitOfWork.SaveChangesAsync();
+            if (saved <= 0)
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Fail0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001)
+                );
+
+            // Record cancellation in anti-spam guard (fire-and-forget)
+            await _spamGuard.RecordCancellationAsync(userId);
+
+            _logger.LogInformation(
+                "Incident {IncidentId} cancelled by victim {UserId} within grace period.",
+                incidentId, userId);
+
+            return new ServiceResult(
+                ResultCodeConst.Incident_Success0005,
+                await _msgService.GetMessageAsync(ResultCodeConst.Incident_Success0005)
+            );
+        }
+
+        #endregion
+
+        #region SOS Pre-Check
+
+        /// <inheritdoc />
+        public async Task<IServiceResult> GetSosEligibilityAsync(Guid userId)
+        {
+            if (userId == Guid.Empty)
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0013,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0013)
+                );
+
+            // Pure Redis read — no DB access, no incident created.
+            // Fail-open: if Redis is down, allow SOS (safety-critical feature).
+            var spamStatus = await _spamGuard.CheckAsync(userId);
+
+            var dto = new SosEligibilityDto
+            {
+                IsEligible                  = spamStatus != SosSpamStatus.HardBlocked,
+                RequiresWarningConfirmation  = spamStatus == SosSpamStatus.SoftWarning,
+                BlockReason                 = spamStatus == SosSpamStatus.HardBlocked
+                    ? await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0004)
+                    : null
+            };
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                dto
+            );
         }
 
         #endregion

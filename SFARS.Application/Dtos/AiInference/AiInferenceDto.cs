@@ -8,7 +8,7 @@ namespace SFARS.Application.Dtos.AiInference;
 public class AiInferenceResultDto
 {
     public Guid InferenceId { get; set; }
-    public SnakeCandidateDto PrimarySnake { get; set; } = null!;
+    public SnakeCandidateDto? PrimarySnake { get; set; }
     public List<FirstAidStepDto> FirstAidSteps { get; set; } = new();
     public List<string> Prohibitions { get; set; } = new();
 
@@ -16,6 +16,13 @@ public class AiInferenceResultDto
     public string? Note { get; set; }
 
     public DateTime AnalyzedAt { get; set; }
+
+    /// <summary>
+    /// Server-authoritative UTC timestamp: the countdown must end by this moment.
+    /// FE uses this directly to drive the 10-second cancel timer.
+    /// Null if the incident is already past the cancellable window.
+    /// </summary>
+    public DateTime? CancelDeadline { get; set; }
 }
 
 /// <summary>

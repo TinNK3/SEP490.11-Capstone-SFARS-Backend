@@ -27,5 +27,9 @@ namespace SFARS.Domain.Interfaces.Services
         Task<IServiceResult> GetIncidentTrackingAsync(Guid userId, Guid incidentId);
         Task<IServiceResult> GetPublicTrackingAsync(string trackingCode);
         Task<IServiceResult> RegenerateTrackingCodeAsync(Guid userId, Guid incidentId);
+
+        // Check spam
+        Task<IServiceResult> CancelIncidentAsync(Guid userId, Guid incidentId);
+        Task<IServiceResult> GetSosEligibilityAsync(Guid userId);
     }
 }
