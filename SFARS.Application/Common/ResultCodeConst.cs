@@ -88,17 +88,22 @@ namespace SFARS.Application.Common
         public const string Incident_Success0002 = "Incident.Success0002";
         public const string Incident_Success0003 = "Incident.Success0003";
         public const string Incident_Success0004 = "Incident.Success0004";
+        public const string Incident_Success0005 = "Incident.Success0005"; // SOS cancelled during grace period
 
         public const string Incident_Warning0001 = "Incident.Warning0001";
         public const string Incident_Warning0002 = "Incident.Warning0002";
         public const string Incident_Warning0003 = "Incident.Warning0003";
+        public const string Incident_Warning0004 = "Incident.Warning0004"; // SOS creation blocked by spam guard
+        public const string Incident_Warning0005 = "Incident.Warning0005"; // AI analysis not yet completed
+        public const string Incident_Warning0006 = "Incident.Warning0006"; // Grace period expired / SOS dispatched
 
         public const string Incident_Fail0001 = "Incident.Fail0001";
 
-        // Notification messages
+        // Notification / audit messages
         public const string Incident_Notify0001 = "Incident.Notify0001";
         public const string Incident_Notify0002 = "Incident.Notify0002";
-        public const string Incident_Reason0001 = "Incident.Reason0001";
+        public const string Incident_Reason0001 = "Incident.Reason0001";  // Incident created by user
+        public const string Incident_Reason0002 = "Incident.Reason0002";  // Victim cancelled during grace period
         #endregion
 
         #region AI

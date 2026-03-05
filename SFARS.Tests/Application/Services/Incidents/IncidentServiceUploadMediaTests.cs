@@ -126,7 +126,7 @@ public class IncidentServiceUploadMediaTests : IncidentServiceTests
             userId, incidentId, stream, "test.jpg", "image/jpeg", 1024, MediaType.BiteWoundPhoto);
 
         // Assert
-        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0002);
+        result.ResultCode.Should().Be(ResultCodeConst.Incident_Warning0002);
         
         _fileStorageServiceMock.Verify(x => x.UploadAsync(
             It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);

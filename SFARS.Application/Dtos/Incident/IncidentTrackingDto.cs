@@ -23,7 +23,7 @@ public class TrackingParticipantDto
 {
     public Guid UserId { get; set; }
     public string UserName { get; set; } = null!;
-    public string Role { get; set; } = null!; // "victim" or "rescuer"
+    public string Role { get; set; } = null!; // "User" or "Rescuer"
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
     public DateTime? LocationUpdatedAt { get; set; }

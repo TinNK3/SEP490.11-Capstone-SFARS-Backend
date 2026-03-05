@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos.AiInference;
+using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
@@ -53,11 +54,11 @@ public class AiInferenceService : IAiInferenceService
     public async Task<IServiceResult> AnalyzeAsync(
         Guid userId,
         Guid incidentId,
-        Stream imageStream,
-        string fileName,
-        string contentType,
-        long fileSize,
-        MediaType mediaType)
+        Stream? imageStream,
+        string? fileName,
+        string? contentType,
+        long? fileSize,
+        MediaType? mediaType)
     {
         if (userId == Guid.Empty)
         {
@@ -102,115 +103,138 @@ public class AiInferenceService : IAiInferenceService
         }
 
         var storageOpt = _storageOptions.Value;
-        if (fileSize <= 0 || fileSize > storageOpt.MaxUploadBytes)
-        {
-            return new ServiceResult(
-                ResultCodeConst.SYS_Warning0008,
-                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0008)
-            );
-        }
+        bool isSkip = imageStream == null || fileSize == null || fileSize <= 0;
 
-        if (!IsAllowedImageType(contentType, storageOpt))
+        if (!isSkip)
         {
-            return new ServiceResult(
-                ResultCodeConst.AI_Warning0004,
-                await _msgService.GetMessageAsync(ResultCodeConst.AI_Warning0004)
-            );
+            if (fileSize > storageOpt.MaxUploadBytes)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0008,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0008)
+                );
+            }
+
+            if (!IsAllowedImageType(contentType!, storageOpt))
+            {
+                return new ServiceResult(
+                    ResultCodeConst.AI_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.AI_Warning0004)
+                );
+            }
         }
 
         try
         {
             var now = DateTime.UtcNow;
 
-            using var bufferStream = new MemoryStream();
-            await imageStream.CopyToAsync(bufferStream);
-            var imageBytes = bufferStream.ToArray();
+            FileUploadResult? uploadResult = null;
+            List<YoloPrediction>? yoloPredictions = null;
+            Snake? primarySnake = null;
+            double topConfidence = 0;
 
-            FileUploadResult uploadResult;
-            var folder = string.Format(storageOpt.IncidentMediaFolderFormat, incidentId);
-            using (var uploadStream = new MemoryStream(imageBytes))
+            if (!isSkip)
             {
-                uploadResult = await _storageService.UploadAsync(uploadStream, fileName, folder, contentType);
+                using var bufferStream = new MemoryStream();
+                await imageStream!.CopyToAsync(bufferStream);
+                var imageBytes = bufferStream.ToArray();
+
+                var folder = string.Format(storageOpt.IncidentMediaFolderFormat, incidentId);
+                using (var uploadStream = new MemoryStream(imageBytes))
+                {
+                    uploadResult = await _storageService.UploadAsync(uploadStream, fileName!, folder, contentType!);
+                }
+
+                using var yoloStream = new MemoryStream(imageBytes);
+                var inferenceResult = await _yoloService.InferAsync(yoloStream, topK: 3);
+                yoloPredictions = inferenceResult.ToList();
+                if (!yoloPredictions.Any())
+                {
+                    return new ServiceResult(
+                        ResultCodeConst.AI_Warning0001,
+                        await _msgService.GetMessageAsync(ResultCodeConst.AI_Warning0001)
+                    );
+                }
+
+                var topPrediction = yoloPredictions.First();
+                primarySnake = await FindSnakeByClassName(topPrediction.ClassName);
+
+                if (primarySnake == null)
+                {
+                    _logger.LogWarning("Snake not found for class: {ClassName}", topPrediction.ClassName);
+                    return new ServiceResult(
+                        ResultCodeConst.AI_Warning0005,
+                        await _msgService.GetMessageAsync(ResultCodeConst.AI_Warning0005)
+                    );
+                }
+
+                topConfidence = topPrediction.Confidence;
             }
 
-            using var yoloStream = new MemoryStream(imageBytes);
-            var yoloPredictions = await _yoloService.InferAsync(yoloStream, topK: 3);
-            if (!yoloPredictions.Any())
-            {
-                return new ServiceResult(
-                    ResultCodeConst.AI_Warning0001,
-                    await _msgService.GetMessageAsync(ResultCodeConst.AI_Warning0001)
-                );
-            }
-
-            var topPrediction = yoloPredictions.First();
-            var primarySnake = await FindSnakeByClassName(topPrediction.ClassName);
-
-            if (primarySnake == null)
-            {
-                _logger.LogWarning("Snake not found for class: {ClassName}", topPrediction.ClassName);
-                return new ServiceResult(
-                    ResultCodeConst.AI_Warning0005,
-                    await _msgService.GetMessageAsync(ResultCodeConst.AI_Warning0005)
-                );
-            }
-
-            var firstAidSteps = await GetFirstAidStepsAsync(primarySnake.ToxinGroup);
+            var toxinGroup = primarySnake?.ToxinGroup ?? ToxinGroup.Unknown;
+            var firstAidSteps = await GetFirstAidStepsAsync(toxinGroup);
             var prohibitions = await GetProhibitionsAsync();
 
-
-            var media = new IncidentMedia
+            IncidentMedia? media = null;
+            if (!isSkip && uploadResult != null)
             {
-                Id = Guid.NewGuid(),
-                IncidentId = incidentId,
-                MediaUrl = uploadResult.Url,
-                MediaType = mediaType,
-                CreatedAt = now,
-                CreatedBy = userId
-            };
-            await _unitOfWork.Repository<IncidentMedia, Guid>().AddAsync(media);
+                media = new IncidentMedia
+                {
+                    Id = Guid.NewGuid(),
+                    IncidentId = incidentId,
+                    MediaUrl = uploadResult.Url,
+                    MediaType = mediaType ?? MediaType.Other,
+                    CreatedAt = now,
+                    CreatedBy = userId
+                };
+                await _unitOfWork.Repository<IncidentMedia, Guid>().AddAsync(media);
+            }
 
             var aiInference = new AiInference
             {
                 Id = Guid.NewGuid(),
                 IncidentId = incidentId,
-                IncidentMediaId = media.Id,
-                ModelName = "snake-cls-v1",
-                ModelVersion = "1.0.0",
-                TopK = 3,
-                SelectedSnakeId = primarySnake.Id,
-                SelectedConfidence = topPrediction.Confidence,
-                SelectedToxinGroup = primarySnake.ToxinGroup,
-                DecisionRule = "Top1",
+                IncidentMediaId = media?.Id, // null if skipped
+                ModelName = isSkip ? AiInferenceConstants.SkippedModelName : AiInferenceConstants.ModelName,
+                ModelVersion = isSkip ? AiInferenceConstants.SkippedModelVersion : AiInferenceConstants.ModelVersion,
+                TopK = isSkip ? 0 : AiInferenceConstants.DefaultTopK,
+                SelectedSnakeId = primarySnake?.Id, // null if skipped
+                SelectedConfidence = isSkip ? 0 : topConfidence,
+                SelectedToxinGroup = toxinGroup,
+                DecisionRule = isSkip ? AiInferenceConstants.DecisionRuleSkipped : AiInferenceConstants.DecisionRuleTop1,
                 CreatedAt = now,
                 CreatedBy = userId
             };
             await _unitOfWork.Repository<AiInference, Guid>().AddAsync(aiInference);
 
-            int rank = 1;
-            foreach (var prediction in yoloPredictions)
+            if (!isSkip && yoloPredictions != null)
             {
-                var snake = await FindSnakeByClassName(prediction.ClassName);
-                if (snake != null)
+                int rank = 1;
+                foreach (var prediction in yoloPredictions)
                 {
-                    var candidate = new AiInferenceCandidate
+                    var snake = await FindSnakeByClassName(prediction.ClassName);
+                    if (snake != null)
                     {
-                        Id = Guid.NewGuid(),
-                        AiInferenceId = aiInference.Id,
-                        Rank = rank++,
-                        SnakeId = snake.Id,
-                        Confidence = prediction.Confidence,
-                        CreatedAt = now,
-                        CreatedBy = userId
-                    };
-                    await _unitOfWork.Repository<AiInferenceCandidate, Guid>().AddAsync(candidate);
+                        var candidate = new AiInferenceCandidate
+                        {
+                            Id = Guid.NewGuid(),
+                            AiInferenceId = aiInference.Id,
+                            Rank = rank++,
+                            SnakeId = snake.Id,
+                            Confidence = prediction.Confidence,
+                            CreatedAt = now,
+                            CreatedBy = userId
+                        };
+                        await _unitOfWork.Repository<AiInferenceCandidate, Guid>().AddAsync(candidate);
+                    }
                 }
             }
 
             incident.CurrentAiInferenceId = aiInference.Id;
-            incident.SnakeId = primarySnake.Id;
-            incident.AiPredictionResult = primarySnake.CommonName;
-            incident.AiConfidenceScore = topPrediction.Confidence;
+            incident.SnakeId = primarySnake?.Id; // null if skipped
+            incident.AiPredictionResult = isSkip ? "Unknown" : primarySnake?.CommonName;
+            incident.AiConfidenceScore = isSkip ? 0 : topConfidence;
+            incident.GraceExpiresAt = now + SosConstants.GracePeriod + TimeSpan.FromSeconds(3);
             incident.UpdatedAt = now;
             incident.UpdatedBy = userId;
 
@@ -227,8 +251,10 @@ public class AiInferenceService : IAiInferenceService
                     SenderType = ChatSenderType.AI,
                     SenderId = null,
                     AiInferenceId = aiInference.Id,
-                    Content = BuildAiChatInitialMessage(primarySnake, topPrediction.Confidence),
-                    ModelName = "snake-cls-v1",
+                    Content = isSkip 
+                        ? BuildAiChatSkippedMessage() 
+                        : BuildAiChatInitialMessage(primarySnake!, topConfidence),
+                    ModelName = isSkip ? "System" : AiInferenceConstants.ModelName,
                     CreatedAt = now,
                     CreatedBy = userId
                 };
@@ -249,12 +275,12 @@ public class AiInferenceService : IAiInferenceService
             var resultDto = new AiInferenceResultDto
             {
                 InferenceId = aiInference.Id,
-                PrimarySnake = new SnakeCandidateDto
+                PrimarySnake = isSkip ? null : new SnakeCandidateDto
                 {
-                    SnakeId = primarySnake.Id,
+                    SnakeId = primarySnake!.Id,
                     ScientificName = primarySnake.ScientificName,
                     CommonName = primarySnake.CommonName,
-                    Confidence = topPrediction.Confidence,
+                    Confidence = topConfidence,
                     ToxicityLevel = primarySnake.ToxicityLevel,
                     ToxinGroup = primarySnake.ToxinGroup,
                     DangerSummary = GetDangerSummary(primarySnake.ToxicityLevel),
@@ -262,19 +288,23 @@ public class AiInferenceService : IAiInferenceService
                 },
                 FirstAidSteps = firstAidSteps,
                 Prohibitions = prohibitions,
-                OtherCandidates = await BuildOtherCandidateDtos(yoloPredictions.Skip(1).ToList()),
-                Note = firstAidSteps.Count == 0
-                    ? await _msgService.GetMessageAsync(ResultCodeConst.AI_Warning0006)
-                    : null,
-                AnalyzedAt = aiInference.CreatedAt
+                OtherCandidates = isSkip ? new List<SnakeCandidateDto>() : await BuildOtherCandidateDtos(yoloPredictions!.Skip(1).ToList()),
+                Note = isSkip 
+                    ? "Do người dùng bỏ qua bước chụp ảnh, hệ thống mặc định coi đây là ca Rắn Chưa Rõ Loài để đảm bảo an toàn quy trình."
+                    : (firstAidSteps.Count == 0 ? await _msgService.GetMessageAsync(ResultCodeConst.AI_Warning0006) : null),
+                AnalyzedAt = aiInference.CreatedAt,
+                // Server-authoritative: FE uses this to drive the 10-second cancel countdown.
+                CancelDeadline = incident.GraceExpiresAt
             };
 
             return new ServiceResult(
                 ResultCodeConst.AI_Success0001,
-                string.Format(
-                    await _msgService.GetMessageAsync(ResultCodeConst.AI_Success0001),
-                    primarySnake.CommonName,
-                    (topPrediction.Confidence * 100).ToString("F0")),
+                isSkip 
+                    ? "Nhận dạng bỏ qua. Kích hoạt quy trình khẩn cấp mặc định."
+                    : string.Format(
+                        await _msgService.GetMessageAsync(ResultCodeConst.AI_Success0001),
+                        primarySnake!.CommonName,
+                        (topConfidence * 100).ToString("F0")),
                 resultDto
             );
         }
@@ -382,16 +412,7 @@ public class AiInferenceService : IAiInferenceService
     }
 
     private static string GetDangerSummary(SnakeRiskLevel level)
-    {
-        return level switch
-        {
-            SnakeRiskLevel.Deadly => "CỰC KỲ NGUY HIỂM",
-            SnakeRiskLevel.HighlyVenomous => "NGUY HIỂM",
-            SnakeRiskLevel.MildlyVenomous => "ÍT ĐỘC",
-            SnakeRiskLevel.NonVenomous => "KHÔNG ĐỘC",
-            _ => "CẦN KIỂM TRA"
-        };
-    }
+        => AiInferenceConstants.GetDangerLabel(level);
 
     private static bool IsAllowedImageType(string contentType, StorageOptions options)
     {
@@ -412,6 +433,17 @@ public class AiInferenceService : IAiInferenceService
                $"Nhóm độc: {snake.ToxinGroup.ToString()}\n\n" +
                $"Sơ cứu đã được hướng dẫn ở trên.\n" +
                $"Hãy theo dõi và báo lại nếu xuất hiện triệu chứng mới.";
+    }
+
+    /// <summary>
+    /// Build AI chat initial message when the user skips photo capture.
+    /// </summary>
+    private static string BuildAiChatSkippedMessage()
+    {
+        return $"Hệ thống ghi nhận bạn đã bỏ qua bước chụp ảnh.\n" +
+               $"Để bảo đảm an toàn tối đa, ca cứu hộ này được xếp vào khẩn cấp vô danh (Rắn Chưa Rõ Loài).\n" +
+               $"Vui lòng tuyệt đối tuân thủ hướng dẫn Sơ cứu BẤT ĐỘNG ở mặt trước màn hình.\n" +
+               $"Nếu có bất kỳ triệu chứng nào (khó thở, sưng nhanh...), hãy nhập vào đây để AI cập nhật sơ cứu.";
     }
 
     #endregion

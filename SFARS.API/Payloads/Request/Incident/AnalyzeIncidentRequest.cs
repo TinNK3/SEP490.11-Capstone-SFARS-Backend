@@ -9,15 +9,13 @@ namespace SFARS.API.Payloads.Request.Incident;
 public class AnalyzeIncidentRequest
 {
     /// <summary>
-    /// Snake photo to upload and analyze
+    /// Snake photo to upload and analyze. Can be null if user skips photo.
     /// </summary>
-    [Required(ErrorMessage = "File is required")]
-    public IFormFile File { get; set; } = null!;
+    public IFormFile? File { get; set; }
 
     /// <summary>
-    /// Type of media (default: SnakePhoto)
+    /// Type of media. Optional if user skips photo.
     /// </summary>
-    [Required]
     [EnumDataType(typeof(MediaType), ErrorMessage = "Invalid media type")]
-    public MediaType MediaType { get; set; } = MediaType.SnakePhoto;
+    public MediaType? MediaType { get; set; }
 }

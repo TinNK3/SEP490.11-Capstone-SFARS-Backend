@@ -70,10 +70,13 @@
             public const string GetMyIncidents = Base + "/incidents/me";
             public const string Tracking = Base + "/incidents/{id}/tracking";
             public const string TrackingByCode = Base + "/tracking";
+            public const string SosPreCheck = Base + "/sos-pre-check";
             // [POST]
             public const string Create = Base + "/incidents";
             public const string Analyze = Base + "/incidents/{id}/analyze";
             public const string RegenerateTrackingCode = Base + "/incidents/{id}/tracking-code/regenerate";
+            // [PATCH]
+            public const string Cancel = Base + "/incidents/{id}/cancel";
         }
 
         /// <summary>
@@ -121,6 +124,16 @@
             //	[GET]
             public const string BaseUrl = Base;
             public const string Check = Base + "/health-check";
+        }
+
+        /// <summary>
+        /// Webhook endpoints — called by external providers, no auth.
+        /// Signature validation handled by SmsSignatureMiddleware.
+        /// </summary>
+        public static class Webhook
+        {
+            // [POST]
+            public const string SmsSOSInbound = Base + "/webhooks/sms/sos";
         }
     }
 }

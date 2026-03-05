@@ -34,4 +34,11 @@ public class Incident : BaseEntity
     // Public tracking (QR code sharing)
     public string? TrackingCode { get; set; }
     public DateTime? TrackingCodeExpiresAt { get; set; }
+
+    /// <summary>
+    /// Set by AnalyzeAsync when AI results are returned to the user.
+    /// Defines the server-authoritative end of the soft-cancel grace period.
+    /// Null until Analyze is called; cleared after the grace period expires or incident is dispatched.
+    /// </summary>
+    public DateTime? GraceExpiresAt { get; set; }
 }

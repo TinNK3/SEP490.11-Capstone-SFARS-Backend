@@ -16,9 +16,9 @@ public interface IAiInferenceService
     Task<IServiceResult> AnalyzeAsync(
         Guid userId,
         Guid incidentId,
-        Stream imageStream,
-        string fileName,
-        string contentType,
-        long fileSize,
-        MediaType mediaType);
+        Stream? imageStream,
+        string? fileName,
+        string? contentType,
+        long? fileSize,
+        MediaType? mediaType);
 }
