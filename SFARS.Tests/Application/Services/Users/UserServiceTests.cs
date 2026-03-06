@@ -693,6 +693,179 @@ namespace SFARS.Tests.Application.Services.Users
             paged.Sources.Should().HaveCount(pageSize);
         }
 
+        // ─────────────────────────────────────────────────────────────────────
+        // BOUNDARY TESTS - Pagination Edge Cases
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Test Type: BOUNDARY
+        /// Tests: GetAllUsersAsync requesting page beyond last available page
+        /// Precondition: Total 10 users, pageSize=10, requesting pageIndex=1 (2nd page)
+        /// Expected Result: Returns empty results but no error
+        /// </summary>
+        [Fact]
+        public async Task GetAllUsersAsync_PageIndexBeyondLastPage_ReturnsEmptyResults()
+        {
+            // Arrange - 10 total users, pageSize 10 means only 1 page (index 0)
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(10);
+
+            _userRepoMock
+                .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()))
+                .ReturnsAsync(new List<User>()); // No results for page 1
+
+            _mapperMock
+                .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
+                .Returns(new List<UserDto>());
+
+            // Act - Request page 1 (2nd page) when only page 0 exists
+            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 1, pageSize: 10);
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002); // Should still be success
+            var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
+            paged.Sources.Should().BeEmpty();
+            paged.TotalPage.Should().Be(1); // Only 1 page exists
+            paged.PageIndex.Should().Be(1); // Requested page
+        }
+
+        /// <summary>
+        /// Test Type: BOUNDARY
+        /// Tests: GetAllUsersAsync with pageSize at exactly total items
+        /// Precondition: 20 total users, pageSize=20 (exact match)
+        /// Expected Result: Single page with all items, TotalPages=1
+        /// </summary>
+        [Fact]
+        public async Task GetAllUsersAsync_PageSizeExactlyEqualToTotal_ReturnsSinglePage()
+        {
+            // Arrange
+            const int total = 20;
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(total);
+
+            _userRepoMock
+                .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()))
+                .ReturnsAsync(FakeUsers(total));
+
+            _mapperMock
+                .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
+                .Returns(FakeDtos(total));
+
+            // Act - pageSize equals total
+            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: total);
+
+            // Assert
+            var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
+            paged.TotalPage.Should().Be(1); // BOUNDARY: Exactly 1 page
+            paged.Sources.Should().HaveCount(total);
+            paged.TotalActualItem.Should().Be(total);
+        }
+
+        /// <summary>
+        /// Test Type: BOUNDARY
+        /// Tests: GetAllUsersAsync with pageSize just one less than total
+        /// Precondition: 20 total users, pageSize=19
+        /// Expected Result: 2 pages (19 + 1)
+        /// </summary>
+        [Fact]
+        public async Task GetAllUsersAsync_PageSizeOneLessThanTotal_ReturnsTwoPages()
+        {
+            // Arrange
+            const int total = 20;
+            const int pageSize = 19;
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(total);
+
+            _userRepoMock
+                .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()))
+                .ReturnsAsync(FakeUsers(pageSize)); // First page
+
+            _mapperMock
+                .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
+                .Returns(FakeDtos(pageSize));
+
+            // Act
+            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: pageSize);
+
+            // Assert - ceil(20/19) = 2
+            var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
+            paged.TotalPage.Should().Be(2); // BOUNDARY: Forces pagination
+            paged.Sources.Should().HaveCount(pageSize);
+        }
+
+        /// <summary>
+        /// Test Type: BOUNDARY
+        /// Tests: GetAllUsersAsync requesting last page with partial results
+        /// Precondition: 25 total users, pageSize=10, requesting page 2 (last page)
+        /// Expected Result: Returns 5 items (25 % 10 = 5)
+        /// </summary>
+        [Fact]
+        public async Task GetAllUsersAsync_LastPageWithPartialResults_ReturnsRemainingItems()
+        {
+            // Arrange
+            const int total = 25;
+            const int pageSize = 10;
+            const int lastPageItems = 5; // 25 % 10 = 5
+
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(total);
+
+            _userRepoMock
+                .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()))
+                .ReturnsAsync(FakeUsers(lastPageItems)); // Last page has only 5 items
+
+            _mapperMock
+                .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
+                .Returns(FakeDtos(lastPageItems));
+
+            // Act - Request page 2 (3rd page, last page)
+            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 2, pageSize: pageSize);
+
+            // Assert
+            var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
+            paged.TotalPage.Should().Be(3); // ceil(25/10) = 3 pages
+            paged.PageIndex.Should().Be(2); // Last page index
+            paged.Sources.Should().HaveCount(lastPageItems); // BOUNDARY: Partial page
+        }
+
+        /// <summary>
+        /// Test Type: BOUNDARY
+        /// Tests: GetAllUsersAsync with very large pageSize
+        /// Precondition: 100 users, pageSize=1000 (exceeds total)
+        /// Expected Result: Returns all 100 users in single page
+        /// </summary>
+        [Fact]
+        public async Task GetAllUsersAsync_PageSizeExceedsTotal_ReturnsAllInOnePage()
+        {
+            // Arrange
+            const int total = 100;
+            const int excessivePageSize = 1000;
+
+            _userRepoMock
+                .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
+                .ReturnsAsync(total);
+
+            _userRepoMock
+                .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()))
+                .ReturnsAsync(FakeUsers(total));
+
+            _mapperMock
+                .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
+                .Returns(FakeDtos(total));
+
+            // Act
+            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: excessivePageSize);
+
+            // Assert
+            var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
+            paged.TotalPage.Should().Be(1); // Only 1 page needed
+            paged.Sources.Should().HaveCount(total); // All items returned
+        }
+
         #endregion
 
         #region POST /admin/users - CreateUserAsync Tests
