@@ -77,10 +77,19 @@ namespace SFARS.Application.Common
         #endregion
 
         #region Medical
-        public const string Medical_Success0001 = "Medical.Success0001";
+        public const string Medical_Success0001 = "Medical.Success0001"; // Facility found
+        public const string Medical_Success0002 = "Medical.Success0002"; // Facility created
+        public const string Medical_Success0003 = "Medical.Success0003"; // Facility updated
+        public const string Medical_Success0004 = "Medical.Success0004"; // Facility antivenom updated
+        public const string Medical_Success0005 = "Medical.Success0005"; // Facility deactivated
+        public const string Medical_Success0006 = "Medical.Success0006"; // Facility activated
 
-        public const string Medical_Warning0001 = "Medical.Warning0001";
-        public const string Medical_Warning0002 = "Medical.Warning0002";
+        public const string Medical_Warning0001 = "Medical.Warning0001"; // No facility found nearby
+        public const string Medical_Warning0002 = "Medical.Warning0002"; // Antivenom stock empty
+        public const string Medical_Warning0003 = "Medical.Warning0003"; // Facility already deactivated
+        public const string Medical_Warning0004 = "Medical.Warning0004"; // Facility already active
+        public const string Medical_Warning0005 = "Medical.Warning0005"; // Possible duplicate facility
+        public const string Medical_Warning0006 = "Medical.Warning0006"; // Location required (lat/lng not provided)
         #endregion
 
         #region Incident

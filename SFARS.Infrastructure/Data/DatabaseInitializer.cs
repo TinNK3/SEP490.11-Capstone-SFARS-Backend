@@ -155,7 +155,11 @@ namespace SFARS.Infrastructure.Data
                     PasswordHash = passwordHash,
                     Gender = Gender.Male,
                     Status = UserStatus.Active,
-                    IsOnline = false
+                    IsOnline = false,
+                    Address = "25 Trần Phú, TP. Pleiku, Gia Lai",
+                    CurrentLocation = new NetTopologySuite.Geometries.Point(108.0089, 13.9833) { SRID = 4326 }, // TP. Pleiku
+                    LocationUpdatedAt = DateTime.UtcNow,
+                    LocationAccuracyMeters = 15.0
                 }, userRole),
                 (new User
                 {
@@ -166,7 +170,11 @@ namespace SFARS.Infrastructure.Data
                     PasswordHash = passwordHash,
                     Gender = Gender.Male,
                     Status = UserStatus.Active,
-                    IsOnline = false
+                    IsOnline = false,
+                    Address = "10 Lê Lợi, TP. Pleiku, Gia Lai",
+                    CurrentLocation = new NetTopologySuite.Geometries.Point(108.0200, 13.9900) { SRID = 4326 }, // Gần TP. Pleiku
+                    LocationUpdatedAt = DateTime.UtcNow,
+                    LocationAccuracyMeters = 10.0
                 }, rescuerRole)
             };
 
@@ -177,7 +185,20 @@ namespace SFARS.Infrastructure.Data
                 var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
                 if (existingUser != null)
                 {
-                    _logger.LogInformation("User {Email} already exists, skipping.", user.Email);
+                    // Update location if seed has location but existing user doesn't
+                    if (user.CurrentLocation != null && existingUser.CurrentLocation == null)
+                    {
+                        existingUser.CurrentLocation = user.CurrentLocation;
+                        existingUser.LocationUpdatedAt = user.LocationUpdatedAt ?? DateTime.UtcNow;
+                        existingUser.LocationAccuracyMeters = user.LocationAccuracyMeters;
+                        existingUser.Address ??= user.Address;
+                        await _context.SaveChangesAsync();
+                        _logger.LogInformation("Updated location for existing user {Email}.", user.Email);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("User {Email} already exists, skipping.", user.Email);
+                    }
                     continue;
                 }
 

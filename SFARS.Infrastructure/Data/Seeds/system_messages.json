@@ -318,6 +318,60 @@
     "Vi": "Cơ sở này hiện đã hết huyết thanh kháng độc."
   },
   {
+    "MsgId": "Medical.Success0002",
+    "MsgContent": "Facility created successfully.",
+    "En": "Facility created successfully.",
+    "Vi": "Tạo cơ sở y tế thành công."
+  },
+  {
+    "MsgId": "Medical.Success0003",
+    "MsgContent": "Facility updated successfully.",
+    "En": "Facility updated successfully.",
+    "Vi": "Cập nhật cơ sở y tế thành công."
+  },
+  {
+    "MsgId": "Medical.Success0004",
+    "MsgContent": "Antivenom status updated successfully.",
+    "En": "Antivenom status updated successfully.",
+    "Vi": "Cập nhật tình trạng huyết thanh thành công."
+  },
+  {
+    "MsgId": "Medical.Success0005",
+    "MsgContent": "Facility deactivated successfully.",
+    "En": "Facility deactivated successfully.",
+    "Vi": "Ngừng hoạt động cơ sở y tế thành công."
+  },
+  {
+    "MsgId": "Medical.Success0006",
+    "MsgContent": "Facility activated successfully.",
+    "En": "Facility activated successfully.",
+    "Vi": "Kích hoạt cơ sở y tế thành công."
+  },
+  {
+    "MsgId": "Medical.Warning0003",
+    "MsgContent": "This facility is already deactivated.",
+    "En": "This facility is already deactivated.",
+    "Vi": "Cơ sở y tế này đã ngừng hoạt động."
+  },
+  {
+    "MsgId": "Medical.Warning0004",
+    "MsgContent": "This facility is already active.",
+    "En": "This facility is already active.",
+    "Vi": "Cơ sở y tế này đã đang hoạt động."
+  },
+  {
+    "MsgId": "Medical.Warning0005",
+    "MsgContent": "A facility with similar name and location may already exist.",
+    "En": "A facility with similar name and location may already exist.",
+    "Vi": "Có thể đã tồn tại cơ sở y tế có tên và vị trí tương tự."
+  },
+  {
+    "MsgId": "Medical.Warning0006",
+    "MsgContent": "Location required. Please provide latitude and longitude.",
+    "En": "Location required. Please provide latitude and longitude.",
+    "Vi": "Vui lòng cung cấp vị trí (latitude và longitude)."
+  },
+  {
     "MsgId": "Incident.Success0001",
     "MsgContent": "SOS signal sent! Searching for rescuers...",
     "En": "SOS signal sent! Searching for rescuers...",
