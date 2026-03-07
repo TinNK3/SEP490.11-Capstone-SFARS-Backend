@@ -69,6 +69,12 @@ namespace SFARS.Tests.Application.Services.Users
 
         #region GET /api/me - GetMeAsync Tests
 
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: GetMeAsync with empty/default GUID
+        /// Precondition: UserId is Guid.Empty
+        /// Expected Result: Returns authentication warning Auth_Warning0007
+        /// </summary>
         [Fact]
         public async Task GetMeAsync_UserIdEmpty_ReturnsAuthWarning()
         {
@@ -83,6 +89,12 @@ namespace SFARS.Tests.Application.Services.Users
             result.Data.Should().BeNull();
         }
 
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: GetMeAsync when user ID does not exist in database
+        /// Precondition: Valid GUID but no matching user entity
+        /// Expected Result: Returns not found warning SYS_Warning0004
+        /// </summary>
         [Fact]
         public async Task GetMeAsync_UserNotFound_ReturnsNotFoundWarning()
         {
@@ -102,6 +114,12 @@ namespace SFARS.Tests.Application.Services.Users
             result.Data.Should().BeNull();
         }
 
+        /// <summary>
+        /// Test Type: NORMAL
+        /// Tests: GetMeAsync returns user with role information
+        /// Precondition: Valid user ID with associated role
+        /// Expected Result: Success SYS_Success0002 with UserDto including role
+        /// </summary>
         [Fact]
         public async Task GetMeAsync_ValidUser_ReturnsSuccess_WithRole()
         {
@@ -151,6 +169,12 @@ namespace SFARS.Tests.Application.Services.Users
 
         #region PUT /api/me - UpdateMeAsync Tests
 
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: UpdateMeAsync with empty/default GUID
+        /// Precondition: UserId is Guid.Empty
+        /// Expected Result: Returns authentication warning Auth_Warning0007
+        /// </summary>
         [Fact]
         public async Task UpdateMeAsync_UserIdEmpty_ReturnsAuthWarning()
         {
@@ -166,6 +190,12 @@ namespace SFARS.Tests.Application.Services.Users
             result.Data.Should().BeNull();
         }
 
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: UpdateMeAsync when user ID does not exist
+        /// Precondition: Valid GUID but no matching user in database
+        /// Expected Result: Returns not found warning SYS_Warning0004
+        /// </summary>
         [Fact]
         public async Task UpdateMeAsync_UserNotFound_ReturnsNotFoundWarning()
         {
@@ -186,6 +216,12 @@ namespace SFARS.Tests.Application.Services.Users
             result.Data.Should().BeNull();
         }
 
+        /// <summary>
+        /// Test Type: NORMAL
+        /// Tests: UpdateMeAsync successfully updates user profile
+        /// Precondition: Valid user exists, valid update DTO provided
+        /// Expected Result: User updated, returns UserDto with role, SYS_Success0002
+        /// </summary>
         [Fact]
         public async Task UpdateMeAsync_ValidRequest_UpdatesAndReturnsUserDto_WithRole()
         {
@@ -330,6 +366,12 @@ namespace SFARS.Tests.Application.Services.Users
         // 1. No users found
         // ─────────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: GetAllUsersAsync when database contains no users
+        /// Precondition: User count is 0
+        /// Expected Result: Returns warning SYS_Warning0004 with empty paginated result
+        /// </summary>
         [Fact]
         public async Task GetAllUsersAsync_WhenNoUsersExist_ReturnsWarning0004_WithEmptyPaginated()
         {
@@ -351,6 +393,12 @@ namespace SFARS.Tests.Application.Services.Users
         // 2. Happy path — users exist, no filters
         // ─────────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Test Type: NORMAL
+        /// Tests: GetAllUsersAsync returns users without filters
+        /// Precondition: Database contains users
+        /// Expected Result: Success SYS_Success0002 with paginated user DTOs
+        /// </summary>
         [Fact]
         public async Task GetAllUsersAsync_WhenUsersExist_ReturnsSuccess_WithPaginatedDtos()
         {
@@ -381,6 +429,12 @@ namespace SFARS.Tests.Application.Services.Users
         // 3. TotalPages — exact multiple (25 items / 5 per page = 5 pages)
         // ─────────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Test Type: NORMAL
+        /// Tests: GetAllUsersAsync calculates TotalPages correctly for exact multiples
+        /// Precondition: 25 users, pageSize 5
+        /// Expected Result: TotalPage = 5 (25 / 5 = 5, no remainder)
+        /// </summary>
         [Fact]
         public async Task GetAllUsersAsync_TotalPages_ExactMultiple_IsCorrect()
         {
@@ -410,6 +464,12 @@ namespace SFARS.Tests.Application.Services.Users
         // 4. TotalPages — remainder causes one extra page (11 items / 5 = 3 pages)
         // ─────────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Test Type: BOUNDARY
+        /// Tests: GetAllUsersAsync rounds up TotalPages when items don't divide evenly
+        /// Precondition: 11 users, pageSize 5
+        /// Expected Result: TotalPage = 3 (ceil(11/5) = 3)
+        /// </summary>
         [Fact]
         public async Task GetAllUsersAsync_TotalPages_WithRemainder_RoundsUp()
         {
@@ -438,6 +498,12 @@ namespace SFARS.Tests.Application.Services.Users
         // 5. Guard: pageSize = 0 → defaults to 10, no divide-by-zero
         // ─────────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Test Type: BOUNDARY
+        /// Tests: GetAllUsersAsync handles pageSize = 0 gracefully
+        /// Precondition: pageSize parameter is 0
+        /// Expected Result: Defaults to pageSize = 10, no exception thrown
+        /// </summary>
         [Fact]
         public async Task GetAllUsersAsync_PageSizeZero_DefaultsToTen_NoException()
         {
@@ -467,6 +533,12 @@ namespace SFARS.Tests.Application.Services.Users
         // 6. Guard: pageIndex = -1 → defaults to 0, no negative Skip
         // ─────────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Test Type: BOUNDARY
+        /// Tests: GetAllUsersAsync handles negative pageIndex gracefully
+        /// Precondition: pageIndex parameter is -1
+        /// Expected Result: Defaults to pageIndex = 0, no exception thrown
+        /// </summary>
         [Fact]
         public async Task GetAllUsersAsync_NegativePageIndex_DefaultsToZero_NoException()
         {
@@ -494,6 +566,12 @@ namespace SFARS.Tests.Application.Services.Users
         // 7. Repository methods are called the correct number of times
         // ─────────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Test Type: NORMAL
+        /// Tests: GetAllUsersAsync calls repository methods exactly once
+        /// Precondition: Users exist in database
+        /// Expected Result: CountAsync and GetAllWithSpecAsync each called once
+        /// </summary>
         [Fact]
         public async Task GetAllUsersAsync_WhenUsersExist_CallsCountAndGetAll_ExactlyOnce()
         {
@@ -524,6 +602,12 @@ namespace SFARS.Tests.Application.Services.Users
         // 8. When no users, GetAllWithSpecAsync is never called (short-circuit)
         // ─────────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Test Type: NORMAL
+        /// Tests: GetAllUsersAsync short-circuits when no users exist
+        /// Precondition: User count is 0
+        /// Expected Result: GetAllWithSpecAsync never called (optimization)
+        /// </summary>
         [Fact]
         public async Task GetAllUsersAsync_WhenNoUsers_NeverCallsGetAllWithSpec()
         {
@@ -542,6 +626,12 @@ namespace SFARS.Tests.Application.Services.Users
         // 9. Filter by Status — happy path still produces correct result
         // ─────────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Test Type: NORMAL
+        /// Tests: GetAllUsersAsync with Status filter
+        /// Precondition: Filter by UserStatus.Active
+        /// Expected Result: Success with filtered users matching status
+        /// </summary>
         [Fact]
         public async Task GetAllUsersAsync_WithStatusFilter_Active_ReturnsSuccess()
         {
@@ -572,6 +662,12 @@ namespace SFARS.Tests.Application.Services.Users
         // 10. Filter by Role — happy path
         // ─────────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Test Type: NORMAL
+        /// Tests: GetAllUsersAsync with Role filter
+        /// Precondition: Filter by role "Rescuer"
+        /// Expected Result: Success with users matching role
+        /// </summary>
         [Fact]
         public async Task GetAllUsersAsync_WithRoleFilter_Rescuer_ReturnsSuccess()
         {
@@ -602,6 +698,12 @@ namespace SFARS.Tests.Application.Services.Users
         // 11. Search term — happy path
         // ─────────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Test Type: NORMAL
+        /// Tests: GetAllUsersAsync with search term filter
+        /// Precondition: Search parameter provided ("nguyen")
+        /// Expected Result: Success with users matching search criteria
+        /// </summary>
         [Fact]
         public async Task GetAllUsersAsync_WithSearchTerm_ReturnsMatchingResults()
         {
@@ -631,6 +733,12 @@ namespace SFARS.Tests.Application.Services.Users
         // 12. CreateDateRange filter — both bounds provided
         // ─────────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Test Type: NORMAL
+        /// Tests: GetAllUsersAsync with CreateDateRange filter
+        /// Precondition: Date range with start and end dates provided
+        /// Expected Result: Success with users created within date range
+        /// </summary>
         [Fact]
         public async Task GetAllUsersAsync_WithCreateDateRange_BothBounds_ReturnsSuccess()
         {
@@ -664,6 +772,12 @@ namespace SFARS.Tests.Application.Services.Users
         // 13. PaginatedResultDto shape — all fields populated correctly
         // ─────────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Test Type: NORMAL
+        /// Tests: GetAllUsersAsync returns correctly structured PaginatedResultDto
+        /// Precondition: 15 users total, requesting page 1 with size 5
+        /// Expected Result: All pagination fields correctly populated (PageIndex, PageSize, TotalActualItem, TotalPage)
+        /// </summary>
         [Fact]
         public async Task GetAllUsersAsync_PaginatedResultShape_AllFieldsCorrect()
         {
@@ -870,6 +984,12 @@ namespace SFARS.Tests.Application.Services.Users
 
         #region POST /admin/users - CreateUserAsync Tests
 
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: CreateUserAsync when email already exists in system
+        /// Precondition: User with same email already registered
+        /// Expected Result: Returns Auth_Warning0006 (email taken)
+        /// </summary>
         [Fact]
         public async Task CreateUserAsync_EmailAlreadyTaken_ReturnsAuthWarning0006()
         {
@@ -887,6 +1007,12 @@ namespace SFARS.Tests.Application.Services.Users
             result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0006);
         }
 
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: CreateUserAsync when specified role does not exist in database
+        /// Precondition: Valid user data but role not found
+        /// Expected Result: Returns SYS_Warning0004 (role not found)
+        /// </summary>
         [Fact]
         public async Task CreateUserAsync_RoleNotFoundInDb_ReturnsWarning0004()
         {
@@ -913,6 +1039,12 @@ namespace SFARS.Tests.Application.Services.Users
             result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
         }
 
+        /// <summary>
+        /// Test Type: NORMAL
+        /// Tests: CreateUserAsync successfully creates user with various roles
+        /// Precondition: Valid user data, role exists, email available
+        /// Expected Result: User created with UserRole, returns SYS_Success0001
+        /// </summary>
         [Theory]
         [InlineData(RoleType.User)]
         [InlineData(RoleType.Rescuer)]
@@ -968,6 +1100,12 @@ namespace SFARS.Tests.Application.Services.Users
 
         #region PUT /admin/users/{id}/status - UpdateUserStatusAsync Tests
 
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: UpdateUserStatusAsync with empty target user ID
+        /// Precondition: Target userId is Guid.Empty
+        /// Expected Result: Returns Auth_Warning0007
+        /// </summary>
         [Fact]
         public async Task UpdateUserStatusAsync_TargetIdEmpty_ReturnsAuthWarning()
         {
@@ -977,6 +1115,12 @@ namespace SFARS.Tests.Application.Services.Users
             result.Data.Should().BeNull();
         }
 
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: UpdateUserStatusAsync when target user does not exist
+        /// Precondition: Valid target ID but no matching user in database
+        /// Expected Result: Returns Admin_Warning0001 (user not found)
+        /// </summary>
         [Fact]
         public async Task UpdateUserStatusAsync_UserNotFound_ReturnsAdminWarning0001()
         {
@@ -992,6 +1136,12 @@ namespace SFARS.Tests.Application.Services.Users
             result.ResultCode.Should().Be(ResultCodeConst.Admin_Warning0001);
         }
 
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: UpdateUserStatusAsync prevents admin from modifying own status
+        /// Precondition: Admin ID equals target user ID (self-modification)
+        /// Expected Result: Returns Admin_Warning0002 (cannot modify self)
+        /// </summary>
         [Fact]
         public async Task UpdateUserStatusAsync_SelfModify_ReturnsAdminWarning0002()
         {
@@ -1006,6 +1156,12 @@ namespace SFARS.Tests.Application.Services.Users
             result.ResultCode.Should().Be(ResultCodeConst.Admin_Warning0002);
         }
 
+        /// <summary>
+        /// Test Type: NORMAL
+        /// Tests: UpdateUserStatusAsync successfully updates user status
+        /// Precondition: Valid admin, valid target user, different from self
+        /// Expected Result: Status updated, audit logged, returns Admin_Success0002
+        /// </summary>
         [Theory]
         [InlineData(UserStatus.Active)]
         [InlineData(UserStatus.Inactive)]
@@ -1042,6 +1198,12 @@ namespace SFARS.Tests.Application.Services.Users
 
         #region GET /admin/users/{id} - GetUserByIdAsync Tests
 
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: GetUserByIdAsync with empty Guid
+        /// Precondition: userId = Guid.Empty
+        /// Expected Result: Returns Auth_Warning0007, Data is null
+        /// </summary>
         [Fact]
         public async Task GetUserByIdAsync_UserIdEmpty_ReturnsAuthWarning()
         {
@@ -1051,6 +1213,12 @@ namespace SFARS.Tests.Application.Services.Users
             result.Data.Should().BeNull();
         }
 
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: GetUserByIdAsync when user does not exist
+        /// Precondition: Valid userId, but no user in repository
+        /// Expected Result: Returns SYS_Warning0004, Data is null
+        /// </summary>
         [Fact]
         public async Task GetUserByIdAsync_UserNotFound_ReturnsWarning0004()
         {
@@ -1066,6 +1234,12 @@ namespace SFARS.Tests.Application.Services.Users
             result.Data.Should().BeNull();
         }
 
+        /// <summary>
+        /// Test Type: NORMAL
+        /// Tests: GetUserByIdAsync successfully retrieves user by ID
+        /// Precondition: Valid userId, user exists in repository
+        /// Expected Result: Returns success, Data populated with UserDto including roles
+        /// </summary>
         [Fact]
         public async Task GetUserByIdAsync_UserFound_ReturnsSuccess_WithDto()
         {
