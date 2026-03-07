@@ -128,6 +128,23 @@
         }
 
         /// <summary>
+        /// Admin — Facility Management endpoints
+        /// </summary>
+        public static class AdminFacility
+        {
+            // [GET]
+            public const string GetAll     = Base + "/admin/facilities";
+            public const string GetById    = Base + "/admin/facilities/{id}";
+            // [POST]
+            public const string Create     = Base + "/admin/facilities";
+            // [PUT]
+            public const string Update     = Base + "/admin/facilities/{id}";
+            public const string Antivenom  = Base + "/admin/facilities/{id}/antivenom";
+            public const string Deactivate = Base + "/admin/facilities/{id}/deactivate";
+            public const string Activate   = Base + "/admin/facilities/{id}/activate";
+        }
+
+        /// <summary>
 		/// System service healthcheck endpoints
 		/// </summary>
 		public static class HealthCheck

@@ -1,16 +1,18 @@
 ﻿using SFARS.API.Payloads.Request.Admin;
 using SFARS.API.Payloads.Request.Auth;
+using SFARS.API.Payloads.Request.Facility;
 using SFARS.API.Payloads.Request.Incident;
 using SFARS.API.Payloads.Request.Rescuer;
 using SFARS.API.Payloads.Request.Snake;
 using SFARS.API.Payloads.Request.User;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Auth;
+using SFARS.Application.Dtos.Facility;
 using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Dtos.Rescuer;
 using SFARS.Application.Dtos.User;
 
-namespace SFARS.API.Extension
+namespace SFARS.API.Extensions
 {
     public static class PayloadExtensions
     {
@@ -138,6 +140,52 @@ namespace SFARS.API.Extension
                 AddressString = req.AddressString,
                 Description = req.Description,
                 PriorityLevel = req.PriorityLevel
+            };
+        }
+        #endregion
+
+        #region Facility
+        // Mapping from typeof(CreateFacilityRequest) to typeof(FacilityDto)
+        public static FacilityDto ToFacilityDto(this CreateFacilityRequest req)
+        {
+            return new FacilityDto
+            {
+                Name = req.Name,
+                FacilityType = req.FacilityType,
+                Latitude = req.Latitude,
+                Longitude = req.Longitude,
+                Address = req.Address,
+                Province = req.Province,
+                PhoneNumber = req.PhoneNumber,
+                Email = req.Email,
+                Website = req.Website,
+                OpenHours = req.OpenHours,
+                CloseHours = req.CloseHours,
+                EmergencyAvailable = req.EmergencyAvailable,
+                HasAntivenom = req.HasAntivenom,
+                Notes = req.Notes
+            };
+        }
+
+        // Mapping from typeof(UpdateFacilityRequest) to typeof(FacilityDto)
+        public static FacilityDto ToFacilityDto(this UpdateFacilityRequest req)
+        {
+            return new FacilityDto
+            {
+                Name = req.Name,
+                FacilityType = req.FacilityType,
+                Latitude = req.Latitude,
+                Longitude = req.Longitude,
+                Address = req.Address,
+                Province = req.Province,
+                PhoneNumber = req.PhoneNumber,
+                Email = req.Email,
+                Website = req.Website,
+                OpenHours = req.OpenHours,
+                CloseHours = req.CloseHours,
+                EmergencyAvailable = req.EmergencyAvailable,
+                HasAntivenom = req.HasAntivenom,
+                Notes = req.Notes
             };
         }
         #endregion

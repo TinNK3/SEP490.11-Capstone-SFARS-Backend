@@ -1,6 +1,7 @@
 ﻿using Mapster;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Admin;
+using SFARS.Application.Dtos.Facility;
 using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Dtos.Rescuer;
 using SFARS.Application.Dtos.Role;
@@ -47,6 +48,12 @@ namespace SFARS.Application.Mappings
                 .Map(dest => dest.Address, src => src.User != null ? src.User.Address : null)
                 .Map(dest => dest.Gender, src => src.User != null ? src.User.Gender : null)
                 .Map(dest => dest.Dob, src => src.User != null ? src.User.Dob : null);
+
+            // MedicalFacility mapping: Point → Lat/Lon
+            config.NewConfig<MedicalFacility, FacilityDto>()
+                .Map(dest => dest.Latitude, src => src.Location != null ? src.Location.Y : 0)
+                .Map(dest => dest.Longitude, src => src.Location != null ? src.Location.X : 0)
+                .Map(dest => dest.FacilityType, src => src.Type);
         }
     }
 }

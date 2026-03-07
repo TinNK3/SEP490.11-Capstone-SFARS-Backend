@@ -28,6 +28,10 @@ public class MedicalFacilityConfiguration : IEntityTypeConfiguration<MedicalFaci
             .HasMaxLength(500)
             .HasColumnName("address");
 
+        builder.Property(e => e.Province)
+            .HasMaxLength(100)
+            .HasColumnName("province");
+
         builder.Property(e => e.Location)
             .IsRequired()
             .HasColumnType("geography")
@@ -37,12 +41,37 @@ public class MedicalFacilityConfiguration : IEntityTypeConfiguration<MedicalFaci
             .HasMaxLength(20)
             .HasColumnName("phone_number");
 
-        builder.Property(e => e.OperatingHours)
+        builder.Property(e => e.Email)
             .HasMaxLength(100)
-            .HasColumnName("operating_hours");
+            .HasColumnName("email");
+
+        builder.Property(e => e.Website)
+            .HasMaxLength(200)
+            .HasColumnName("website");
+
+        builder.Property(e => e.OpenHours)
+            .HasColumnName("open_hours");
+
+        builder.Property(e => e.CloseHours)
+            .HasColumnName("close_hours");
+
+        builder.Property(e => e.EmergencyAvailable)
+            .HasColumnName("emergency_available")
+            .HasDefaultValue(false);
 
         builder.Property(e => e.IsActive)
             .HasColumnName("is_active");
+
+        builder.Property(e => e.HasAntivenom)
+            .HasColumnName("has_antivenom")
+            .HasDefaultValue(false);
+
+        builder.Property(e => e.AntivenomUpdatedAt)
+            .HasColumnName("antivenom_updated_at");
+
+        builder.Property(e => e.Notes)
+            .HasMaxLength(1000)
+            .HasColumnName("notes");
 
         builder.Property(e => e.CreatedAt).HasColumnName("created_at");
         builder.Property(e => e.CreatedBy).HasColumnName("created_by");

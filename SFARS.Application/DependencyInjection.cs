@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Auth;
+using SFARS.Application.Dtos.Facility;
 using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Dtos.Role;
 using SFARS.Application.Dtos.User;
@@ -51,7 +52,7 @@ public static class DependencyInjection
         services.AddScoped<IChatService, ChatService>();
 
         // Facility services
-        services.AddScoped<IMedicalFacilityService, MedicalFacilityService>();
+        services.AddScoped<IMedicalFacilityService<FacilityDto>, MedicalFacilityService>();
 
         // Rescuer services
         services.AddScoped<IRescuerService, RescuerService>();
