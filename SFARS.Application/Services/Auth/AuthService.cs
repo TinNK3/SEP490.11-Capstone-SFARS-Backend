@@ -960,16 +960,22 @@ namespace SFARS.Application.Services.Auth
 
             if (type == OtpType.ResetPassword)
             {
-                emailSubject = "Password Reset OTP for SFARS";
+                bool isSetPassword = string.IsNullOrEmpty(userDto.PasswordHash);
+                string title = isSetPassword ? "Thiết Lập Mật Khẩu" : "Đặt Lại Mật Khẩu";
+                string actionText = isSetPassword ? "thiết lập mật khẩu" : "đặt lại mật khẩu";
+                string warningActionText = isSetPassword ? "thiết lập mật khẩu" : "tác vụ này";
+                string warningSuffix = isSetPassword ? "." : " và đổi mật khẩu ngay lập tức.";
+
+                emailSubject = isSetPassword ? "Set Password OTP for SFARS" : "Password Reset OTP for SFARS";
                 emailBody = $@"
                     <div style='font-family: Arial, sans-serif; background:#f6f7fb; padding:24px;'>
                         <div style='max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;'>
                             <div style='background:#C0392B;color:#fff;padding:16px 24px;'>
-                                <h2 style='margin:0;font-size:20px;'>⚠️ SFARS - Yêu Cầu Đặt Lại Mật Khẩu</h2>
+                                <h2 style='margin:0;font-size:20px;'>⚠️ SFARS - Yêu Cầu {title}</h2>
                             </div>
                             <div style='padding:24px;color:#333;line-height:1.6;'>
                                 <p>Xin chào <strong>{authUser.FirstName} {authUser.LastName}</strong>,</p>
-                                <p>Chúng tôi nhận được yêu cầu <strong>đặt lại mật khẩu</strong> cho tài khoản của bạn. Đây là mã OTP:</p>
+                                <p>Chúng tôi nhận được yêu cầu <strong>{actionText}</strong> cho tài khoản của bạn. Đây là mã OTP:</p>
                                 <div style='text-align:center;margin:20px 0;'>
                                     <span style='display:inline-block;background:#fdf2f2;color:#C0392B;
                                         font-size:28px;letter-spacing:6px;padding:12px 18px;border-radius:10px;border:2px solid #C0392B;'>
@@ -978,7 +984,7 @@ namespace SFARS.Application.Services.Auth
                                 </div>
                                 <p>Mã có hiệu lực trong <strong>{OtpConstants.OtpExpirationMinutes} phút</strong>. Vui lòng không chia sẻ mã này với bất kỳ ai.</p>
                                 <div style='background:#fdf2f2;border-left:4px solid #C0392B;padding:12px;margin:16px 0;border-radius:4px;'>
-                                    <p style='margin:0;color:#C0392B;'><strong>⚠️ Cảnh báo bảo mật:</strong> Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này và đổi mật khẩu ngay lập tức.</p>
+                                    <p style='margin:0;color:#C0392B;'><strong>⚠️ Cảnh báo bảo mật:</strong> Nếu bạn không yêu cầu {warningActionText}, vui lòng bỏ qua email này{warningSuffix}</p>
                                 </div>
                                 <p style='margin-top:24px;'>Cảm ơn bạn đã sử dụng SFARS.</p>
                             </div>
