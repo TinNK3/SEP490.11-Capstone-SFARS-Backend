@@ -106,14 +106,25 @@
         public static class Admin
         {
             // [GET]
-            public const string GetAllUsers      = Base + "/admin/users";
-            public const string GetUserById      = Base + "/admin/users/{id}";
-            public const string GetAuditLogs     = Base + "/admin/audit-logs";
+            public const string GetAllUsers = Base + "/admin/users";
+            public const string GetUserById = Base + "/admin/users/{id}";
+            public const string GetAuditLogs = Base + "/admin/audit-logs";
             public const string GetUserAuditLogs = Base + "/admin/users/{id}/audit-logs";
             // [POST]
-            public const string CreateUser       = Base + "/admin/users";
+            public const string CreateUser = Base + "/admin/users";
             // [PUT]
             public const string UpdateUserStatus = Base + "/admin/users/{id}/status";
+        }
+
+        /// <summary>
+        /// Rescuer profile endpoints
+        /// </summary>
+        public static class Rescuer
+        {
+            // [GET]
+            public const string GetProfile = Base + "/rescuer/profile";
+            // [PUT]
+            public const string UpdateProfile = Base + "/rescuer/profile";
         }
 
         /// <summary>
