@@ -1,11 +1,13 @@
 ﻿using SFARS.API.Payloads.Request.Admin;
 using SFARS.API.Payloads.Request.Auth;
 using SFARS.API.Payloads.Request.Incident;
+using SFARS.API.Payloads.Request.Rescuer;
 using SFARS.API.Payloads.Request.Snake;
 using SFARS.API.Payloads.Request.User;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Auth;
 using SFARS.Application.Dtos.Incident;
+using SFARS.Application.Dtos.Rescuer;
 using SFARS.Application.Dtos.User;
 
 namespace SFARS.API.Extension
@@ -100,6 +102,31 @@ namespace SFARS.API.Extension
         }
         #endregion
 
+        #region Rescuer
+
+        // Mapping from typeof(UpdateRescuerProfileRequest) to typeof(RescuerProfileDto)
+        public static RescuerProfileDto ToRescuerProfileDto(this UpdateRescuerProfileRequest req)
+            => new RescuerProfileDto
+            {
+                // User Info
+                FirstName = req.FirstName,
+                LastName = req.LastName,
+                Phone = req.Phone,
+                Avatar = req.Avatar,
+                Address = req.Address,
+                Gender = req.Gender,
+                Dob = req.Dob,
+
+                // Rescuer Profile
+                ExperienceYears = req.ExperienceYears,
+                VehicleType = req.VehicleType,
+                LicensePlate = req.LicensePlate,
+                CoverageRadiusKM = req.CoverageRadiusKM,
+                IsAvailable = req.IsAvailable
+            };
+
+        #endregion
+
         #region Incident
         // Mapping from typeof(CreateIncidentRequest) to typeof(IncidentDto)
         public static IncidentDto ToIncidentDto(this CreateIncidentRequest req)
@@ -122,11 +149,11 @@ namespace SFARS.API.Extension
             return new UserDto
             {
                 FirstName = req.FirstName,
-                LastName  = req.LastName,
-                Email     = req.Email,
-                Password  = req.Password,
-                Phone     = req.Phone,
-                Role      = req.Role.ToString()
+                LastName = req.LastName,
+                Email = req.Email,
+                Password = req.Password,
+                Phone = req.Phone,
+                Role = req.Role.ToString()
             };
         }
         #endregion

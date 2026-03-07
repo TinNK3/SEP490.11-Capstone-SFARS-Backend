@@ -53,6 +53,9 @@ public static class DependencyInjection
         // Facility services
         services.AddScoped<IMedicalFacilityService, MedicalFacilityService>();
 
+        // Rescuer services
+        services.AddScoped<IRescuerService, RescuerService>();
+
         // Register all validators from this assembly
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 

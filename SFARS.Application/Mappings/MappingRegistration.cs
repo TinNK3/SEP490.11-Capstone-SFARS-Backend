@@ -2,6 +2,7 @@
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Admin;
 using SFARS.Application.Dtos.Incident;
+using SFARS.Application.Dtos.Rescuer;
 using SFARS.Application.Dtos.Role;
 using SFARS.Application.Dtos.User;
 using SFARS.Domain.Entities;
@@ -35,6 +36,17 @@ namespace SFARS.Application.Mappings
                 .Map(dest => dest.Latitude, src => src.Location != null ? src.Location.Y : 0)
                 .Map(dest => dest.Longitude, src => src.Location != null ? src.Location.X : 0)
                 .Map(dest => dest.VictimName, src => src.Victim != null ? src.Victim.FullName : null);
+
+            // RescuerProfile → RescuerProfileDto: include User fields via navigation property
+            config.NewConfig<RescuerProfile, RescuerProfileDto>()
+                .Map(dest => dest.UserId, src => src.UserId)
+                .Map(dest => dest.FirstName, src => src.User != null ? src.User.FirstName : null!)
+                .Map(dest => dest.LastName, src => src.User != null ? src.User.LastName : null!)
+                .Map(dest => dest.Phone, src => src.User != null ? src.User.Phone : null)
+                .Map(dest => dest.Avatar, src => src.User != null ? src.User.Avatar : null)
+                .Map(dest => dest.Address, src => src.User != null ? src.User.Address : null)
+                .Map(dest => dest.Gender, src => src.User != null ? src.User.Gender : null)
+                .Map(dest => dest.Dob, src => src.User != null ? src.User.Dob : null);
         }
     }
 }
