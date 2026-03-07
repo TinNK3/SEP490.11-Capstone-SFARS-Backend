@@ -221,17 +221,18 @@ public class OtpServiceTests
 
     /// <summary>
     /// Test Type: NORMAL
-    /// Tests: SendOtpAsync with valid request and no blocking conditions
-    /// Precondition: Active user, no recent OTPs, no lockouts
-    /// Expected Result: Success Auth_Success0005, OTP created, email sent
+    /// Tests: SendOtpAsync (ResetPassword type) for user without PasswordHash
+    /// Precondition: User has empty PasswordHash (e.g. Google Login only)
+    /// Expected Result: Sends email with "Set Password OTP for SFARS" subject
     /// </summary>
     [Fact]
-    public async Task SendOtpAsync_ValidRequest_SendsEmailAndReturnsSuccess()
+    public async Task SendOtpAsync_ResetPassword_WithoutPasswordHash_SendsSetPasswordEmail()
     {
         // Arrange
         var userDto = CreateValidUserDto();
+        userDto.PasswordHash = string.Empty; // No password hash
         SetupUserFound(userDto);
-        SetupOtpRepository(new List<OtpRequest>()); // no existing OTPs
+        SetupOtpRepository(new List<OtpRequest>());
 
         _emailServiceMock.Setup(x => x.SendEmailAsync(It.IsAny<EmailMessageDto>(), true))
             .ReturnsAsync(true);
@@ -242,7 +243,35 @@ public class OtpServiceTests
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Success0005);
         _emailServiceMock.Verify(x => x.SendEmailAsync(
-            It.Is<EmailMessageDto>(m => m.To == TestEmail), true), Times.Once);
+            It.Is<EmailMessageDto>(m => m.To == TestEmail && m.Subject == "Set Password OTP for SFARS"), true), Times.Once);
+        _otpRepoMock.Verify(x => x.AddAsync(It.IsAny<OtpRequest>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Test Type: NORMAL
+    /// Tests: SendOtpAsync (ResetPassword type) for user with PasswordHash
+    /// Precondition: User has non-empty PasswordHash
+    /// Expected Result: Sends email with "Password Reset OTP for SFARS" subject
+    /// </summary>
+    [Fact]
+    public async Task SendOtpAsync_ResetPassword_WithPasswordHash_SendsResetPasswordEmail()
+    {
+        // Arrange
+        var userDto = CreateValidUserDto();
+        userDto.PasswordHash = "some_hashed_password"; // Has password hash
+        SetupUserFound(userDto);
+        SetupOtpRepository(new List<OtpRequest>());
+
+        _emailServiceMock.Setup(x => x.SendEmailAsync(It.IsAny<EmailMessageDto>(), true))
+            .ReturnsAsync(true);
+
+        // Act
+        var result = await _sut.SendOtpAsync(TestEmail, OtpType.ResetPassword);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.Auth_Success0005);
+        _emailServiceMock.Verify(x => x.SendEmailAsync(
+            It.Is<EmailMessageDto>(m => m.To == TestEmail && m.Subject == "Password Reset OTP for SFARS"), true), Times.Once);
         _otpRepoMock.Verify(x => x.AddAsync(It.IsAny<OtpRequest>()), Times.Once);
     }
 
