@@ -580,5 +580,47 @@
     "MsgContent": "The cancellation window has expired. Your SOS has already been dispatched to rescuers.",
     "En": "The cancellation window has expired. Your SOS has already been dispatched to rescuers.",
     "Vi": "Thời gian cho phép huỷ đã hết. SOS của bạn đã được gửi đến nhân viên cứu hộ."
+  },
+  {
+    "MsgId": "Dispatch.Success0001",
+    "MsgContent": "SOS dispatch initiated. Searching for rescuers...",
+    "En": "SOS dispatch initiated. Searching for rescuers...",
+    "Vi": "Đã bắt đầu tìm kiếm nhân viên cứu hộ..."
+  },
+  {
+    "MsgId": "Dispatch.Warning0001",
+    "MsgContent": "No available rescuers found within 20 km. Activating emergency fallback.",
+    "En": "No available rescuers found within 20 km. Activating emergency fallback.",
+    "Vi": "Không tìm thấy nhân viên cứu hộ trong vòng 20 km. Đang kích hoạt phương án dự phòng."
+  },
+  {
+    "MsgId": "Dispatch.Warning0002",
+    "MsgContent": "All rescue tiers exhausted. No rescuer has accepted the mission.",
+    "En": "All rescue tiers exhausted. No rescuer has accepted the mission.",
+    "Vi": "Đã hết tất cả vòng tìm kiếm. Chưa có nhân viên cứu hộ nào nhận ca."
+  },
+  {
+    "MsgId": "Dispatch.Notify0001",
+    "MsgContent": "New SOS nearby! Tap to view details.",
+    "En": "New SOS nearby! Tap to view details.",
+    "Vi": "Có SOS gần bạn! Nhấn để xem chi tiết."
+  },
+  {
+    "MsgId": "Dispatch.Notify0002",
+    "MsgContent": "We are expanding the search to offline volunteers. While waiting, for your safety: CALL 115 or GO TO HOSPITAL NOW. IMMOBILIZE the bite area — DO NOT tourniquet or cut the wound.",
+    "En": "We are expanding the search to offline volunteers. While waiting, for your safety: CALL 115 or GO TO HOSPITAL NOW. IMMOBILIZE the bite area — DO NOT tourniquet or cut the wound.",
+    "Vi": "Hệ thống đang chờ phản hồi từ các tình nguyện viên offline. Trong lúc chờ đợi, để đảm bảo an toàn: GỌI 115 hoặc ĐẾN BỆNH VIỆN NGAY. BẤT ĐỘNG vùng bị cắn — KHÔNG thắt garo/rạch vết thương."
+  },
+  {
+    "MsgId": "Incident.Warning0007",
+    "MsgContent": "This incident has already been claimed by another rescuer. Thank you for your willingness to help.",
+    "En": "This incident has already been claimed by another rescuer. Thank you for your willingness to help.",
+    "Vi": "Sự cố này đã được nhận bởi một nhân viên cứu hộ khác. Cảm ơn sự nhiệt tình của bạn."
+  },
+  {
+    "MsgId": "Incident.Warning0008",
+    "MsgContent": "You are too far from the incident location to accept this mission.",
+    "En": "You are too far from the incident location to accept this mission.",
+    "Vi": "Bạn ở quá xa vị trí sự cố để có thể nhận nhiệm vụ này."
   }
 ]

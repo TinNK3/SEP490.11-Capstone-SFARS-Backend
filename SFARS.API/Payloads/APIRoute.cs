@@ -80,6 +80,15 @@
         }
 
         /// <summary>
+        /// Mission endpoints
+        /// </summary>
+        public static class Mission
+        {
+            // [POST]
+            public const string Accept = Base + "/missions/{id}/accept";
+        }
+
+        /// <summary>
         /// Medical facility endpoints
         /// </summary>
         public static class Facility
@@ -152,6 +161,17 @@
             //	[GET]
             public const string BaseUrl = Base;
             public const string Check = Base + "/health-check";
+        }
+
+        /// <summary>
+        /// Device management endpoints
+        /// </summary>
+        public static class Device
+        {
+            // [POST]
+            public const string RegisterToken = Base + "/device/token";
+            // [DELETE]
+            public const string UnregisterToken = Base + "/device/token/{token}";
         }
 
         /// <summary>

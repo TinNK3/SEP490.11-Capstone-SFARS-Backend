@@ -1,9 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Hangfire;
+using Hangfire.SqlServer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Repositories.Base;
+using SFARS.Domain.Interfaces.Services;
 using SFARS.Infrastructure.Configurations;
 using SFARS.Infrastructure.Data;
 using SFARS.Infrastructure.Data.Context;
@@ -54,6 +57,29 @@ public static class DependencyInjection
 
             // SOS-specific services
             services.AddSingleton<ISosSpamGuardService, SosSpamGuardService>();
+            services.AddScoped<IFcmPushService, FcmPushService>();
+
+            // Hangfire — background job processing for tiered dispatch
+            services.AddHangfire(config => config
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UseSqlServerStorage(connectionString, new SqlServerStorageOptions
+                {
+                    // Schema name to avoid cluttering main app tables
+                    SchemaName = "HangFire",
+                    CommandBatchMaxTimeout        = TimeSpan.FromMinutes(5),
+                    SlidingInvisibilityTimeout    = TimeSpan.FromMinutes(5),
+                    QueuePollInterval             = TimeSpan.Zero,
+                    UseRecommendedIsolationLevel  = true,
+                    DisableGlobalLocks            = true
+                }));
+
+            services.AddHangfireServer(opt =>
+            {
+                opt.WorkerCount = 2;   // Lightweight — only dispatch jobs
+                opt.Queues      = new[] { "dispatch", "default" };
+            });
 
             return services;
         }

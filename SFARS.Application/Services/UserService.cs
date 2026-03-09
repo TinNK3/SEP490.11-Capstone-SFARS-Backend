@@ -341,7 +341,9 @@ namespace SFARS.Application.Services
         }
 
         /// <summary>
-        /// Update user's real-time location, optionally log tracking data, and broadcast to active incidents.
+        /// Update user's real-time location.
+        /// High-Performance implementation: defer DB writes unless moved > 50m or 2 mins passed to avoid IOPS spike.
+        /// Always publishes to MediatR so SignalR and Redis update instantly for Real-time tracking.
         /// </summary>
         public async Task<IServiceResult> UpdateUserLocationAsync(
             Guid userId, double latitude, double longitude, double? accuracyMeters)
@@ -365,30 +367,53 @@ namespace SFARS.Application.Services
             var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
             var newLocation = factory.CreatePoint(new Coordinate(longitude, latitude));
 
-            // Update user location fields
-            user.CurrentLocation = newLocation;
-            user.LocationUpdatedAt = DateTime.UtcNow;
-            user.LocationAccuracyMeters = accuracyMeters;
-            user.LastActiveAt = DateTime.UtcNow;
-
-            await _unitOfWork.Repository<User, Guid>().UpdateAsync(user);
-
-            // Append tracking log if rescuer has active mission (same UoW, no extra SaveChanges)
-            await AppendTrackingLogIfNeededAsync(userId, newLocation, accuracyMeters);
-
-            // Single SaveChanges for both user update and tracking log
-            await _unitOfWork.SaveChangesAsync();
-
             // Publish MediatR event: cache write + SignalR broadcast (handled by LocationUpdatedEventHandler)
-            // Exceptions in handler are isolated — DB save already succeeded
+            // This guarantees the FE always gets real-time sockets regardless of whether SQL DB was hit
+            var newUpdateAt = DateTime.UtcNow;
             await _publisher.Publish(new LocationUpdatedEvent(
-                userId, latitude, longitude, user.LocationUpdatedAt!.Value, accuracyMeters));
+                userId, latitude, longitude, newUpdateAt, accuracyMeters));
+
+            // Only hit SQL if the user actually shifted > 50 meters from DB record OR >= 2 minutes passed since last DB record
+            bool shouldSyncDb = false;
+            
+            if (user.CurrentLocation == null || user.LocationUpdatedAt == null) 
+            {
+                shouldSyncDb = true; // First time writing
+            }
+            else 
+            {
+                var timeSinceLastDbSave = newUpdateAt - user.LocationUpdatedAt.Value;
+                var distanceMoved = user.CurrentLocation.Distance(newLocation);
+
+                // Roles differ in frequency: Rescuers move fast (hit distance block), Victims stationary (hit time block)
+                if (timeSinceLastDbSave.TotalMinutes >= 2 || distanceMoved > 50)
+                {
+                    shouldSyncDb = true;
+                }
+            }
+
+            if (shouldSyncDb)
+            {
+                // Update user location fields in Entity
+                user.CurrentLocation = newLocation;
+                user.LocationUpdatedAt = newUpdateAt;
+                user.LocationAccuracyMeters = accuracyMeters;
+                user.LastActiveAt = newUpdateAt;
+
+                await _unitOfWork.Repository<User, Guid>().UpdateAsync(user);
+
+                // Append tracking log if rescuer has active mission (same UoW, no extra SaveChanges)
+                await AppendTrackingLogIfNeededAsync(userId, newLocation, accuracyMeters);
+
+                // Single SaveChanges for both user update and tracking log
+                await _unitOfWork.SaveChangesAsync();
+            }
 
             var dto = new UserLocationDto
             {
                 Latitude = latitude,
                 Longitude = longitude,
-                LocationUpdatedAt = user.LocationUpdatedAt,
+                LocationUpdatedAt = newUpdateAt, // Represents memory time, not necessarily DB time
                 AccuracyMeters = accuracyMeters,
                 AccuracyLevel = LocationHelper.GetAccuracyLevel(accuracyMeters)
             };

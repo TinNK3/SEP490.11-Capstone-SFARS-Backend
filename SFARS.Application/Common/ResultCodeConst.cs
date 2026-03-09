@@ -105,6 +105,8 @@ namespace SFARS.Application.Common
         public const string Incident_Warning0004 = "Incident.Warning0004"; // SOS creation blocked by spam guard
         public const string Incident_Warning0005 = "Incident.Warning0005"; // AI analysis not yet completed
         public const string Incident_Warning0006 = "Incident.Warning0006"; // Grace period expired / SOS dispatched
+        public const string Incident_Warning0007 = "Incident.Warning0007"; // Incident already claimed by another rescuer
+        public const string Incident_Warning0008 = "Incident.Warning0008"; // Rescuer is too far from incident
 
         public const string Incident_Fail0001 = "Incident.Fail0001";
 
@@ -132,6 +134,14 @@ namespace SFARS.Application.Common
         public const string Chat_Warning0001 = "Chat.Warning0001";   // Session ended
         public const string Chat_Fail0001 = "Chat.Fail0001";         // AI unavailable
         public const string Chat_Guard0001 = "Chat.Guard0001";       // Guardrail fallback
+        #endregion
+
+        #region Dispatch
+        public const string Dispatch_Success0001 = "Dispatch.Success0001"; // Dispatch chain started
+        public const string Dispatch_Warning0001 = "Dispatch.Warning0001"; // No rescuer within 20 km (fail-fast)
+        public const string Dispatch_Warning0002 = "Dispatch.Warning0002"; // All tiers exhausted
+        public const string Dispatch_Notify0001  = "Dispatch.Notify0001";  // New SOS pushed to rescuer
+        public const string Dispatch_Notify0002  = "Dispatch.Notify0002";  // Fallback: no rescuer found
         #endregion
 
         #region Comm

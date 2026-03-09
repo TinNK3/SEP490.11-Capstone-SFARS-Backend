@@ -1,3 +1,4 @@
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -232,7 +233,7 @@ public class AiInferenceService : IAiInferenceService
 
             incident.CurrentAiInferenceId = aiInference.Id;
             incident.SnakeId = primarySnake?.Id; // null if skipped
-            incident.AiPredictionResult = isSkip ? "Unknown" : primarySnake?.CommonName;
+            incident.AiPredictionResult = isSkip ? AiInferenceConstants.UnknownSnake : primarySnake?.CommonName;
             incident.AiConfidenceScore = isSkip ? 0 : topConfidence;
             incident.GraceExpiresAt = now + SosConstants.GracePeriod + TimeSpan.FromSeconds(3);
             incident.UpdatedAt = now;
@@ -271,6 +272,14 @@ public class AiInferenceService : IAiInferenceService
                     await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001)
                 );
             }
+
+            // Schedule dispatch to start AFTER grace period expires.
+            // StartDispatchAsync handles fail-fast + the full Hangfire chain internally.
+            // Delay = GracePeriod (10s) + 3s buffer for network round-trip.
+            var dispatchDelay = SosConstants.GracePeriod + TimeSpan.FromSeconds(3);
+            BackgroundJob.Schedule<IDispatchService>(
+                s => s.StartDispatchAsync(incidentId),
+                dispatchDelay);
 
             var resultDto = new AiInferenceResultDto
             {

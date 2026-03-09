@@ -31,6 +31,8 @@ public static class AiInferenceConstants
     public const string DecisionRuleTop1 = "Top1";
     public const string DecisionRuleSkipped = "Skipped";
 
+    public const string UnknownSnake = "Unknown";
+
     #endregion
 
     #region Danger Labels (display strings for SnakeRiskLevel)
