@@ -27,6 +27,7 @@ public class AiInferenceService : IAiInferenceService
     private readonly IYoloInferenceService _yoloService;
     private readonly IFileStorageService _storageService;
     private readonly IOptions<StorageOptions> _storageOptions;
+    private readonly IBackgroundJobClient _backgroundJobClient;
 
     // [Gemini AI] Commented out — first-aid data now sourced from DB (FirstAidDetail table).
     // Kept for potential future features (chatbot, content generation).
@@ -38,7 +39,8 @@ public class AiInferenceService : IAiInferenceService
         ILogger<AiInferenceService> logger,
         IYoloInferenceService yoloService,
         IFileStorageService storageService,
-        IOptions<StorageOptions> storageOptions)
+        IOptions<StorageOptions> storageOptions,
+        IBackgroundJobClient backgroundJobClient)
     {
         _msgService = msgService;
         _unitOfWork = unitOfWork;
@@ -46,6 +48,7 @@ public class AiInferenceService : IAiInferenceService
         _yoloService = yoloService;
         _storageService = storageService;
         _storageOptions = storageOptions;
+        _backgroundJobClient = backgroundJobClient;
     }
 
     /// <summary>
@@ -277,7 +280,7 @@ public class AiInferenceService : IAiInferenceService
             // StartDispatchAsync handles fail-fast + the full Hangfire chain internally.
             // Delay = GracePeriod (10s) + 3s buffer for network round-trip.
             var dispatchDelay = SosConstants.GracePeriod + TimeSpan.FromSeconds(3);
-            BackgroundJob.Schedule<IDispatchService>(
+            _backgroundJobClient.Schedule<IDispatchService>(
                 s => s.StartDispatchAsync(incidentId),
                 dispatchDelay);
 

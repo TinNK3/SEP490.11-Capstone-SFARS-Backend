@@ -39,6 +39,7 @@ public class AiInferenceServiceTests
     private readonly Mock<IGenericRepository<FirstAidDetail, Guid>> _firstAidRepoMock;
     private readonly Mock<IGenericRepository<IncidentChat, Guid>> _chatRepoMock;
     private readonly Mock<IGenericRepository<IncidentChatMessage, Guid>> _chatMessageRepoMock;
+    private readonly Mock<Hangfire.IBackgroundJobClient> _backgroundJobClientMock;
 
     private readonly AiInferenceService _sut;
 
@@ -80,13 +81,16 @@ public class AiInferenceServiceTests
             .Setup(x => x.GetMessageAsync(It.IsAny<string>()))
             .ReturnsAsync((string code) => $"Message for {code}");
 
+        _backgroundJobClientMock = new Mock<Hangfire.IBackgroundJobClient>();
+
         _sut = new AiInferenceService(
             _msgServiceMock.Object,
             _unitOfWorkMock.Object,
             _loggerMock.Object,
             _yoloServiceMock.Object,
             _storageServiceMock.Object,
-            _storageOptionsMock.Object
+            _storageOptionsMock.Object,
+            _backgroundJobClientMock.Object
         );
     }
 
