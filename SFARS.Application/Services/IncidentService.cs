@@ -1,3 +1,4 @@
+using Hangfire;
 using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,7 @@ using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
 using SFARS.Infrastructure.Configurations;
 using SFARS.Infrastructure.Helpers;
+using System.Text.Json;
 
 namespace SFARS.Application.Services
 {
@@ -699,6 +701,17 @@ namespace SFARS.Application.Services
                 CreatedAt = now,
                 CreatedBy = userId
             };
+
+            // Cancel pending Hangfire dispatch jobs to prevent orphan dispatch after victim cancels
+            if (!string.IsNullOrWhiteSpace(incident.DispatchJobIds))
+            {
+                var jobIds = JsonSerializer.Deserialize<string[]>(incident.DispatchJobIds);
+                if (jobIds != null)
+                    foreach (var jobId in jobIds)
+                        BackgroundJob.Delete(jobId);
+
+                incident.DispatchJobIds = null;
+            }
 
             await _unitOfWork.Repository<Incident, Guid>().UpdateAsync(incident);
             await _unitOfWork.Repository<IncidentStatusHistory, Guid>().AddAsync(statusHistory);

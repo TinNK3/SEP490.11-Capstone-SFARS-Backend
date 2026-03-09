@@ -1,4 +1,5 @@
-﻿using SFARS.API.Extension;
+﻿using Hangfire;
+using SFARS.API.Extension;
 using SFARS.API.Extensions;
 using SFARS.API.Middlewares;
 using SFARS.Infrastructure;
@@ -88,6 +89,14 @@ app.UseAuthorization();
 
 // Map SignalR hubs (must be after UseAuthorization)
 app.MapHub<LocationTrackingHub>("/hubs/location-tracking");
+app.MapHub<RescueDispatchHub>("/hubs/rescue");
+
+// Hangfire dashboard (admin access only)
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    // Restrict to localhost in production; swap for JWT-based filter when admin panel is added
+    Authorization = new[] { new Hangfire.Dashboard.LocalRequestsOnlyAuthorizationFilter() }
+});
 
 app.MapControllers();
 app.Run();

@@ -27,6 +27,8 @@ appsettings.json
 !appsettings.example.json
 !appsettings.*.example.json
 
+firebase-adminsdk.json
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 

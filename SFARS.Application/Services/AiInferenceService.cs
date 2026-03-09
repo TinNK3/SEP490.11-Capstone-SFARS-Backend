@@ -1,3 +1,4 @@
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -26,6 +27,7 @@ public class AiInferenceService : IAiInferenceService
     private readonly IYoloInferenceService _yoloService;
     private readonly IFileStorageService _storageService;
     private readonly IOptions<StorageOptions> _storageOptions;
+    private readonly IBackgroundJobClient _backgroundJobClient;
 
     // [Gemini AI] Commented out — first-aid data now sourced from DB (FirstAidDetail table).
     // Kept for potential future features (chatbot, content generation).
@@ -37,7 +39,8 @@ public class AiInferenceService : IAiInferenceService
         ILogger<AiInferenceService> logger,
         IYoloInferenceService yoloService,
         IFileStorageService storageService,
-        IOptions<StorageOptions> storageOptions)
+        IOptions<StorageOptions> storageOptions,
+        IBackgroundJobClient backgroundJobClient)
     {
         _msgService = msgService;
         _unitOfWork = unitOfWork;
@@ -45,6 +48,7 @@ public class AiInferenceService : IAiInferenceService
         _yoloService = yoloService;
         _storageService = storageService;
         _storageOptions = storageOptions;
+        _backgroundJobClient = backgroundJobClient;
     }
 
     /// <summary>
@@ -232,7 +236,7 @@ public class AiInferenceService : IAiInferenceService
 
             incident.CurrentAiInferenceId = aiInference.Id;
             incident.SnakeId = primarySnake?.Id; // null if skipped
-            incident.AiPredictionResult = isSkip ? "Unknown" : primarySnake?.CommonName;
+            incident.AiPredictionResult = isSkip ? AiInferenceConstants.UnknownSnake : primarySnake?.CommonName;
             incident.AiConfidenceScore = isSkip ? 0 : topConfidence;
             incident.GraceExpiresAt = now + SosConstants.GracePeriod + TimeSpan.FromSeconds(3);
             incident.UpdatedAt = now;
@@ -271,6 +275,14 @@ public class AiInferenceService : IAiInferenceService
                     await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001)
                 );
             }
+
+            // Schedule dispatch to start AFTER grace period expires.
+            // StartDispatchAsync handles fail-fast + the full Hangfire chain internally.
+            // Delay = GracePeriod (10s) + 3s buffer for network round-trip.
+            var dispatchDelay = SosConstants.GracePeriod + TimeSpan.FromSeconds(3);
+            _backgroundJobClient.Schedule<IDispatchService>(
+                s => s.StartDispatchAsync(incidentId),
+                dispatchDelay);
 
             var resultDto = new AiInferenceResultDto
             {

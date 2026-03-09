@@ -122,6 +122,11 @@ namespace SFARS.Infrastructure.Data
             }
         }
 
+        public async Task<int> ExecuteSqlRawAsync(string sql, params object[] parameters)
+        {
+            return await _context.Database.ExecuteSqlRawAsync(sql, parameters);
+        }
+
         public void Dispose() => _context.Dispose();
 
         public void ClearTracking() => _context.ChangeTracker.Clear();

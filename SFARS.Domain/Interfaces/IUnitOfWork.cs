@@ -19,5 +19,8 @@ namespace SFARS.Domain.Interfaces
 
         // SQL Sequence support for thread-safe code generation
         Task<long> GetNextSequenceValueAsync(string sequenceName);
+
+        // Raw SQL Execution
+        Task<int> ExecuteSqlRawAsync(string sql, params object[] parameters);
     }
 }

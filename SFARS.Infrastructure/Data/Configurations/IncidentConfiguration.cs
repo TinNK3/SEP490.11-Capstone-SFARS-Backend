@@ -99,5 +99,10 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         // SOS grace period (set by AnalyzeAsync; null until AI analysis completes)
         builder.Property(e => e.GraceExpiresAt)
             .HasColumnName("grace_expires_at");
+
+        // Hangfire job IDs for the dispatch chain (JSON array string)
+        // Used by CancelIncidentAsync to clean up scheduled jobs
+        builder.Property(e => e.DispatchJobIds)
+            .HasColumnName("dispatch_job_ids");
     }
 }

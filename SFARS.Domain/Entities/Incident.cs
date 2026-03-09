@@ -41,4 +41,11 @@ public class Incident : BaseEntity
     /// Null until Analyze is called; cleared after the grace period expires or incident is dispatched.
     /// </summary>
     public DateTime? GraceExpiresAt { get; set; }
+
+    /// <summary>
+    /// JSON array of Hangfire job IDs scheduled for this incident's dispatch chain.
+    /// Format: ["jobId1", "jobId2", "jobId3", "jobId4"]
+    /// Used by CancelIncidentAsync to delete pending dispatch jobs if victim cancels during grace period.
+    /// </summary>
+    public string? DispatchJobIds { get; set; }
 }
