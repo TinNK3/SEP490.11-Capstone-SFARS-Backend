@@ -1,6 +1,7 @@
 ﻿using SFARS.API.Payloads.Request.Admin;
 using SFARS.API.Payloads.Request.Auth;
 using SFARS.API.Payloads.Request.Facility;
+using SFARS.API.Payloads.Request.Faq;
 using SFARS.API.Payloads.Request.Incident;
 using SFARS.API.Payloads.Request.Rescuer;
 using SFARS.API.Payloads.Request.Snake;
@@ -8,6 +9,7 @@ using SFARS.API.Payloads.Request.User;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Auth;
 using SFARS.Application.Dtos.Facility;
+using SFARS.Application.Dtos.Faq;
 using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Dtos.Rescuer;
 using SFARS.Application.Dtos.User;
@@ -202,6 +204,32 @@ namespace SFARS.API.Extensions
                 Password = req.Password,
                 Phone = req.Phone,
                 Role = req.Role.ToString()
+            };
+        }
+        #endregion
+
+        #region FAQ
+        // Mapping from typeof(CreateFaqRequest) to typeof(FaqDto)
+        public static FaqDto ToFaqDto(this CreateFaqRequest req)
+        {
+            return new FaqDto
+            {
+                Question = req.Question,
+                Answer = req.Answer,
+                Order = req.Order,
+                IsActive = req.IsActive
+            };
+        }
+
+        // Mapping from typeof(UpdateFaqRequest) to typeof(FaqDto)
+        public static FaqDto ToFaqDto(this UpdateFaqRequest req)
+        {
+            return new FaqDto
+            {
+                Question = req.Question,
+                Answer = req.Answer,
+                Order = req.Order,
+                IsActive = req.IsActive
             };
         }
         #endregion

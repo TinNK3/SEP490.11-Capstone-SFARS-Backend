@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Auth;
 using SFARS.Application.Dtos.Facility;
+using SFARS.Application.Dtos.Faq;
 using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Dtos.Role;
 using SFARS.Application.Dtos.User;
@@ -59,6 +60,9 @@ public static class DependencyInjection
 
         // Rescuer services
         services.AddScoped<IRescuerService, RescuerService>();
+
+        // FAQ services
+        services.AddScoped<IFaqService<FaqDto>, Services.Faq.FaqService>();
 
         // Register all validators from this assembly
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());

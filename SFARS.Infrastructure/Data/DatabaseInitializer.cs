@@ -81,6 +81,9 @@ namespace SFARS.Infrastructure.Data
 
             // [FirstAidDetails] - First aid steps by toxin group (Sync Data)
             await SeedFirstAidDetailsAsync();
+
+            // [Faqs] - Frequently asked questions (Sync Data)
+            await SeedFaqsAsync();
         }
 
         //  Summary:
@@ -500,6 +503,93 @@ namespace SFARS.Infrastructure.Data
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[Seeding] Error seeding FirstAidDetails.");
+                throw;
+            }
+        }
+
+        //  Summary:
+        //      Seeding FAQ Data (Upsert by Question text)
+        private async Task SeedFaqsAsync()
+        {
+            var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Seeds", "faq_seed.json");
+
+            if (!File.Exists(filePath))
+            {
+                _logger.LogWarning("[Seeding] FAQ seed file NOT found at: {FilePath}", filePath);
+                return;
+            }
+
+            try
+            {
+                var jsonData = await File.ReadAllTextAsync(filePath);
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip
+                };
+
+                var seedFaqs = System.Text.Json.JsonSerializer.Deserialize<List<Faq>>(jsonData, options);
+
+                if (seedFaqs == null || !seedFaqs.Any())
+                {
+                    _logger.LogWarning("[Seeding] FAQ list is empty or null after deserialization.");
+                    return;
+                }
+
+                // 1. Get existing FAQs keyed by Question (natural key)
+                var existingFaqs = await _context.Faqs
+                    .ToDictionaryAsync(f => f.Question, f => f);
+
+                var newFaqs = new List<Faq>();
+                var updatedCount = 0;
+                var now = DateTime.UtcNow;
+
+                // 2. Iterate and compare
+                foreach (var seed in seedFaqs)
+                {
+                    if (existingFaqs.TryGetValue(seed.Question, out var existing))
+                    {
+                        // Update if content changed
+                        bool isChanged = false;
+                        if (existing.Answer != seed.Answer) { existing.Answer = seed.Answer; isChanged = true; }
+                        if (existing.Order != seed.Order) { existing.Order = seed.Order; isChanged = true; }
+                        if (existing.IsActive != seed.IsActive) { existing.IsActive = seed.IsActive; isChanged = true; }
+
+                        if (isChanged)
+                        {
+                            existing.UpdatedAt = now;
+                            updatedCount++;
+                        }
+                    }
+                    else
+                    {
+                        // New FAQ
+                        seed.Id = Guid.NewGuid();
+                        seed.CreatedAt = now;
+                        newFaqs.Add(seed);
+                    }
+                }
+
+                // 3. Batch save
+                if (newFaqs.Any())
+                {
+                    await _context.Faqs.AddRangeAsync(newFaqs);
+                }
+
+                if (newFaqs.Any() || updatedCount > 0)
+                {
+                    var rows = await _context.SaveChangesAsync();
+                    _logger.LogInformation("[Seeding] FAQs sync completed. Inserted: {Inserted}, Updated: {Updated}, DB rows: {Rows}.",
+                        newFaqs.Count, updatedCount, rows);
+                }
+                else
+                {
+                    _logger.LogInformation("[Seeding] FAQs are up-to-date. No changes needed.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Seeding] Error seeding FAQs.");
                 throw;
             }
         }

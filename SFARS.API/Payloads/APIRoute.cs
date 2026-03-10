@@ -110,6 +110,16 @@
         }
 
         /// <summary>
+        /// FAQ endpoints (Public - Anonymous access)
+        /// </summary>
+        public static class Faq
+        {
+            // [GET]
+            public const string GetAll = Base + "/faqs";
+            public const string GetById = Base + "/faqs/{id}";
+        }
+
+        /// <summary>
         /// Admin — User Management endpoints
         /// </summary>
         public static class Admin
@@ -123,6 +133,17 @@
             public const string CreateUser = Base + "/admin/users";
             // [PUT]
             public const string UpdateUserStatus = Base + "/admin/users/{id}/status";
+
+            // FAQ Management
+            // [GET]
+            public const string GetAllFaqs = Base + "/admin/faqs";
+            public const string GetFaqById = Base + "/admin/faqs/{id}";
+            // [POST]
+            public const string CreateFaq = Base + "/admin/faqs";
+            // [PUT]
+            public const string UpdateFaq = Base + "/admin/faqs/{id}";
+            // [DELETE]
+            public const string DeleteFaq = Base + "/admin/faqs/{id}";
         }
 
         /// <summary>
