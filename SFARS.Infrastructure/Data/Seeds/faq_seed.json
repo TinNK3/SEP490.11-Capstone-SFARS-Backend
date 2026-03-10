@@ -1,0 +1,62 @@
+[
+  {
+    "question": "Hệ thống SFARS là gì và hoạt động như thế nào?",
+    "answer": "SFARS (Snake First Aid Rescue System) là hệ thống cứu hộ rắn trực tuyến, kết nối người dân gặp sự cố với đội ngũ rescuer chuyên nghiệp. Khi bạn gặp rắn, chỉ cần tạo yêu cầu cứu hộ (Incident/SOS) trên app, hệ thống sẽ tự động tìm rescuer gần nhất và theo dõi quá trình cứu hộ theo thời gian thực qua GPS.",
+    "order": 1,
+    "isActive": true
+  },
+  {
+    "question": "Làm sao để nhận diện loại rắn tôi gặp có độc hay không?",
+    "answer": "SFARS tích hợp công nghệ AI nhận diện rắn bằng YOLO v8. Sau khi tạo incident, bạn chỉ cần chụp ảnh con rắn và upload lên app thông qua tính năng Analyze. Hệ thống sẽ tự động phân tích và cho biết loại rắn, mức độ nguy hiểm, cùng với hướng dẫn sơ cứu ban đầu và những điều cần tránh.",
+    "order": 2,
+    "isActive": true
+  },
+  {
+    "question": "Tôi có thể chat với AI để hỏi về rắn và sơ cứu không?",
+    "answer": "Có! SFARS cung cấp tính năng chat AI sử dụng Gemini AI với RAG (Retrieval-Augmented Generation). Bạn có thể hỏi bất kỳ câu hỏi nào về rắn, cách xử lý khi gặp rắn, hoặc sơ cứu khi bị rắn cắn. Hệ thống sẽ tự động tạo session chat và lưu lịch sử để bạn có thể xem lại sau.",
+    "order": 3,
+    "isActive": true
+  },
+  {
+    "question": "Tôi có thể theo dõi vị trí rescuer đang đến cứu hộ không?",
+    "answer": "Có! SFARS sử dụng công nghệ GPS và SignalR để theo dõi vị trí rescuer theo thời gian thực. Sau khi rescuer chấp nhận yêu cầu, bạn sẽ thấy vị trí của họ trên bản đồ. Bạn cũng có thể tạo mã tracking code để chia sẻ với người thân qua QR code, họ có thể theo dõi mà không cần đăng nhập.",
+    "order": 4,
+    "isActive": true
+  },
+  {
+    "question": "Tôi có thể hủy yêu cầu SOS sau khi đã tạo không?",
+    "answer": "Có, SFARS có grace period (thời gian chờ) sau khi bạn nhận được kết quả phân tích AI. Trong thời gian này, bạn có thể hủy incident nếu nhận thấy không cần thiết. Tuy nhiên, hệ thống có cơ chế anti-spam để ngăn chặn việc tạo và hủy SOS liên tục, đảm bảo rescuer không bị làm phiền không cần thiết.",
+    "order": 5,
+    "isActive": true
+  },
+  {
+    "question": "Làm thế nào để đăng ký tài khoản SFARS?",
+    "answer": "SFARS hỗ trợ nhiều phương thức đăng ký: (1) Đăng ký bằng email và mật khẩu, (2) Đăng nhập bằng Google OAuth, (3) Đăng nhập bằng OTP qua email. Bạn cũng có thể đặt lại mật khẩu thông qua tính năng Forgot Password với xác thực OTP. Tất cả phương thức đều an toàn với JWT Bearer authentication.",
+    "order": 6,
+    "isActive": true
+  },
+  {
+    "question": "Tôi có thể tìm kiếm thông tin về các loại rắn không?",
+    "answer": "Có! SFARS có cơ sở dữ liệu đầy đủ về các loại rắn tại Việt Nam. Bạn có thể tìm kiếm theo tên (tiếng Việt hoặc tên khoa học), xem chi tiết về từng loại rắn bao gồm hình ảnh, mức độ nguy hiểm, đặc điểm nhận dạng, và hướng dẫn sơ cứu nếu bị cắn.",
+    "order": 7,
+    "isActive": true
+  },
+  {
+    "question": "Nếu tôi bị rắn cắn, tôi nên làm gì trong khi chờ rescuer?",
+    "answer": "Trong trường hợp khẩn cấp: (1) Giữ bình tĩnh và hạn chế di chuyển, (2) Rửa vết thương bằng nước sạch, (3) Tháo đồ trang sức gần vết cắn, (4) Giữ vùng bị cắn thấp hơn tim, (5) KHÔNG cắt vết thương, hút máu, hoặc băng chặt. Sau khi upload ảnh rắn lên app, hệ thống AI sẽ cung cấp hướng dẫn sơ cứu cụ thể. Nếu tình trạng nghiêm trọng, hãy gọi cấp cứu 115 ngay.",
+    "order": 8,
+    "isActive": true
+  },
+  {
+    "question": "Làm thế nào để tìm cơ sở y tế gần nhất khi bị rắn cắn?",
+    "answer": "SFARS tích hợp danh sách các cơ sở y tế có khả năng điều trị rắn cắn. Bạn có thể tìm kiếm cơ sở y tế gần vị trí của mình, xem thông tin liên hệ, địa chỉ, và các dịch vụ cấp cứu họ cung cấp. Thông tin này đặc biệt hữu ích trong trường hợp khẩn cấp cần đến bệnh viện ngay lập tức.",
+    "order": 9,
+    "isActive": true
+  },
+  {
+    "question": "Thông tin cá nhân của tôi có được bảo mật không?",
+    "answer": "SFARS cam kết bảo mật tuyệt đối thông tin của bạn. Hệ thống sử dụng JWT Bearer cho xác thực, mã hóa mật khẩu bằng bcrypt, và lưu trữ refresh token an toàn. Tất cả API endpoint đều sử dụng HTTPS. Hệ thống cũng có audit log để theo dõi các thao tác của admin, đảm bảo minh bạch và trách nhiệm giải trình.",
+    "order": 10,
+    "isActive": true
+  }
+]
