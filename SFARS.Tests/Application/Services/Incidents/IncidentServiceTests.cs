@@ -29,6 +29,7 @@ public class IncidentServiceTests
     protected readonly Mock<IFileStorageService> _fileStorageServiceMock;
     protected readonly Mock<IOptions<StorageOptions>> _storageOptionsMock;
     protected readonly Mock<ISosSpamGuardService> _spamGuardMock;
+    protected readonly Mock<IAiReviewService> _aiReviewServiceMock;
     protected readonly Mock<IGenericRepository<Incident, Guid>> _incidentRepoMock;
     protected readonly Mock<IGenericRepository<IncidentMedia, Guid>> _incidentMediaRepoMock;
     protected readonly Mock<IGenericRepository<IncidentStatusHistory, Guid>> _statusHistoryRepoMock;
@@ -46,6 +47,7 @@ public class IncidentServiceTests
         _fileStorageServiceMock = new Mock<IFileStorageService>();
         _storageOptionsMock = new Mock<IOptions<StorageOptions>>();
         _spamGuardMock = new Mock<ISosSpamGuardService>();
+        _aiReviewServiceMock = new Mock<IAiReviewService>();
         _incidentRepoMock = new Mock<IGenericRepository<Incident, Guid>>();
         _incidentMediaRepoMock = new Mock<IGenericRepository<IncidentMedia, Guid>>();
         _statusHistoryRepoMock = new Mock<IGenericRepository<IncidentStatusHistory, Guid>>();
@@ -82,7 +84,8 @@ public class IncidentServiceTests
             _loggerMock.Object,
             _fileStorageServiceMock.Object,
             _storageOptionsMock.Object,
-            _spamGuardMock.Object
+            _spamGuardMock.Object,
+            _aiReviewServiceMock.Object
         );
     }
 

@@ -19,6 +19,12 @@ public static class LocationConstants
     /// <summary>Redis STRING key prefix for user active incident IDs — "sfars:user:incidents:{userId}"</summary>
     public const string RedisUserIncidentsKeyPrefix = "sfars:user:incidents:";
 
+    /// <summary>Redis INT key prefix for geofence consecutive ping hits — "sfars:geofence:hits:{incidentId}:{userId}"</summary>
+    public const string RedisGeofenceHitsPrefix = "sfars:geofence:hits:";
+
+    /// <summary>Redis STRING key prefix to ensure suggest event is only fired once — "sfars:geofence:suggested:{incidentId}:{userId}"</summary>
+    public const string RedisGeofenceSuggestedPrefix = "sfars:geofence:suggested:";
+
     /// <summary>IMemoryCache key for all active medical facilities</summary>
     public const string MemCacheFacilitiesActiveKey = "sfars:facilities:active";
 
@@ -45,6 +51,12 @@ public static class LocationConstants
 
     /// <summary>Discard tracking log if accuracy is worse than this</summary>
     public const double AccuracyDiscardThresholdMeters = 200;
+
+    // Geofencing Auto-Suggest Rules
+    public const double GeofenceArrivedSuggestDistanceMeters = 50;
+    public const double GeofenceArrivedSuggestAccuracyMeters = 30; // GPS must be high-confidence
+    public const int GeofenceArrivedSuggestConsecutiveHits = 3; // Must be stable for 3 pings
+    public const string GeofenceArrivedSuggestMessage = "Bạn có vẻ đã tới nơi. Xác nhận Đã Tới?";
 
     // Tracking Log Sampling Rules
     /// <summary>Minimum movement in meters before writing a new tracking log entry</summary>
@@ -76,6 +88,12 @@ public static class LocationConstants
 
     /// <summary>SignalR event name pushed from server to clients when a location is updated</summary>
     public const string SignalRReceiveLocationUpdate = "ReceiveLocationUpdate";
+
+    /// <summary>SignalR event name pushed from server to clients when an AI review is completed</summary>
+    public const string SignalRAiReviewed = "sos:ai_reviewed";
+
+    /// <summary>SignalR event name pushed when a rescuer changes mission status (EnRoute, Arrived, Completed)</summary>
+    public const string SignalRMissionStatusUpdated = "sos:mission_status";
 
     /// <summary>SignalR Redis backplane channel prefix</summary>
     public const string SignalRRedisChannelPrefix = "SFARS:SignalR:";

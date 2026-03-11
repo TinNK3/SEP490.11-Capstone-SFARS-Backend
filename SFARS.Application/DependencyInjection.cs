@@ -45,6 +45,7 @@ public static class DependencyInjection
         // Incident services
         services.AddScoped<IIncidentService<IncidentDto>, IncidentService>();
         services.AddScoped<IAiInferenceService, AiInferenceService>();
+        services.AddScoped<IAiReviewService, AiReviewService>();
         services.AddScoped<IDispatchService, DispatchService>();
         services.AddScoped<IMissionService, MissionService>();
         services.AddScoped<IDeviceService, DeviceService>();

@@ -49,7 +49,7 @@ public static class DispatchConstants
     public const int Tier3MaxRescuers = 100;
     
     // Claim Timeout
-    public const int ClaimTimeoutMinutes = 15; // Limit incident block if rescuer no-shows
+    public const int ClaimTimeoutMinutes = 10; // Limit incident block if rescuer no-shows
 
     // Firebase Messaging keys
     public const string FcmSosDispatchTitleKey = "sos_dispatch";
@@ -73,6 +73,9 @@ public static class DispatchConstants
 
     /// <summary>Pushed to all rescuers in range when one has already accepted — dismiss card.</summary>
     public const string EventAssigned      = "sos:assigned";
+
+    /// <summary>Pushed privately to rescuer when their Location pings trigger the Arrived Geofence.</summary>
+    public const string EventSuggestArrived = "sos:suggest_arrived";
 
     // FCM Notification Text Constants
     public const string PushTitlePrefix = "SOS Rắn Cắn!";

@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos.Dispatch;
-using SFARS.Domain.Common;
 using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
@@ -72,7 +71,7 @@ public class MissionService : IMissionService
             rowsAffected = await _unitOfWork.ExecuteSqlRawAsync(
                 @"UPDATE Incidents SET current_status = {0}, updated_at = {1}
                   WHERE id = {2} AND current_status IN ({3}, {4}, {5}, {6})",
-                (int)IncidentStatus.Assigned, DateTime.UtcNow, incidentId,
+                (int)IncidentStatus.EnRoute, DateTime.UtcNow, incidentId,
                 (int)IncidentStatus.Dispatching_Tier1, (int)IncidentStatus.Dispatching_Tier2,
                 (int)IncidentStatus.Dispatching_Tier3, (int)IncidentStatus.Unassigned);
         }
@@ -87,9 +86,28 @@ public class MissionService : IMissionService
             return new ServiceResult(ResultCodeConst.Incident_Warning0007, await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0007));
         }
 
-        // We won the race! Refresh status in memory if tracked
-        incident.CurrentStatus = IncidentStatus.Assigned;
-        incident.UpdatedAt = DateTime.UtcNow;
+        // We won the race! Refresh status in memory from DB to avoid staleness
+        incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
+        if (incident == null) return new ServiceResult(ResultCodeConst.SYS_Fail0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
+
+        // Initialize AI Review if there is an AI Inference
+        if (incident.CurrentAiInferenceId.HasValue && !incident.CurrentAiReviewId.HasValue)
+        {
+            var review = new AiInferenceReview
+            {
+                Id = Guid.NewGuid(),
+                IncidentId = incidentId,
+                AiInferenceId = incident.CurrentAiInferenceId.Value,
+                ReviewerId = rescuerId,
+                ReviewStatus = AiReviewStatus.Pending,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = rescuerId
+            };
+            await _unitOfWork.Repository<AiInferenceReview, Guid>().AddAsync(review);
+
+            incident.CurrentAiReviewId = review.Id;
+            incident.CurrentAiReviewStatus = AiReviewStatus.Pending;
+        }
 
         // Step 2: Create single RescueMission
         var mission = new RescueMission
@@ -144,7 +162,14 @@ public class MissionService : IMissionService
         return new ServiceResult(
             ResultCodeConst.SYS_Success0003,
             await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0003),
-            mission);
+            new 
+            {
+                MissionId = mission.Id,
+                IncidentId = incidentId,
+                ReviewStatus = incident.CurrentAiReviewStatus?.ToString() ?? "None",
+                RequiresReview = incident.CurrentAiReviewId.HasValue,
+                AcceptedAt = mission.CreatedAt
+            });
     }
 
     [Queue(DispatchConstants.HangfireQueue)]
@@ -160,7 +185,7 @@ public class MissionService : IMissionService
         if (mission.Status != RescueStatus.Pending) return;
 
         var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(mission.IncidentId);
-        if (incident == null || incident.CurrentStatus != IncidentStatus.Assigned) return;
+        if (incident == null || (incident.CurrentStatus != IncidentStatus.Assigned && incident.CurrentStatus != IncidentStatus.EnRoute)) return;
 
         // Has rescuer ghosted without refreshing location?
         // Check if the last location update is older than the configured timeout limit
@@ -175,6 +200,32 @@ public class MissionService : IMissionService
             mission.UpdatedAt = DateTime.UtcNow;
 
             incident.CurrentStatus = IncidentStatus.Unassigned;
+            
+            // Revert review snapshot so new rescuer can review
+            if (incident.CurrentAiReviewStatus == AiReviewStatus.Pending || incident.CurrentAiReviewStatus == AiReviewStatus.Deferred)
+            {
+                if (incident.CurrentAiReviewId.HasValue)
+                {
+                    var oldReview = await _unitOfWork.Repository<AiInferenceReview, Guid>().GetByIdAsync(incident.CurrentAiReviewId.Value);
+                    if (oldReview != null)
+                    {
+                        // Abandon the unfinalized review
+                        oldReview.ReviewStatus = AiReviewStatus.Abandoned;
+                        oldReview.Comment = "Invalidated due to mission timeout";
+                        oldReview.UpdatedAt = DateTime.UtcNow;
+                        oldReview.UpdatedBy = null; // System
+                        
+                        await _unitOfWork.Repository<AiInferenceReview, Guid>().UpdateAsync(oldReview);
+                    }
+                }
+
+                incident.CurrentAiReviewId = null;
+                incident.CurrentAiReviewStatus = null;
+                
+                // Clear any rogue human snapshot that might have been set incorrectly
+                incident.HumanReviewedSnakeId = null;
+                incident.HumanReviewedToxinGroup = null;
+            }
             incident.UpdatedAt = DateTime.UtcNow;
 
             await _unitOfWork.SaveChangesAsync();
@@ -193,5 +244,68 @@ public class MissionService : IMissionService
             // To ensure reliability, we can enqueue StartDispatchAsync.
             _jobs.Enqueue<IDispatchService>(s => s.StartDispatchAsync(incident.Id));
         }
+    }
+
+    public async Task<IServiceResult> UpdateStatusAsync(Guid missionId, Guid rescuerId, IncidentStatus newStatus)
+    {
+        var spec = new BaseSpecification<RescueMission>(m => m.Id == missionId && m.RescuerId == rescuerId);
+        spec.ApplyInclude(q => q.Include(m => m.Incident));
+        var mission = await _unitOfWork.Repository<RescueMission, Guid>().GetWithSpecAsync(spec);
+
+        if (mission == null) 
+            return new ServiceResult(ResultCodeConst.SYS_Warning0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001));
+
+        var incident = mission.Incident;
+
+        if (incident.CurrentStatus == IncidentStatus.Closed || incident.CurrentStatus == IncidentStatus.Cancelled)
+            return new ServiceResult(ResultCodeConst.Mission_Warning0001, await _msgService.GetMessageAsync(ResultCodeConst.Mission_Warning0001));
+
+        // Enforce AI Review before closing the Incident
+        if (newStatus == IncidentStatus.Closed)
+        {
+            if (incident.CurrentAiReviewId.HasValue && 
+               (incident.CurrentAiReviewStatus == AiReviewStatus.Pending || incident.CurrentAiReviewStatus == AiReviewStatus.Deferred))
+            {
+                return new ServiceResult(ResultCodeConst.AiReview_Warning_Pending, await _msgService.GetMessageAsync(ResultCodeConst.AiReview_Warning_Pending));
+            }
+            
+            mission.Status = RescueStatus.Completed;
+        }
+        else
+        {
+            // Transition RescueStatus off Pending if they update to Arrived
+            if (newStatus == IncidentStatus.Arrived)
+            {
+                mission.Status = RescueStatus.Accepted; 
+            }
+        }
+
+        // Capture old status BEFORE mutation
+        var oldStatus = incident.CurrentStatus;
+
+        incident.CurrentStatus = newStatus;
+        incident.UpdatedAt = DateTime.UtcNow;
+        mission.UpdatedAt = DateTime.UtcNow;
+
+        await _unitOfWork.SaveChangesAsync();
+
+        // SignalR: Only broadcast status changes that are meaningful to the victim
+        if (newStatus == IncidentStatus.Arrived || newStatus == IncidentStatus.Closed)
+        {
+            var payload = new
+            {
+                IncidentId = incident.Id,
+                MissionId = mission.Id,
+                OldStatus = oldStatus.ToString(),
+                NewStatus = newStatus.ToString(),
+                IsReviewMissing = incident.CurrentAiReviewId.HasValue && (incident.CurrentAiReviewStatus == AiReviewStatus.Pending || incident.CurrentAiReviewStatus == AiReviewStatus.Deferred)
+            };
+
+            await _locationHub.Clients
+                .Group(LocationConstants.SignalRGroupPrefix + incident.Id)
+                .SendAsync(LocationConstants.SignalRMissionStatusUpdated, payload);
+        }
+
+        return new ServiceResult(ResultCodeConst.Mission_Success0001, await _msgService.GetMessageAsync(ResultCodeConst.Mission_Success0001));
     }
 }

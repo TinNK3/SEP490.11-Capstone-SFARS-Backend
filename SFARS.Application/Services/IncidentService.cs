@@ -27,6 +27,7 @@ namespace SFARS.Application.Services
         private readonly IFileStorageService _fileStorageService;
         private readonly IOptions<StorageOptions> _storageOptions;
         private readonly ISosSpamGuardService _spamGuard;
+        private readonly IAiReviewService _aiReviewService;
 
         public IncidentService(
             ISystemMessageService msgService,
@@ -35,12 +36,14 @@ namespace SFARS.Application.Services
             ILogger<IncidentService> logger,
             IFileStorageService fileStorageService,
             IOptions<StorageOptions> storageOptions,
-            ISosSpamGuardService spamGuard)
+            ISosSpamGuardService spamGuard,
+            IAiReviewService aiReviewService)
             : base(msgService, unitOfWork, mapper, logger)
         {
             _fileStorageService = fileStorageService;
             _storageOptions = storageOptions;
             _spamGuard = spamGuard;
+            _aiReviewService = aiReviewService;
         }
 
 
@@ -245,32 +248,39 @@ namespace SFARS.Application.Services
                 )
             );
 
-            var dto = await _unitOfWork.Repository<Incident, Guid>()
-                .GetWithSpecAndSelectorAsync(spec, i => new IncidentDto
-                {
-                    Id = i.Id,
-                    Code = i.Code,
-                    Latitude = i.Location.Y,
-                    Longitude = i.Location.X,
-                    AddressString = i.AddressString,
-                    Description = i.Description,
-                    CurrentStatus = i.CurrentStatus,
-                    PriorityLevel = i.PriorityLevel,
-                    AiPredictionResult = i.AiPredictionResult,
-                    AiConfidenceScore = i.AiConfidenceScore,
-                    SnakeId = i.SnakeId,
-                    VictimId = i.VictimId,
-                    VictimName = i.Victim.FullName,
-                    CreatedAt = i.CreatedAt
-                }, tracked: false);
+            var incident = await _unitOfWork.Repository<Incident, Guid>()
+                .GetWithSpecAsync(spec, tracked: false);
 
-            if (dto == null)
+            if (incident == null)
             {
                 return new ServiceResult(
                     ResultCodeConst.SYS_Warning0004,
                     await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004)
                 );
             }
+
+            var dto = new IncidentDetailDto
+            {
+                Id = incident.Id,
+                Code = incident.Code,
+                Latitude = incident.Location.Y,
+                Longitude = incident.Location.X,
+                AddressString = incident.AddressString,
+                Description = incident.Description,
+                CurrentStatus = incident.CurrentStatus,
+                PriorityLevel = incident.PriorityLevel,
+                AiPredictionResult = incident.AiPredictionResult,
+                AiConfidenceScore = incident.AiConfidenceScore,
+                SnakeId = incident.SnakeId,
+                VictimId = incident.VictimId,
+                VictimName = incident.Victim?.FullName,
+                CreatedAt = incident.CreatedAt
+            };
+
+            // Get FirstAid/Prohibitions from Source-of-Truth
+            var (steps, prohibitions) = await _aiReviewService.GetEffectiveFirstAidProtocolAsync(incident);
+            dto.FirstAidSteps = steps;
+            dto.Prohibitions = prohibitions;
 
             return new ServiceResult(
                 ResultCodeConst.SYS_Success0002,

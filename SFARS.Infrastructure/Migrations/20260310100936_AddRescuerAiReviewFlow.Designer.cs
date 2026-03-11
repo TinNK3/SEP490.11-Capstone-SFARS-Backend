@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SFARS.Infrastructure.Data.Context;
@@ -12,9 +13,11 @@ using SFARS.Infrastructure.Data.Context;
 namespace SFARS.Infrastructure.Migrations
 {
     [DbContext(typeof(SFARSDbContext))]
-    partial class SFARSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260310100936_AddRescuerAiReviewFlow")]
+    partial class AddRescuerAiReviewFlow
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -260,10 +263,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("created_by");
 
-                    b.Property<Guid>("IncidentId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("incident_id");
-
                     b.Property<string>("ReviewStatus")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -297,11 +296,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.HasIndex("AiInferenceId");
 
                     b.HasIndex("CorrectedSnakeId");
-
-                    b.HasIndex("IncidentId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_AiInferenceReview_ActiveReview")
-                        .HasFilter("[review_status] IN ('Pending', 'Deferred')");
 
                     b.HasIndex("ReviewerId");
 
@@ -518,48 +512,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasDatabaseName("IX_ContentPost_Slug");
 
                     b.ToTable("ContentPost", (string)null);
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.Faq", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Answer")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<int>("Order")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<string>("Question")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Faqs", (string)null);
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.FirstAidDetail", b =>
@@ -2481,13 +2433,6 @@ namespace SFARS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("FK_AiInferenceReview_Snake_CorrectedSnakeId");
 
-                    b.HasOne("SFARS.Domain.Entities.Incident", "Incident")
-                        .WithMany()
-                        .HasForeignKey("IncidentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_AiInferenceReview_Incident_IncidentId");
-
                     b.HasOne("SFARS.Domain.Entities.User", "Reviewer")
                         .WithMany()
                         .HasForeignKey("ReviewerId")
@@ -2498,8 +2443,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Navigation("AiInference");
 
                     b.Navigation("CorrectedSnake");
-
-                    b.Navigation("Incident");
 
                     b.Navigation("Reviewer");
                 });

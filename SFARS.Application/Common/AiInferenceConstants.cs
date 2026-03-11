@@ -33,6 +33,12 @@ public static class AiInferenceConstants
 
     public const string UnknownSnake = "Unknown";
 
+    /// <summary>
+    /// Minimum confidence to display snake species to users.
+    /// Below this threshold, candidates are hidden to prevent misinformation.
+    /// </summary>
+    public const double ConfidenceDisplayThreshold = 0.60;
+
     #endregion
 
     #region Danger Labels (display strings for SnakeRiskLevel)
@@ -45,6 +51,33 @@ public static class AiInferenceConstants
         SnakeRiskLevel.NonVenomous => "KHÔNG ĐỘC",
         _ => "CẦN KIỂM TRA"
     };
+
+    #endregion
+
+    #region Auto-Priority
+
+    /// <summary>
+    /// Determines the incident priority level based on AI snake detection results.
+    /// Called after AnalyzeAsync and after SubmitReviewAsync (if rescuer corrects the species).
+    /// </summary>
+    public static SeverityLevel DetermineIncidentPriority(
+        bool isSkip,
+        bool isLowConfidence,
+        SnakeRiskLevel? toxicityLevel)
+    {
+        // Skip photo or low confidence → assume danger
+        if (isSkip || isLowConfidence)
+            return SeverityLevel.High;
+
+        return toxicityLevel switch
+        {
+            SnakeRiskLevel.Deadly => SeverityLevel.Critical,
+            SnakeRiskLevel.HighlyVenomous => SeverityLevel.Critical,
+            SnakeRiskLevel.MildlyVenomous => SeverityLevel.Medium,
+            SnakeRiskLevel.NonVenomous => SeverityLevel.Low,
+            _ => SeverityLevel.High  // Unknown or null → be cautious
+        };
+    }
 
     #endregion
 }

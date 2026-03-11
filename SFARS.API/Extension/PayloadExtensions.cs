@@ -141,7 +141,6 @@ namespace SFARS.API.Extensions
                 Longitude = req.Longitude,
                 AddressString = req.AddressString,
                 Description = req.Description,
-                PriorityLevel = req.PriorityLevel
             };
         }
         #endregion

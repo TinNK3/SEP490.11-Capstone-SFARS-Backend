@@ -22,6 +22,13 @@ public class Incident : BaseEntity
     public double? AiConfidenceScore { get; set; }
     public Guid? CurrentAiInferenceId { get; set; }
     public virtual AiInference? CurrentAiInference { get; set; }
+    
+    // AI Review Snapshots
+    public AiReviewStatus? CurrentAiReviewStatus { get; set; }
+    public Guid? CurrentAiReviewId { get; set; }
+    public Guid? HumanReviewedSnakeId { get; set; }
+    public ToxinGroup? HumanReviewedToxinGroup { get; set; }
+
     public virtual User Victim { get; set; } = null!;
     public virtual Snake? Snake { get; set; }
     public virtual ICollection<IncidentStatusHistory> StatusHistories { get; set; } = new List<IncidentStatusHistory>();

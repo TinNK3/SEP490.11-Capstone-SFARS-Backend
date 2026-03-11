@@ -12,20 +12,29 @@ namespace SFARS.Domain.Entities
         public Guid AiInferenceId { get; set; }
         public virtual AiInference AiInference { get; set; } = null!;
 
+        public Guid IncidentId { get; set; }
+        public virtual Incident Incident { get; set; } = null!;
+
         /// <summary>Rescuer who submitted this review</summary>
         public Guid ReviewerId { get; set; }
         public virtual User Reviewer { get; set; } = null!;
 
-        public ReviewDecision Decision { get; set; }
+        public AiReviewStatus ReviewStatus { get; set; } = AiReviewStatus.Pending;
 
         /// <summary>
-        /// Filled only when Decision == Rejected.
+        /// Filled only when ReviewStatus == Corrected.
         /// The snake ID that the rescuer believes is the correct identification.
         /// </summary>
-        public Guid? OverrideSnakeId { get; set; }
-        public virtual Snake? OverrideSnake { get; set; }
+        public Guid? CorrectedSnakeId { get; set; }
+        public virtual Snake? CorrectedSnake { get; set; }
+
+        public ToxinGroup? CorrectedToxinGroup { get; set; }
+
+        public UnableToAssessReason? UnableToAssessReasonChoice { get; set; }
 
         /// <summary>Optional free-text note from rescuer</summary>
-        public string? Note { get; set; }
+        public string? Comment { get; set; }
+
+        public DateTime? ReviewedAt { get; set; }
     }
 }
