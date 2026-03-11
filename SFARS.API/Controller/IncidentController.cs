@@ -4,7 +4,9 @@ using SFARS.API.Extension;
 using SFARS.API.Extensions;
 using SFARS.API.Payloads;
 using SFARS.API.Payloads.Request.Incident;
+using SFARS.Application.Dtos.AiReview;
 using SFARS.Application.Dtos.Incident;
+using SFARS.Application.Services;
 using SFARS.Domain.Interfaces.Services;
 
 namespace SFARS.API.Controller
@@ -104,6 +106,28 @@ namespace SFARS.API.Controller
             {
                 await stream.DisposeAsync();
             }
+
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
+        /// Submit an AI Review from a Rescuer
+        /// </summary>
+        /// <param name="id">Incident ID</param>
+        /// <param name="req">Review Details</param>
+        /// <returns>Result of submission</returns>
+        [Authorize]
+        [HttpPost(APIRoute.Incident.AiReview, Name = nameof(SubmitAiReviewAsync))]
+        public async Task<IActionResult> SubmitAiReviewAsync(
+            [FromRoute] Guid id,
+            [FromBody] SubmitAiReviewRequestDto req)
+        {
+            var userId = User.GetUserId();
+
+            var aiReviewService = HttpContext.RequestServices
+                .GetRequiredService<IAiReviewService>();
+
+            var result = await aiReviewService.SubmitReviewAsync(id, userId, req);
 
             return this.ToIActionResult(result);
         }

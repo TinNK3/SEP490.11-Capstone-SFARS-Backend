@@ -74,6 +74,7 @@
             // [POST]
             public const string Create = Base + "/incidents";
             public const string Analyze = Base + "/incidents/{id}/analyze";
+            public const string AiReview = Base + "/incidents/{id}/ai-review";
             public const string RegenerateTrackingCode = Base + "/incidents/{id}/tracking-code/regenerate";
             // [PATCH]
             public const string Cancel = Base + "/incidents/{id}/cancel";
@@ -86,6 +87,8 @@
         {
             // [POST]
             public const string Accept = Base + "/missions/{id}/accept";
+            // [PATCH]
+            public const string UpdateStatus = Base + "/missions/{id}/status";
         }
 
         /// <summary>

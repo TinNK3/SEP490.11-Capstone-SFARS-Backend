@@ -176,7 +176,9 @@ public class AiInferenceService : IAiInferenceService
             }
 
             var toxinGroup = primarySnake?.ToxinGroup ?? ToxinGroup.Unknown;
-            var firstAidSteps = await GetFirstAidStepsAsync(toxinGroup);
+            
+            // Force first aid to always use Unknown/Default guidelines regardless of recognized snake
+            var firstAidSteps = await GetFirstAidStepsAsync(ToxinGroup.Unknown);
             var prohibitions = await GetProhibitionsAsync();
 
             IncidentMedia? media = null;
@@ -238,6 +240,10 @@ public class AiInferenceService : IAiInferenceService
             incident.SnakeId = primarySnake?.Id; // null if skipped
             incident.AiPredictionResult = isSkip ? AiInferenceConstants.UnknownSnake : primarySnake?.CommonName;
             incident.AiConfidenceScore = isSkip ? 0 : topConfidence;
+            incident.PriorityLevel = AiInferenceConstants.DetermineIncidentPriority(
+                isSkip,
+                !isSkip && topConfidence < AiInferenceConstants.ConfidenceDisplayThreshold,
+                primarySnake?.ToxicityLevel);
             incident.GraceExpiresAt = now + SosConstants.GracePeriod + TimeSpan.FromSeconds(3);
             incident.UpdatedAt = now;
             incident.UpdatedBy = userId;
@@ -284,10 +290,12 @@ public class AiInferenceService : IAiInferenceService
                 s => s.StartDispatchAsync(incidentId),
                 dispatchDelay);
 
+            var isLowConfidence = !isSkip && topConfidence < AiInferenceConstants.ConfidenceDisplayThreshold;
+
             var resultDto = new AiInferenceResultDto
             {
                 InferenceId = aiInference.Id,
-                PrimarySnake = isSkip ? null : new SnakeCandidateDto
+                PrimarySnake = (isSkip || isLowConfidence) ? null : new SnakeCandidateDto
                 {
                     SnakeId = primarySnake!.Id,
                     ScientificName = primarySnake.ScientificName,
@@ -300,10 +308,12 @@ public class AiInferenceService : IAiInferenceService
                 },
                 FirstAidSteps = firstAidSteps,
                 Prohibitions = prohibitions,
-                OtherCandidates = isSkip ? new List<SnakeCandidateDto>() : await BuildOtherCandidateDtos(yoloPredictions!.Skip(1).ToList()),
+                OtherCandidates = (isSkip || isLowConfidence) ? new List<SnakeCandidateDto>() : await BuildOtherCandidateDtos(yoloPredictions!.Skip(1).ToList()),
                 Note = isSkip 
                     ? "Do người dùng bỏ qua bước chụp ảnh, hệ thống mặc định coi đây là ca Rắn Chưa Rõ Loài để đảm bảo an toàn quy trình."
-                    : (firstAidSteps.Count == 0 ? await _msgService.GetMessageAsync(ResultCodeConst.AI_Warning0006) : null),
+                    : isLowConfidence
+                        ? "AI chưa thể xác định chính xác loài rắn từ ảnh này. Bạn có thể thử chụp lại ảnh rõ hơn (toàn thân rắn, ánh sáng đủ). Hãy áp dụng sơ cứu chung bên dưới."
+                        : (firstAidSteps.Count == 0 ? await _msgService.GetMessageAsync(ResultCodeConst.AI_Warning0006) : null),
                 AnalyzedAt = aiInference.CreatedAt,
                 // Server-authoritative: FE uses this to drive the 10-second cancel countdown.
                 CancelDeadline = incident.GraceExpiresAt
@@ -313,10 +323,12 @@ public class AiInferenceService : IAiInferenceService
                 ResultCodeConst.AI_Success0001,
                 isSkip 
                     ? "Nhận dạng bỏ qua. Kích hoạt quy trình khẩn cấp mặc định."
-                    : string.Format(
-                        await _msgService.GetMessageAsync(ResultCodeConst.AI_Success0001),
-                        primarySnake!.CommonName,
-                        (topConfidence * 100).ToString("F0")),
+                    : isLowConfidence
+                        ? "AI chưa thể xác định chính xác loài rắn. Vui lòng áp dụng sơ cứu chung."
+                        : string.Format(
+                            await _msgService.GetMessageAsync(ResultCodeConst.AI_Success0001),
+                            primarySnake!.CommonName,
+                            (topConfidence * 100).ToString("F0")),
                 resultDto
             );
         }

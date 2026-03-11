@@ -127,6 +127,15 @@ namespace SFARS.Application.Common
         public const string AI_Warning0004 = "AI.Warning0004";   // Invalid image type for analysis
         public const string AI_Warning0005 = "AI.Warning0005";   // Snake not found in DB
         public const string AI_Warning0006 = "AI.Warning0006";   // First-aid not available for toxin group
+
+        #region AiReview
+        public const string AiReview_Success0001 = "AiReview.Success0001";
+        public const string AiReview_Fail0001 = "AiReview.Fail0001";
+        public const string AiReview_Fail0002 = "AiReview.Fail0002";
+        public const string AiReview_Fail0003 = "AiReview.Fail0003";
+        public const string AiReview_Fail0004 = "AiReview.Fail0004";
+        public const string AiReview_Warning_Pending = "AiReview.Warning.Pending";
+        #endregion
         #endregion
 
         #region Chat
@@ -134,6 +143,11 @@ namespace SFARS.Application.Common
         public const string Chat_Warning0001 = "Chat.Warning0001";   // Session ended
         public const string Chat_Fail0001 = "Chat.Fail0001";         // AI unavailable
         public const string Chat_Guard0001 = "Chat.Guard0001";       // Guardrail fallback
+        #endregion
+
+        #region Mission
+        public const string Mission_Success0001 = "Mission.Success0001"; // Mission status updated successfully
+        public const string Mission_Warning0001 = "Mission.Warning0001"; // Incident closed/cancelled, cannot update
         #endregion
 
         #region Dispatch

@@ -3,7 +3,9 @@ using SFARS.Domain.Common.Enum;
 namespace SFARS.API.Payloads.Request.Incident
 {
     /// <summary>
-    /// Request payload for creating an incident (SOS report)
+    /// Request payload for creating an incident (SOS report).
+    /// PriorityLevel is NOT user-input — it is auto-determined by the system
+    /// based on AI snake detection results.
     /// </summary>
     public class CreateIncidentRequest
     {
@@ -26,10 +28,5 @@ namespace SFARS.API.Payloads.Request.Incident
         /// Description of the incident
         /// </summary>
         public string? Description { get; set; }
-
-        /// <summary>
-        /// Priority level (default: Unknown)
-        /// </summary>
-        public SeverityLevel PriorityLevel { get; set; } = SeverityLevel.Unknown;
     }
 }

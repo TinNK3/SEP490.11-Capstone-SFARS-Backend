@@ -22,6 +22,20 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
             .HasMaxLength(20)
             .HasColumnName("code");
 
+        // AI Review Snapshots
+        builder.Property(e => e.CurrentAiReviewStatus)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasColumnName("current_ai_review_status");
+
+        builder.Property(e => e.CurrentAiReviewId).HasColumnName("current_ai_review_id");
+        builder.Property(e => e.HumanReviewedSnakeId).HasColumnName("human_reviewed_snake_id");
+
+        builder.Property(e => e.HumanReviewedToxinGroup)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasColumnName("human_reviewed_toxin_group");
+
         builder.Property(e => e.Location)
             .IsRequired()
             .HasColumnType("geography")

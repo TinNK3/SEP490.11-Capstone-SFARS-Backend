@@ -622,5 +622,53 @@
     "MsgContent": "You are too far from the incident location to accept this mission.",
     "En": "You are too far from the incident location to accept this mission.",
     "Vi": "Bạn ở quá xa vị trí sự cố để có thể nhận nhiệm vụ này."
+  },
+  {
+    "MsgId": "AiReview.Success0001",
+    "MsgContent": "AI Review submitted successfully.",
+    "En": "AI Review submitted successfully.",
+    "Vi": "Gửi đánh giá AI thành công."
+  },
+  {
+    "MsgId": "AiReview.Fail0001",
+    "MsgContent": "Review record not found on this incident.",
+    "En": "Review record not found on this incident.",
+    "Vi": "Không tìm thấy bản ghi đánh giá cho ca cứu hộ này."
+  },
+  {
+    "MsgId": "AiReview.Fail0002",
+    "MsgContent": "Review record not found.",
+    "En": "Review record not found.",
+    "Vi": "Không tìm thấy bản ghi đánh giá."
+  },
+  {
+    "MsgId": "AiReview.Fail0003",
+    "MsgContent": "You are not authorized to evaluate this AI result.",
+    "En": "You are not authorized to evaluate this AI result.",
+    "Vi": "Bạn không có quyền đánh giá kết quả AI này."
+  },
+  {
+    "MsgId": "AiReview.Fail0004",
+    "MsgContent": "This review is already in a final state and cannot be modified.",
+    "En": "This review is already in a final state and cannot be modified.",
+    "Vi": "Đánh giá này đã ở trạng thái cuối và không thể thay đổi."
+  },
+  {
+    "MsgId": "AiReview.Warning.Pending",
+    "MsgContent": "AI Review is still pending. Cannot close.",
+    "En": "AI Review is still pending. Cannot close.",
+    "Vi": "Đánh giá AI đang chờ xử lý. Không thể đóng ca."
+  },
+  {
+    "MsgId": "Mission.Success0001",
+    "MsgContent": "Mission status updated successfully.",
+    "En": "Mission status updated successfully.",
+    "Vi": "Cập nhật trạng thái nhiệm vụ thành công."
+  },
+  {
+    "MsgId": "Mission.Warning0001",
+    "MsgContent": "Incident is closed or cancelled, cannot update status.",
+    "En": "Incident is closed or cancelled, cannot update status.",
+    "Vi": "Sự cố đã đóng hoặc đã huỷ, không thể cập nhật trạng thái."
   }
 ]

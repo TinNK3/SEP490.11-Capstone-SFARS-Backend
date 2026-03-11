@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SFARS.API.Extension;
 using SFARS.API.Extensions;
 using SFARS.API.Payloads;
+using SFARS.Application.Dtos.Mission;
 using SFARS.Domain.Interfaces.Services;
 
 namespace SFARS.API.Controller
@@ -31,6 +32,20 @@ namespace SFARS.API.Controller
         {
             var rescuerId = User.GetUserId();
             var result = await _missionService.AcceptMissionAsync(id, rescuerId);
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
+        /// Update the status of an active mission (e.g. EnRoute, Arrived, Closed)
+        /// </summary>
+        /// <param name="id">Mission ID</param>
+        /// <param name="req">New Status</param>
+        [Authorize]
+        [HttpPatch(APIRoute.Mission.UpdateStatus, Name = nameof(UpdateMissionStatusAsync))]
+        public async Task<IActionResult> UpdateMissionStatusAsync([FromRoute] Guid id, [FromBody] UpdateMissionStatusRequestDto req)
+        {
+            var rescuerId = User.GetUserId();
+            var result = await _missionService.UpdateStatusAsync(id, rescuerId, req.NewStatus);
             return this.ToIActionResult(result);
         }
     }

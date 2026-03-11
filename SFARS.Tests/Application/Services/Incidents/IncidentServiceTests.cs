@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos.Incident;
+using SFARS.Application.Dtos.AiInference;
 using SFARS.Application.Services;
 using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
@@ -12,6 +13,7 @@ using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Repositories.Base;
+using NetTopologySuite.Geometries;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Specifications;
 using SFARS.Domain.Specifications.Interfaces;
@@ -29,6 +31,7 @@ public class IncidentServiceTests
     protected readonly Mock<IFileStorageService> _fileStorageServiceMock;
     protected readonly Mock<IOptions<StorageOptions>> _storageOptionsMock;
     protected readonly Mock<ISosSpamGuardService> _spamGuardMock;
+    protected readonly Mock<IAiReviewService> _aiReviewServiceMock;
     protected readonly Mock<IGenericRepository<Incident, Guid>> _incidentRepoMock;
     protected readonly Mock<IGenericRepository<IncidentMedia, Guid>> _incidentMediaRepoMock;
     protected readonly Mock<IGenericRepository<IncidentStatusHistory, Guid>> _statusHistoryRepoMock;
@@ -46,6 +49,7 @@ public class IncidentServiceTests
         _fileStorageServiceMock = new Mock<IFileStorageService>();
         _storageOptionsMock = new Mock<IOptions<StorageOptions>>();
         _spamGuardMock = new Mock<ISosSpamGuardService>();
+        _aiReviewServiceMock = new Mock<IAiReviewService>();
         _incidentRepoMock = new Mock<IGenericRepository<Incident, Guid>>();
         _incidentMediaRepoMock = new Mock<IGenericRepository<IncidentMedia, Guid>>();
         _statusHistoryRepoMock = new Mock<IGenericRepository<IncidentStatusHistory, Guid>>();
@@ -82,7 +86,8 @@ public class IncidentServiceTests
             _loggerMock.Object,
             _fileStorageServiceMock.Object,
             _storageOptionsMock.Object,
-            _spamGuardMock.Object
+            _spamGuardMock.Object,
+            _aiReviewServiceMock.Object
         );
     }
 
@@ -313,11 +318,10 @@ public class IncidentServiceTests
         var userId = Guid.NewGuid();
         var incidentId = Guid.NewGuid();
 
-        _incidentRepoMock.Setup(x => x.GetWithSpecAndSelectorAsync(
+        _incidentRepoMock.Setup(x => x.GetWithSpecAsync(
                 It.IsAny<ISpecification<Incident>>(),
-                It.IsAny<Expression<Func<Incident, IncidentDto>>>(),
                 It.IsAny<bool>()))
-            .ReturnsAsync((IncidentDto?)null);
+            .ReturnsAsync((Incident?)null);
 
         // Act
         var result = await _sut.GetIncidentByIdAsync(userId, incidentId);
@@ -334,11 +338,10 @@ public class IncidentServiceTests
         var incidentId = Guid.NewGuid();
 
         // Spec won't match because userId doesn't match VictimId or any RescuerId
-        _incidentRepoMock.Setup(x => x.GetWithSpecAndSelectorAsync(
+        _incidentRepoMock.Setup(x => x.GetWithSpecAsync(
                 It.IsAny<ISpecification<Incident>>(),
-                It.IsAny<Expression<Func<Incident, IncidentDto>>>(),
                 It.IsAny<bool>()))
-            .ReturnsAsync((IncidentDto?)null);
+            .ReturnsAsync((Incident?)null);
 
         // Act
         var result = await _sut.GetIncidentByIdAsync(userId, incidentId);
@@ -353,26 +356,33 @@ public class IncidentServiceTests
         // Arrange
         var userId = Guid.NewGuid();
         var incidentId = Guid.NewGuid();
-        var incidentDto = new IncidentDto
+        var incident = new Incident
         {
             Id = incidentId,
             Code = "SOS-2026-00001",
             VictimId = userId,
-            CurrentStatus = IncidentStatus.Pending
+            CurrentStatus = IncidentStatus.Pending,
+            Location = new Point(106.660172, 10.762622) { SRID = 4326 }
         };
 
-        _incidentRepoMock.Setup(x => x.GetWithSpecAndSelectorAsync(
+        _incidentRepoMock.Setup(x => x.GetWithSpecAsync(
                 It.IsAny<ISpecification<Incident>>(),
-                It.IsAny<Expression<Func<Incident, IncidentDto>>>(),
                 It.IsAny<bool>()))
-            .ReturnsAsync(incidentDto);
+            .ReturnsAsync(incident);
+
+        _aiReviewServiceMock.Setup(x => x.GetEffectiveFirstAidProtocolAsync(incident))
+            .Returns(Task.FromResult<(List<FirstAidStepDto>, List<string>)>((new List<FirstAidStepDto>(), new List<string>())));
 
         // Act
         var result = await _sut.GetIncidentByIdAsync(userId, incidentId);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
-        result.Data.Should().BeEquivalentTo(incidentDto);
+        var dto = result.Data as IncidentDetailDto;
+        dto.Should().NotBeNull();
+        dto!.Id.Should().Be(incidentId);
+        dto.Code.Should().Be("SOS-2026-00001");
+        dto.VictimId.Should().Be(userId);
     }
 
     [Fact]
@@ -381,37 +391,42 @@ public class IncidentServiceTests
         // Arrange
         var userId = Guid.NewGuid();
         var incidentId = Guid.NewGuid();
-        var expectedDto = new IncidentDto
+        var expectedTime = DateTime.UtcNow;
+        var incident = new Incident
         {
             Id = incidentId,
             Code = "SOS-2026-00001",
-            Latitude = 10.762622,
-            Longitude = 106.660172,
             AddressString = "123 Test Street",
             Description = "Test incident",
             CurrentStatus = IncidentStatus.Assigned,
             PriorityLevel = SeverityLevel.High,
             VictimId = userId,
-            VictimName = "Test User",
-            CreatedAt = DateTime.UtcNow
+            Victim = new User { Id = userId, FirstName = "Test", LastName = "User" },
+            CreatedAt = expectedTime,
+            Location = new Point(106.660172, 10.762622) { SRID = 4326 }
         };
 
-        _incidentRepoMock.Setup(x => x.GetWithSpecAndSelectorAsync(
+        _incidentRepoMock.Setup(x => x.GetWithSpecAsync(
                 It.IsAny<ISpecification<Incident>>(),
-                It.IsAny<Expression<Func<Incident, IncidentDto>>>(),
                 It.IsAny<bool>()))
-            .ReturnsAsync(expectedDto);
+            .ReturnsAsync(incident);
+
+        _aiReviewServiceMock.Setup(x => x.GetEffectiveFirstAidProtocolAsync(incident))
+            .Returns(Task.FromResult<(List<FirstAidStepDto>, List<string>)>((new List<FirstAidStepDto>(), new List<string>())));
 
         // Act
         var result = await _sut.GetIncidentByIdAsync(userId, incidentId);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
-        var dto = result.Data as IncidentDto;
+        var dto = result.Data as IncidentDetailDto;
         dto.Should().NotBeNull();
         dto!.Id.Should().Be(incidentId);
         dto.Code.Should().Be("SOS-2026-00001");
         dto.VictimName.Should().Be("Test User");
+        dto.Latitude.Should().Be(10.762622);
+        dto.Longitude.Should().Be(106.660172);
+        dto.CreatedAt.Should().Be(expectedTime);
     }
 
     #endregion

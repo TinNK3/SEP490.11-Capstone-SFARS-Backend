@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using SFARS.Domain.Common.Enum;
+using NetTopologySuite.Geometries;
 using SFARS.Domain.Common.Constants;
-using SFARS.Domain.Common.Extensions;
+using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Infrastructure;
@@ -10,6 +11,7 @@ using SFARS.Domain.Models;
 using SFARS.Domain.Specifications;
 using SFARS.Infrastructure.Helpers;
 using SFARS.Infrastructure.Hubs;
+using StackExchange.Redis;
 
 namespace SFARS.Infrastructure.Services;
 
@@ -25,22 +27,28 @@ namespace SFARS.Infrastructure.Services;
 public class LocationBroadcastService : ILocationBroadcastService
 {
     private readonly IHubContext<LocationTrackingHub> _hubContext;
+    private readonly IHubContext<RescueDispatchHub> _rescueHub;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILocationCacheService _cacheService;
     private readonly ILogger<LocationBroadcastService> _logger;
+    private readonly IConnectionMultiplexer _redis;
 
     private static readonly TimeSpan ThrottleInterval = LocationConstants.BroadcastThrottleInterval;
     private static readonly TimeSpan IncidentsCacheTtl = LocationConstants.UserIncidentsCacheTtl;
 
     public LocationBroadcastService(
         IHubContext<LocationTrackingHub> hubContext,
+        IHubContext<RescueDispatchHub> rescueHub,
         IUnitOfWork unitOfWork,
         ILocationCacheService cacheService,
+        IConnectionMultiplexer redis,
         ILogger<LocationBroadcastService> logger)
     {
         _hubContext = hubContext;
+        _rescueHub = rescueHub;
         _unitOfWork = unitOfWork;
         _cacheService = cacheService;
+        _redis = redis;
         _logger = logger;
     }
 
@@ -86,6 +94,10 @@ public class LocationBroadcastService : ILocationBroadcastService
                 .Group(LocationConstants.SignalRGroupPrefix + incidentId)
                 .SendAsync(LocationConstants.SignalRReceiveLocationUpdate, payload);
         }
+
+        // --- GEOFENCING AUTO-SUGGEST ARRIVED ---
+        // Fire-and-forget style to not block the broadcast of location
+        _ = ProcessGeofenceArrivedSuggestionAsync(userId, location);
     }
 
     /// <summary>
@@ -137,5 +149,85 @@ public class LocationBroadcastService : ILocationBroadcastService
                 tracked: false);
 
         return asVictim.Concat(asRescuer).Distinct().ToList();
+    }
+
+    /// <summary>
+    /// Processes high-accuracy location pings to detect if a rescuer has arrived at the incident.
+    /// Uses Redis to track consecutive hits within 50 meters to prevent GPS drift false-positives.
+    /// </summary>
+    private async Task ProcessGeofenceArrivedSuggestionAsync(Guid userId, CachedLocation location)
+    {
+        try
+        {
+            // Only process high-accuracy pings to avoid false positives bouncing around
+            if (location.AccuracyMeters == null || location.AccuracyMeters > LocationConstants.GeofenceArrivedSuggestAccuracyMeters)
+            {
+                return;
+            }
+
+            var spec = new BaseSpecification<RescueMission>(m => 
+                m.RescuerId == userId && 
+                m.Status == RescueStatus.Accepted && 
+                m.Incident.CurrentStatus == IncidentStatus.EnRoute);
+            
+            spec.ApplyInclude(q => q.Include(m => m.Incident));
+            
+            var enRouteMissions = await _unitOfWork.Repository<RescueMission, Guid>().GetAllWithSpecAsync(spec);
+
+            if (!enRouteMissions.Any()) return;
+
+            var db = _redis.GetDatabase();
+            var rescuerPoint = new Point(location.Longitude, location.Latitude) { SRID = 4326 };
+
+            foreach (var mission in enRouteMissions)
+            {
+                var incident = mission.Incident;
+                var distMeters = LocationHelper.HaversineMeters(rescuerPoint, incident.Location);
+
+                string hitsKey = $"{LocationConstants.RedisGeofenceHitsPrefix}{incident.Id}:{userId}";
+                string suggestedKey = $"{LocationConstants.RedisGeofenceSuggestedPrefix}{incident.Id}:{userId}";
+
+                // 1. If we already suggested Arrived for this incident, stop tracking to save CPU
+                if (await db.KeyExistsAsync(suggestedKey))
+                    continue;
+
+                // 2. Geofence Check
+                if (distMeters <= LocationConstants.GeofenceArrivedSuggestDistanceMeters)
+                {
+                    var hits = await db.StringIncrementAsync(hitsKey);
+                    await db.KeyExpireAsync(hitsKey, TimeSpan.FromMinutes(5));
+
+                    // 3. Trigger Suggestion if threshold met
+                    if (hits >= LocationConstants.GeofenceArrivedSuggestConsecutiveHits)
+                    {
+                        await db.StringSetAsync(suggestedKey, "1", TimeSpan.FromHours(4));
+                        await db.KeyDeleteAsync(hitsKey);
+
+                        var payload = new
+                        {
+                            IncidentId = incident.Id,
+                            MissionId = mission.Id,
+                            Message = LocationConstants.GeofenceArrivedSuggestMessage,
+                            DistanceMeters = Math.Round(distMeters, 1)
+                        };
+
+                        await _rescueHub.Clients
+                            .Group(DispatchConstants.RescuerGroupPrefix + userId)
+                            .SendAsync(DispatchConstants.EventSuggestArrived, payload);
+                            
+                        _logger.LogInformation("GeoFence Triggered! Suggesting Arrived to Rescuer {RescuerId} for Incident {IncidentId}. Dist: {Dist}m", userId, incident.Id, distMeters);
+                    }
+                }
+                else
+                {
+                    // Broke the consecutive chain
+                    await db.KeyDeleteAsync(hitsKey);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing geofence arrived suggestion for user {UserId}", userId);
+        }
     }
 }
