@@ -11,14 +11,18 @@ using SixLabors.ImageSharp.Processing;
 namespace SFARS.Infrastructure.Services;
 
 /// <summary>
-/// YOLO inference service using ONNX Runtime for snake detection
+/// YOLO inference service using cascaded ONNX Runtime models (Snake vs Not Snake -> 15 Species)
 /// </summary>
 public class YoloInferenceService : IYoloInferenceService, IDisposable
 {
     private readonly ILogger<YoloInferenceService> _logger;
     private readonly YoloModelOptions _options;
-    private readonly InferenceSession _session;
-    private readonly Dictionary<int, string> _classMapping;
+    
+    private readonly InferenceSession _binarySession;
+    private readonly InferenceSession _speciesSession;
+    
+    private readonly Dictionary<int, string> _binaryClassMapping;
+    private readonly Dictionary<int, string> _speciesClassMapping;
 
     public YoloInferenceService(
         ILogger<YoloInferenceService> logger,
@@ -27,44 +31,74 @@ public class YoloInferenceService : IYoloInferenceService, IDisposable
         _logger = logger;
         _options = options.Value;
 
-        // Load ONNX model
-        _session = new InferenceSession(_options.ModelPath);
-        
-        // Parse class mapping: "0:naja_kaouthia,1:ophiophagus_hannah"
-        _classMapping = ParseClassMapping(_options.ClassMapping);
-        
-        _logger.LogInformation("YOLO model loaded: {ModelPath}", _options.ModelPath);
+        // Optimize ONNX Runtime for server deployment
+        var sessionOptions = new SessionOptions
+        {
+            GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
+        };
+
+        // Load Binary ONNX model
+        _binarySession = new InferenceSession(_options.BinaryModelPath, sessionOptions);
+        _binaryClassMapping = ParseClassMapping(_options.BinaryClassMapping);
+        _logger.LogInformation("Binary YOLO model loaded: {ModelPath}", _options.BinaryModelPath);
+
+        // Load Species ONNX model
+        _speciesSession = new InferenceSession(_options.ModelPath, sessionOptions);
+        _speciesClassMapping = ParseClassMapping(_options.ClassMapping);
+        _logger.LogInformation("Species YOLO model loaded: {ModelPath}", _options.ModelPath);
     }
 
-    public async Task<IReadOnlyList<YoloPrediction>> InferAsync(Stream imageStream, int topK = 3)
+    public async Task<YoloPipelineResult> InferCascadedAsync(Stream imageStream, int topK = 3)
     {
         try
         {
-            // Preprocess image
+            // 1. Preprocess image ONCE
             var inputTensor = await PreprocessImageAsync(imageStream);
-
-            // Run inference
             var inputs = new List<NamedOnnxValue>
             {
                 NamedOnnxValue.CreateFromTensor("images", inputTensor)
             };
 
-            using var results = _session.Run(inputs);
-            var output = results.First().AsEnumerable<float>().ToArray();
-
-            // Get top-K predictions
-            var predictions = GetTopKPredictions(output, topK);
+            // 2. Binary Inference (Snake vs Not Snake)
+            using var binaryResults = _binarySession.Run(inputs);
+            var binaryOutput = binaryResults.First().AsEnumerable<float>().ToArray();
+            var binaryPredictions = GetPredictionsTopK(binaryOutput, _binaryClassMapping, topK: 1); // Only need top 1
             
-            _logger.LogInformation("Inference completed. Top prediction: {Class} ({Confidence:P})", 
-                predictions.FirstOrDefault()?.ClassName, 
-                predictions.FirstOrDefault()?.Confidence);
+            var topBinary = binaryPredictions.FirstOrDefault();
+            bool isSnake = topBinary != null && topBinary.ClassName.Equals("snake", StringComparison.OrdinalIgnoreCase);
+            
+            _logger.LogInformation("Binary inference completed. Top class: {Class} ({Confidence:P})", 
+                topBinary?.ClassName, topBinary?.Confidence);
 
-            return predictions;
+            // 3. Early Exit if Not Snake
+            if (!isSnake)
+            {
+                return new YoloPipelineResult(
+                    IsSnake: false,
+                    BinaryConfidence: topBinary?.Confidence ?? 0f,
+                    SpeciesPredictions: new List<YoloPrediction>()
+                );
+            }
+
+            // 4. Species Inference (using the EXACT SAME TENSOR)
+            using var speciesResults = _speciesSession.Run(inputs); // Re-using `inputs`
+            var speciesOutput = speciesResults.First().AsEnumerable<float>().ToArray();
+            var speciesPredictions = GetPredictionsTopK(speciesOutput, _speciesClassMapping, topK);
+
+            _logger.LogInformation("Species inference completed. Top prediction: {Class} ({Confidence:P})", 
+                speciesPredictions.FirstOrDefault()?.ClassName, 
+                speciesPredictions.FirstOrDefault()?.Confidence);
+
+            return new YoloPipelineResult(
+                IsSnake: true,
+                BinaryConfidence: topBinary?.Confidence ?? 0f,
+                SpeciesPredictions: speciesPredictions
+            );
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "YOLO inference failed");
-            throw new InvalidOperationException("AI inference failed. Please try again.", ex);
+            _logger.LogError(ex, "Cascaded YOLO inference failed");
+            throw new InvalidOperationException("AI inference pipeline failed. Please try again.", ex);
         }
     }
 
@@ -94,12 +128,12 @@ public class YoloInferenceService : IYoloInferenceService, IDisposable
         return tensor;
     }
 
-    private List<YoloPrediction> GetTopKPredictions(float[] output, int topK)
+    private List<YoloPrediction> GetPredictionsTopK(float[] output, Dictionary<int, string> mapping, int topK)
     {
         // Assuming output is class probabilities
         var predictions = output
             .Select((confidence, index) => new YoloPrediction(
-                ClassName: _classMapping.GetValueOrDefault(index, $"unknown_class_{index}"),
+                ClassName: mapping.GetValueOrDefault(index, $"unknown_class_{index}"),
                 Confidence: confidence,
                 ClassIndex: index
             ))
@@ -137,6 +171,7 @@ public class YoloInferenceService : IYoloInferenceService, IDisposable
 
     public void Dispose()
     {
-        _session?.Dispose();
+        _binarySession?.Dispose();
+        _speciesSession?.Dispose();
     }
 }

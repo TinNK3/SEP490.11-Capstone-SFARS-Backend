@@ -9,6 +9,7 @@ namespace SFARS.Domain.Interfaces.Repositories.Base
         #region READ DATA
 
         ///  Default Procedures
+        IQueryable<TEntity> GetQueryable(bool tracked = true);
         Task<IEnumerable<TEntity>> GetAllAsync(bool tracked = true);
         Task<TEntity?> GetByIdAsync(TKey id);
 

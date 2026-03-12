@@ -1,4 +1,4 @@
-﻿using SFARS.Domain.Common.Enum;
+using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities.Base;
 
 namespace SFARS.Domain.Entities
@@ -15,6 +15,7 @@ namespace SFARS.Domain.Entities
         public Guid? SelectedSnakeId { get; set; }
         public virtual Snake? SelectedSnake { get; set; }
         public double? SelectedConfidence { get; set; }
+        public double? BinaryConfidence { get; set; }
 
         public ToxinGroup SelectedToxinGroup { get; set; } = ToxinGroup.Unknown;
 
