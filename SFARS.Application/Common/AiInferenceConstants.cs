@@ -12,9 +12,9 @@ public static class AiInferenceConstants
 
     /// <summary>
     /// Default YOLO model identifier stored in AiInference records.
-    /// Matches the ModelName seeded from YoloModelOptions by convention.
+    /// Renamed to reflect the cascaded pipeline.
     /// </summary>
-    public const string ModelName = "snake-cls-v1";
+    public const string ModelName = "snake-cascade-v1";
 
     public const string ModelVersion = "1.0.0";
 

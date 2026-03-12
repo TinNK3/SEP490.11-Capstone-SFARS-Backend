@@ -325,8 +325,8 @@ public class AiInferenceServiceTests
             .ReturnsAsync(new FileUploadResult("https://example.com/image.jpg", "publicId", 1024L, "jpg"));
 
         _yoloServiceMock
-            .Setup(y => y.InferAsync(It.IsAny<Stream>(), It.IsAny<int>()))
-            .ReturnsAsync(new List<YoloPrediction>()); // Empty list!
+            .Setup(y => y.InferCascadedAsync(It.IsAny<Stream>(), It.IsAny<int>()))
+            .ReturnsAsync(new YoloPipelineResult(true, 1f, new List<YoloPrediction>())); // Empty list!
 
         // Act
         var result = await _sut.AnalyzeAsync(
@@ -372,8 +372,8 @@ public class AiInferenceServiceTests
         };
 
         _yoloServiceMock
-            .Setup(y => y.InferAsync(It.IsAny<Stream>(), It.IsAny<int>()))
-            .ReturnsAsync(predictions);
+            .Setup(y => y.InferCascadedAsync(It.IsAny<Stream>(), It.IsAny<int>()))
+            .ReturnsAsync(new YoloPipelineResult(true, 1f, predictions));
 
         _snakeRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<Snake>()); // Empty snake DB
 
@@ -433,8 +433,8 @@ public class AiInferenceServiceTests
         };
 
         _yoloServiceMock
-            .Setup(y => y.InferAsync(It.IsAny<Stream>(), It.IsAny<int>()))
-            .ReturnsAsync(predictions);
+            .Setup(y => y.InferCascadedAsync(It.IsAny<Stream>(), It.IsAny<int>()))
+            .ReturnsAsync(new YoloPipelineResult(true, 1f, predictions));
 
         _snakeRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<Snake> { snake });
         _firstAidRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<FirstAidDetail>());
@@ -484,7 +484,7 @@ public class AiInferenceServiceTests
 
         // Assert
         result.Data.Should().NotBeNull();
-        _yoloServiceMock.Verify(y => y.InferAsync(It.IsAny<Stream>(), It.IsAny<int>()), Times.Never);
+        _yoloServiceMock.Verify(y => y.InferCascadedAsync(It.IsAny<Stream>(), It.IsAny<int>()), Times.Never);
         _storageServiceMock.Verify(s => s.UploadAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         _inferenceRepoMock.Verify(r => r.AddAsync(It.IsAny<AiInferenceEntity>()), Times.Once);
     }
@@ -534,8 +534,8 @@ public class AiInferenceServiceTests
         };
 
         _yoloServiceMock
-            .Setup(y => y.InferAsync(It.IsAny<Stream>(), It.IsAny<int>()))
-            .ReturnsAsync(predictions);
+            .Setup(y => y.InferCascadedAsync(It.IsAny<Stream>(), It.IsAny<int>()))
+            .ReturnsAsync(new YoloPipelineResult(true, 1f, predictions));
 
         _snakeRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<Snake> { snake });
         _firstAidRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<FirstAidDetail>());
@@ -596,8 +596,8 @@ public class AiInferenceServiceTests
         };
 
         _yoloServiceMock
-            .Setup(y => y.InferAsync(It.IsAny<Stream>(), It.IsAny<int>()))
-            .ReturnsAsync(predictions);
+            .Setup(y => y.InferCascadedAsync(It.IsAny<Stream>(), It.IsAny<int>()))
+            .ReturnsAsync(new YoloPipelineResult(true, 1f, predictions));
 
         _snakeRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(snakes);
         _firstAidRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<FirstAidDetail>());
