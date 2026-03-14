@@ -624,6 +624,48 @@
     "Vi": "Bạn ở quá xa vị trí sự cố để có thể nhận nhiệm vụ này."
   },
   {
+    "MsgId": "Payment.Success0001",
+    "MsgContent": "Payment transaction created successfully.",
+    "En": "Payment transaction created successfully.",
+    "Vi": "Tạo giao dịch thanh toán thành công."
+  },
+  {
+    "MsgId": "Payment.Success0002",
+    "MsgContent": "Payment webhook processed successfully.",
+    "En": "Payment webhook processed successfully.",
+    "Vi": "Xử lý webhook thanh toán thành công."
+  },
+  {
+    "MsgId": "Payment.Success0003",
+    "MsgContent": "Payment transaction cancelled successfully.",
+    "En": "Payment transaction cancelled successfully.",
+    "Vi": "Hủy giao dịch thanh toán thành công."
+  },
+  {
+    "MsgId": "Payment.Warning0001",
+    "MsgContent": "Invalid payment webhook signature.",
+    "En": "Invalid payment webhook signature.",
+    "Vi": "Chữ ký webhook thanh toán không hợp lệ."
+  },
+  {
+    "MsgId": "Payment.Warning0002",
+    "MsgContent": "Payment transaction not found.",
+    "En": "Payment transaction not found.",
+    "Vi": "Không tìm thấy giao dịch thanh toán."
+  },
+  {
+    "MsgId": "Payment.Warning0003",
+    "MsgContent": "Payment transaction has already been processed.",
+    "En": "Payment transaction has already been processed.",
+    "Vi": "Giao dịch thanh toán đã được xử lý trước đó."
+  },
+  {
+    "MsgId": "Payment.Warning0004",
+    "MsgContent": "Payment amount validation failed.",
+    "En": "Payment amount validation failed.",
+    "Vi": "Xác thực số tiền thanh toán thất bại."
+  },
+  {
     "MsgId": "AiReview.Success0001",
     "MsgContent": "AI Review submitted successfully.",
     "En": "AI Review submitted successfully.",

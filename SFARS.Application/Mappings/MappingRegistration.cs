@@ -5,6 +5,7 @@ using SFARS.Application.Dtos.Facility;
 using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Dtos.Rescuer;
 using SFARS.Application.Dtos.Role;
+using SFARS.Application.Dtos.Transaction;
 using SFARS.Application.Dtos.User;
 using SFARS.Domain.Entities;
 
@@ -54,6 +55,10 @@ namespace SFARS.Application.Mappings
                 .Map(dest => dest.Latitude, src => src.Location != null ? src.Location.Y : 0)
                 .Map(dest => dest.Longitude, src => src.Location != null ? src.Location.X : 0)
                 .Map(dest => dest.FacilityType, src => src.Type);
+
+            // Transaction mapping
+            config.NewConfig<Transaction, TransactionDto>()
+                .Map(dest => dest.CheckoutUrl, src => (string?)null); // populated by service after PayOS call
         }
     }
 }

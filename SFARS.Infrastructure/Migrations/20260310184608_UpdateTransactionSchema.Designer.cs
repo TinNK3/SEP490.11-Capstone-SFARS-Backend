@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SFARS.Infrastructure.Data.Context;
@@ -12,9 +13,11 @@ using SFARS.Infrastructure.Data.Context;
 namespace SFARS.Infrastructure.Migrations
 {
     [DbContext(typeof(SFARSDbContext))]
-    partial class SFARSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260310184608_UpdateTransactionSchema")]
+    partial class UpdateTransactionSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -105,9 +108,6 @@ namespace SFARS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
-
-                    b.Property<double?>("BinaryConfidence")
-                        .HasColumnType("float");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2")
@@ -228,145 +228,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasDatabaseName("IX_AiInferenceCandidate_Inference_Rank");
 
                     b.ToTable("AiInferenceCandidate", (string)null);
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.AiInferenceReview", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("AiInferenceId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("ai_inference_id");
-
-                    b.Property<string>("Comment")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)")
-                        .HasColumnName("comment");
-
-                    b.Property<Guid?>("CorrectedSnakeId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("corrected_snake_id");
-
-                    b.Property<string>("CorrectedToxinGroup")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)")
-                        .HasColumnName("corrected_toxin_group");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("created_by");
-
-                    b.Property<Guid>("IncidentId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("incident_id");
-
-                    b.Property<string>("ReviewStatus")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)")
-                        .HasColumnName("review_status");
-
-                    b.Property<DateTime?>("ReviewedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("reviewed_at");
-
-                    b.Property<Guid>("ReviewerId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("reviewer_id");
-
-                    b.Property<string>("UnableToAssessReasonChoice")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .HasColumnName("unable_to_assess_reason_choice");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("updated_by");
-
-                    b.HasKey("Id")
-                        .HasName("PK_AiInferenceReview_Id");
-
-                    b.HasIndex("AiInferenceId");
-
-                    b.HasIndex("CorrectedSnakeId");
-
-                    b.HasIndex("IncidentId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_AiInferenceReview_ActiveReview")
-                        .HasFilter("[review_status] IN ('Pending', 'Deferred')");
-
-                    b.HasIndex("ReviewerId");
-
-                    b.ToTable("AiInferenceReview", (string)null);
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.AiReviewAuditLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("created_by");
-
-                    b.Property<Guid>("IncidentId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("incident_id");
-
-                    b.Property<string>("NewStatus")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)")
-                        .HasColumnName("new_status");
-
-                    b.Property<string>("OldStatus")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)")
-                        .HasColumnName("old_status");
-
-                    b.Property<Guid>("RescuerId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("rescuer_id");
-
-                    b.Property<Guid>("ReviewId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("review_id");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("updated_by");
-
-                    b.HasKey("Id")
-                        .HasName("PK_AiReviewAuditLog_Id");
-
-                    b.HasIndex("IncidentId");
-
-                    b.HasIndex("RescuerId");
-
-                    b.HasIndex("ReviewId");
-
-                    b.ToTable("AiReviewAuditLog", (string)null);
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.ChatMessage", b =>
@@ -674,15 +535,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("current_ai_inference_id");
 
-                    b.Property<Guid?>("CurrentAiReviewId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("current_ai_review_id");
-
-                    b.Property<string>("CurrentAiReviewStatus")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)")
-                        .HasColumnName("current_ai_review_status");
-
                     b.Property<string>("CurrentStatus")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -700,15 +552,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<DateTime?>("GraceExpiresAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("grace_expires_at");
-
-                    b.Property<Guid?>("HumanReviewedSnakeId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("human_reviewed_snake_id");
-
-                    b.Property<string>("HumanReviewedToxinGroup")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)")
-                        .HasColumnName("human_reviewed_toxin_group");
 
                     b.Property<Point>("Location")
                         .IsRequired()
@@ -2474,74 +2317,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Navigation("AiInference");
 
                     b.Navigation("Snake");
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.AiInferenceReview", b =>
-                {
-                    b.HasOne("SFARS.Domain.Entities.AiInference", "AiInference")
-                        .WithMany()
-                        .HasForeignKey("AiInferenceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_AiInferenceReview_AiInference_AiInferenceId");
-
-                    b.HasOne("SFARS.Domain.Entities.Snake", "CorrectedSnake")
-                        .WithMany()
-                        .HasForeignKey("CorrectedSnakeId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("FK_AiInferenceReview_Snake_CorrectedSnakeId");
-
-                    b.HasOne("SFARS.Domain.Entities.Incident", "Incident")
-                        .WithMany()
-                        .HasForeignKey("IncidentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_AiInferenceReview_Incident_IncidentId");
-
-                    b.HasOne("SFARS.Domain.Entities.User", "Reviewer")
-                        .WithMany()
-                        .HasForeignKey("ReviewerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("FK_AiInferenceReview_User_ReviewerId");
-
-                    b.Navigation("AiInference");
-
-                    b.Navigation("CorrectedSnake");
-
-                    b.Navigation("Incident");
-
-                    b.Navigation("Reviewer");
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.AiReviewAuditLog", b =>
-                {
-                    b.HasOne("SFARS.Domain.Entities.Incident", "Incident")
-                        .WithMany()
-                        .HasForeignKey("IncidentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_AiReviewAuditLog_Incident_IncidentId");
-
-                    b.HasOne("SFARS.Domain.Entities.User", "Rescuer")
-                        .WithMany()
-                        .HasForeignKey("RescuerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("FK_AiReviewAuditLog_User_RescuerId");
-
-                    b.HasOne("SFARS.Domain.Entities.AiInferenceReview", "Review")
-                        .WithMany()
-                        .HasForeignKey("ReviewId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired()
-                        .HasConstraintName("FK_AiReviewAuditLog_AiInferenceReview_ReviewId");
-
-                    b.Navigation("Incident");
-
-                    b.Navigation("Rescuer");
-
-                    b.Navigation("Review");
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.ChatMessage", b =>

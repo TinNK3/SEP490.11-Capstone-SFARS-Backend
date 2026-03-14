@@ -5,6 +5,7 @@ using SFARS.API.Payloads.Request.Faq;
 using SFARS.API.Payloads.Request.Incident;
 using SFARS.API.Payloads.Request.Rescuer;
 using SFARS.API.Payloads.Request.Snake;
+using SFARS.API.Payloads.Request.Transaction;
 using SFARS.API.Payloads.Request.User;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Auth;
@@ -12,6 +13,7 @@ using SFARS.Application.Dtos.Facility;
 using SFARS.Application.Dtos.Faq;
 using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Dtos.Rescuer;
+using SFARS.Application.Dtos.Transaction;
 using SFARS.Application.Dtos.User;
 
 namespace SFARS.API.Extensions
@@ -229,6 +231,18 @@ namespace SFARS.API.Extensions
                 Answer = req.Answer,
                 Order = req.Order,
                 IsActive = req.IsActive
+            };
+        }
+        #endregion
+
+        #region Transaction
+        // Mapping from typeof(CreateTransactionRequest) to typeof(TransactionDto)
+        public static TransactionDto ToTransactionDto(this CreateTransactionRequest req)
+        {
+            return new TransactionDto
+            {
+                Amount = req.Amount,
+                Description = req.Description
             };
         }
         #endregion
