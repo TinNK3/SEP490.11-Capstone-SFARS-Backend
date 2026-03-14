@@ -5,11 +5,13 @@ using SFARS.Application.Dtos.Auth;
 using SFARS.Application.Dtos.Facility;
 using SFARS.Application.Dtos.Faq;
 using SFARS.Application.Dtos.Incident;
+using SFARS.Application.Dtos.Transaction;
 using SFARS.Application.Dtos.User;
 using SFARS.Application.Validations.Auth;
 using SFARS.Application.Validations.Facility;
 using SFARS.Application.Validations.Faq;
 using SFARS.Application.Validations.Incident;
+using SFARS.Application.Validations.Transaction;
 using SFARS.Application.Validations.User;
 
 
@@ -35,6 +37,7 @@ namespace SFARS.Application.Validations
                 { } when typeof(T) == typeof(IncidentDto) => (IValidator<T>)(object)new CreateIncidentValidator(),
                 { } when typeof(T) == typeof(FacilityDto) => (IValidator<T>)(object)new FacilityDtoValidator(),
                 { } when typeof(T) == typeof(FaqDto) => (IValidator<T>)(object)new FaqDtoValidator(),
+                { } when typeof(T) == typeof(TransactionDto) => (IValidator<T>)(object)new TransactionDtoValidator(),
                 _ => null
             };
         }

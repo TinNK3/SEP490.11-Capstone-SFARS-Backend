@@ -158,6 +158,17 @@ namespace SFARS.Application.Common
         public const string Dispatch_Notify0002  = "Dispatch.Notify0002";  // Fallback: no rescuer found
         #endregion
 
+        #region Payment
+        public const string Payment_Success0001 = "Payment.Success0001"; // Transaction created
+        public const string Payment_Success0002 = "Payment.Success0002"; // Webhook processed
+        public const string Payment_Success0003 = "Payment.Success0003"; // Transaction cancelled
+
+        public const string Payment_Warning0001 = "Payment.Warning0001"; // Invalid webhook signature
+        public const string Payment_Warning0002 = "Payment.Warning0002"; // Transaction not found
+        public const string Payment_Warning0003 = "Payment.Warning0003"; // Already processed (idempotent)
+        public const string Payment_Warning0004 = "Payment.Warning0004"; // Amount validation failed
+        #endregion
+
         #region Comm
         public const string Comm_Success0001 = "Comm.Success0001";
         public const string Comm_Success0002 = "Comm.Success0002";

@@ -4,8 +4,10 @@ using SFARS.API.Extension;
 using SFARS.API.Extensions;
 using SFARS.API.Payloads;
 using SFARS.API.Payloads.Request.User;
+using SFARS.Application.Dtos.Transaction;
 using SFARS.Application.Dtos.User;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Domain.Specifications.Params;
 
 namespace SFARS.API.Controller
 {
@@ -16,10 +18,12 @@ namespace SFARS.API.Controller
     public class UserController : ControllerBase
     {
         private readonly IUserService<UserDto> _userService;
+        private readonly ITransactionService<TransactionDto> _transactionService;
 
-        public UserController(IUserService<UserDto> userService)
+        public UserController(IUserService<UserDto> userService, ITransactionService<TransactionDto> transactionService)
         {
             _userService = userService;
+            _transactionService = transactionService;
         }
 
         /// <summary>
@@ -75,6 +79,25 @@ namespace SFARS.API.Controller
             var userId = User.GetUserId();
             var result = await _userService.UpdateUserLocationAsync(
                 userId, req.Latitude, req.Longitude, req.AccuracyMeters);
+            return this.ToIActionResult(result);
+        }
+
+        #endregion
+
+        #region Donation History
+
+        /// <summary>
+        /// Get current user's donation history
+        /// </summary>
+        [Authorize]
+        [HttpGet(APIRoute.User.MeDonationHistory, Name = nameof(GetMyDonationHistoryAsync))]
+        public async Task<IActionResult> GetMyDonationHistoryAsync(
+            [FromQuery] TransactionSpecParams specParams,
+            [FromQuery] int pageIndex = 0,
+            [FromQuery] int pageSize = 20)
+        {
+            var userId = User.GetUserId();
+            var result = await _transactionService.GetMyTransactionsAsync(userId, specParams, pageIndex, pageSize);
             return this.ToIActionResult(result);
         }
 

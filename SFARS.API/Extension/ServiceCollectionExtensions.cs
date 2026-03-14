@@ -103,8 +103,16 @@ namespace SFARS.API.Extension
 
             // Configure WebTokenSettings for JWT
             services.Configure<WebTokenSettings>(builder.Configuration.GetSection("WebTokenSettings"));
+            // Configure GoogleAuthSettings for Google OAuth
             services.Configure<GoogleAuthSettings>(builder.Configuration.GetSection("GoogleAuthSettings"));
+            // Configure CloudinarySettings for Cloudinary image service
             services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
+            // Configure PayOSSettings for PayOS payment gateway
+            services.Configure<PayOSSettings>(builder.Configuration.GetSection("PayOSSettings"));
+            
+            // Configure general payment settings
+            services.Configure<PaymentSettings>(builder.Configuration.GetSection("PaymentSettings"));
+
             services.Configure<StorageOptions>(builder.Configuration.GetSection("Storage"));
             
             // AI Services Configuration
@@ -112,6 +120,17 @@ namespace SFARS.API.Extension
             services.Configure<YoloModelOptions>(builder.Configuration.GetSection("YoloModel"));
 
             return services;
+        }
+
+        public static IServiceCollection EstablishApplicationConfiguration(
+        this IServiceCollection services,
+        IConfiguration configuration)
+        {
+
+        // PayOS Configuration - Payment Gateway
+        services.Configure<PayOSSettings>(configuration.GetSection("PayOSSettings"));
+
+        return services;
         }
 
         public static IServiceCollection AddCors(this IServiceCollection services,

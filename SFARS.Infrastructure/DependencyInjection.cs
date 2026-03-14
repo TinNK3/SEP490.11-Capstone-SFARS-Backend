@@ -3,6 +3,8 @@ using Hangfire.SqlServer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Net.payOS;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Repositories.Base;
@@ -36,12 +38,34 @@ public static class DependencyInjection
             services.Configure<StorageOptions>(
                 configuration.GetSection(StorageOptions.SectionName));
 
+            // Configure PayOS
+            services.Configure<PayOSSettings>(
+                configuration.GetSection(PayOSSettings.SectionName));
+
+            // Register PayOS SDK instance as singleton
+            services.AddSingleton(sp =>
+            {
+                // Reuse validated options from DI instead of parsing configuration section again.
+                var payOsSettings = sp.GetRequiredService<IOptions<PayOSSettings>>().Value;
+                
+                if (payOsSettings == null ||
+                    string.IsNullOrWhiteSpace(payOsSettings.ClientId) ||
+                    string.IsNullOrWhiteSpace(payOsSettings.ApiKey) ||
+                    string.IsNullOrWhiteSpace(payOsSettings.ChecksumKey))
+                {
+                    throw new InvalidOperationException("PayOS configuration is missing or incomplete.");
+                }
+                
+                return new PayOS(payOsSettings.ClientId, payOsSettings.ApiKey, payOsSettings.ChecksumKey);
+            });
+
             // Register Infrastructure services
             services.AddScoped<IDatabaseInitializer, DatabaseInitializer>();
             
             services.AddScoped<IExternalAuthService, ExternalAuthService>();
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<IFileStorageService, CloudinaryStorageService>();
+            services.AddScoped<IPayOSService, PayOSService>();
             
             // AI Services
             services.AddSingleton<IYoloInferenceService, YoloInferenceService>();

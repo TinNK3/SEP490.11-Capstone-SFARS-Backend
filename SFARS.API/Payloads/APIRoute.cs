@@ -33,6 +33,7 @@
             // [GET]
             public const string Me = Base + "/me";
             public const string MeLocation = Base + "/me/location";
+            public const string MeDonationHistory = Base + "/me/donation-history";
             // [PUT]
             public const string UpdateMe = Base + "/me";
         }
@@ -132,6 +133,8 @@
             public const string GetUserById = Base + "/admin/users/{id}";
             public const string GetAuditLogs = Base + "/admin/audit-logs";
             public const string GetUserAuditLogs = Base + "/admin/users/{id}/audit-logs";
+            public const string GetAllPayments = Base + "/admin/payments";
+            public const string GetPaymentOverview = Base + "/admin/payments/overview";
             // [POST]
             public const string CreateUser = Base + "/admin/users";
             // [PUT]
@@ -206,6 +209,20 @@
         {
             // [POST]
             public const string SmsSOSInbound = Base + "/webhooks/sms/sos";
+            public const string PayOs         = Base + "/webhooks/payos";
+        }
+
+        /// <summary>
+        /// Payment / Transaction endpoints
+        /// </summary>
+        public static class Payment
+        {
+            // [POST]
+            public const string Create = Base + "/payments";
+            // [GET]
+            public const string GetById = Base + "/payments/{id}";
+            // [PATCH]
+            public const string Cancel = Base + "/payments/{id}/cancel";
         }
     }
 }

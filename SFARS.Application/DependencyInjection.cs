@@ -9,11 +9,12 @@ using SFARS.Application.Dtos.Facility;
 using SFARS.Application.Dtos.Faq;
 using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Dtos.Role;
+using SFARS.Application.Dtos.Transaction;
 using SFARS.Application.Dtos.User;
 using SFARS.Application.Services;
 using SFARS.Application.Services.Auth;
-using SFARS.Application.Utils;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Application.Utils;
 using SFARS.Domain.Interfaces.Services.Base;
 using System.Reflection;
 
@@ -64,6 +65,9 @@ public static class DependencyInjection
 
         // FAQ services
         services.AddScoped<IFaqService<FaqDto>, Services.Faq.FaqService>();
+
+        // Transaction / Donation services
+        services.AddScoped<ITransactionService<TransactionDto>, TransactionService>();
 
         // Register all validators from this assembly
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
