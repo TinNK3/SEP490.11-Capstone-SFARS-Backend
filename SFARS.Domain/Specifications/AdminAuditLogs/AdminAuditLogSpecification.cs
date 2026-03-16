@@ -89,12 +89,7 @@ namespace SFARS.Domain.Specifications.AdminAuditLogs
             if (p.EntityId.HasValue)
                 spec.AddFilter(a => a.EntityId == p.EntityId.Value);
 
-            if (!string.IsNullOrEmpty(p.Search))
-                spec.AddFilter(a =>
-                    (a.Reason != null && a.Reason.Contains(p.Search)) ||
-                    a.Admin.FirstName.Contains(p.Search) ||
-                    a.Admin.LastName.Contains(p.Search) ||
-                    a.Admin.Email.Contains(p.Search));
+            ApplySearchFilter(spec, p.Search);
 
             if (p.DateRange != null && p.DateRange.Length > 1)
             {
@@ -134,6 +129,20 @@ namespace SFARS.Domain.Specifications.AdminAuditLogs
 
             // Default: newest first
             AddOrderByDescending(a => a.CreatedAt);
+        }
+
+        private static void ApplySearchFilter(AdminAuditLogSpecification spec, string? rawSearch)
+        {
+            var search = rawSearch?.Trim();
+            if (string.IsNullOrEmpty(search))
+                return;
+
+            var normalized = search.ToLower();
+            spec.AddFilter(a =>
+                (a.Reason != null && a.Reason.ToLower().Contains(normalized))
+                || a.Admin.FirstName.ToLower().Contains(normalized)
+                || a.Admin.LastName.ToLower().Contains(normalized)
+                || a.Admin.Email.ToLower().Contains(normalized));
         }
     }
 }

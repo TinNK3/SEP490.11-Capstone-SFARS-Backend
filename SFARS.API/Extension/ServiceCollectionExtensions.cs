@@ -4,6 +4,8 @@ using SFARS.Application.Configurations;
 using SFARS.Application.HealthChecks;
 using SFARS.Infrastructure.Configurations;
 using System.Data.Common;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SFARS.API.Extension
 {
@@ -16,7 +18,8 @@ namespace SFARS.API.Extension
             // Add controllers
             services.AddControllers().AddJsonOptions(options =>
             {
-                options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+                options.JsonSerializerOptions.Converters.Add(
+                    new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
             });
             // Configures ApiExplorer
             services.AddEndpointsApiExplorer();
