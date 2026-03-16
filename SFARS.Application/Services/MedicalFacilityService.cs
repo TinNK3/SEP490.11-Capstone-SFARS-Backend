@@ -137,8 +137,8 @@ public class MedicalFacilityService : GenericService<MedicalFacility, FacilityDt
         {
             Items = dtos,
             TotalCount = totalCount,
-            PageIndex = specParams.PageIndex ?? 1,
-            PageSize = specParams.PageSize ?? dtos.Count
+            Page = specParams.PageNumber,
+            Limit = specParams.Limit ?? dtos.Count
         };
 
         return new ServiceResult(

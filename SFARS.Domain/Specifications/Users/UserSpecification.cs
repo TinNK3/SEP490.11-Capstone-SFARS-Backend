@@ -44,16 +44,7 @@ namespace SFARS.Domain.Specifications.Users
         /// </summary>
         public static UserSpecification List(UserSpecParams p, int pageIndex, int pageSize)
         {
-            var spec = new UserSpecification(u =>
-                string.IsNullOrEmpty(p.Search) ||
-                (
-                    (!string.IsNullOrEmpty(u.Email)     && u.Email.Contains(p.Search))     ||
-                    (!string.IsNullOrEmpty(u.Phone)     && u.Phone.Contains(p.Search))     ||
-                    (!string.IsNullOrEmpty(u.FirstName) && u.FirstName.Contains(p.Search)) ||
-                    (!string.IsNullOrEmpty(u.LastName)  && u.LastName.Contains(p.Search))  ||
-                    (!string.IsNullOrEmpty(u.FirstName) && !string.IsNullOrEmpty(u.LastName) &&
-                     (u.FirstName + " " + u.LastName).Contains(p.Search))
-                ));
+            var spec = new UserSpecification(BuildSearchCriteria(p.Search));
 
             spec.EnableSplitQuery();
             spec.ApplyInclude(q => q
@@ -104,16 +95,7 @@ namespace SFARS.Domain.Specifications.Users
         /// </summary>
         public static UserSpecification Count(UserSpecParams p)
         {
-            var spec = new UserSpecification(u =>
-                string.IsNullOrEmpty(p.Search) ||
-                (
-                    (!string.IsNullOrEmpty(u.Email)     && u.Email.Contains(p.Search))     ||
-                    (!string.IsNullOrEmpty(u.Phone)     && u.Phone.Contains(p.Search))     ||
-                    (!string.IsNullOrEmpty(u.FirstName) && u.FirstName.Contains(p.Search)) ||
-                    (!string.IsNullOrEmpty(u.LastName)  && u.LastName.Contains(p.Search))  ||
-                    (!string.IsNullOrEmpty(u.FirstName) && !string.IsNullOrEmpty(u.LastName) &&
-                     (u.FirstName + " " + u.LastName).Contains(p.Search))
-                ));
+            var spec = new UserSpecification(BuildSearchCriteria(p.Search));
 
             spec.ApplyInclude(q => q
                 .Include(u => u.UserRoles)
@@ -169,6 +151,24 @@ namespace SFARS.Domain.Specifications.Users
             {
                 AddOrderByDescending(u => u.CreatedAt); // fallback
             }
+        }
+
+        private static Expression<Func<User, bool>> BuildSearchCriteria(string? rawSearch)
+        {
+            var search = rawSearch?.Trim();
+            if (string.IsNullOrEmpty(search))
+                return _ => true;
+
+            var normalized = search.ToLowerInvariant();
+
+            return u =>
+                (!string.IsNullOrEmpty(u.Email) && u.Email.ToLower().Contains(normalized))
+                || (!string.IsNullOrEmpty(u.Phone) && u.Phone.ToLower().Contains(normalized))
+                || (!string.IsNullOrEmpty(u.FirstName) && u.FirstName.ToLower().Contains(normalized))
+                || (!string.IsNullOrEmpty(u.LastName) && u.LastName.ToLower().Contains(normalized))
+                || (!string.IsNullOrEmpty(u.FirstName)
+                    && !string.IsNullOrEmpty(u.LastName)
+                    && (u.FirstName + " " + u.LastName).ToLower().Contains(normalized));
         }
     }
 }

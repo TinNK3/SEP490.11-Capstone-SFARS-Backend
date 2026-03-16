@@ -1,4 +1,4 @@
-﻿using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi.Models;
 
 namespace SFARS.API.Extension
 {
@@ -17,6 +17,9 @@ namespace SFARS.API.Extension
                     Title = "SFARS.API",
                     Version = "v1"
                 });
+
+                // Enforce camelCase query parameters in Swagger UI
+                c.OperationFilter<CamelCaseQueryParameterFilter>();
 
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {

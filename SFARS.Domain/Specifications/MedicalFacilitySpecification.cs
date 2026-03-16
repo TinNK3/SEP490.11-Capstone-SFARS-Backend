@@ -30,12 +30,7 @@ namespace SFARS.Domain.Specifications
         {
             var spec = new MedicalFacilitySpecification();
 
-            // Text search on Name or Address
-            if (!string.IsNullOrWhiteSpace(specParams.Search))
-            {
-                spec.AddFilter(f => f.Name.Contains(specParams.Search)
-                                 || (f.Address != null && f.Address.Contains(specParams.Search)));
-            }
+            ApplySearchFilter(spec, specParams.Search);
 
             // Filter by FacilityType
             if (specParams.Type.HasValue)
@@ -56,10 +51,9 @@ namespace SFARS.Domain.Specifications
             }
 
             // Pagination
-            if (specParams.PageSize.HasValue)
+            if (specParams.Limit.HasValue)
             {
-                var pageIndex = specParams.PageIndex ?? 1;
-                spec.ApplyPaging(specParams.PageSize.Value, (pageIndex - 1) * specParams.PageSize.Value);
+                spec.ApplyPaging(specParams.PageSize, specParams.PageIndex * specParams.PageSize);
             }
 
             // Sorting
@@ -98,11 +92,7 @@ namespace SFARS.Domain.Specifications
         {
             var spec = new MedicalFacilitySpecification();
 
-            if (!string.IsNullOrWhiteSpace(specParams.Search))
-            {
-                spec.AddFilter(f => f.Name.Contains(specParams.Search)
-                                 || (f.Address != null && f.Address.Contains(specParams.Search)));
-            }
+            ApplySearchFilter(spec, specParams.Search);
 
             if (specParams.Type.HasValue)
                 spec.AddFilter(f => f.Type == specParams.Type.Value);
@@ -114,6 +104,18 @@ namespace SFARS.Domain.Specifications
                 spec.AddFilter(f => f.HasAntivenom == specParams.HasAntivenom.Value);
 
             return spec;
+        }
+
+        private static void ApplySearchFilter(MedicalFacilitySpecification spec, string? rawSearch)
+        {
+            var search = rawSearch?.Trim();
+            if (string.IsNullOrEmpty(search))
+                return;
+
+            var normalized = search.ToLower();
+            spec.AddFilter(f =>
+                f.Name.ToLower().Contains(normalized)
+                || (f.Address != null && f.Address.ToLower().Contains(normalized)));
         }
     }
 }

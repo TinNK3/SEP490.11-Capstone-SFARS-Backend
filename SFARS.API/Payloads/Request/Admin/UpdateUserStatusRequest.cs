@@ -4,7 +4,7 @@ namespace SFARS.API.Payloads.Request.Admin
 {
     /// <summary>
     /// Request payload for updating a user's status.
-    /// Status is sent as a string (Active | Inactive | Banned | Deleted).
+    /// Status is sent as a string (`active` | `inactive` | `banned` | `deleted`).
     /// </summary>
     public class UpdateUserStatusRequest
     {
