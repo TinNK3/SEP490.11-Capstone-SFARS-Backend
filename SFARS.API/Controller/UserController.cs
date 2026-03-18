@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SFARS.API.Extension;
 using SFARS.API.Extensions;
@@ -85,7 +85,7 @@ namespace SFARS.API.Controller
         [HttpGet(APIRoute.Admin.GetAllUsers, Name = nameof(GetAllUsersAsync))]
         public async Task<IActionResult> GetAllUsersAsync([FromQuery] UserSpecParams specParams)
         {
-            var result = await _userService.GetAllUsersAsync(specParams, specParams.PageIndex, specParams.PageSize);
+            var result = await _userService.GetAllUsersAsync(specParams);
             return this.ToIActionResult(result);
         }
 
@@ -164,12 +164,10 @@ namespace SFARS.API.Controller
         [Authorize]
         [HttpGet(APIRoute.User.MeDonationHistory, Name = nameof(GetMyDonationHistoryAsync))]
         public async Task<IActionResult> GetMyDonationHistoryAsync(
-            [FromQuery] TransactionSpecParams specParams,
-            [FromQuery] int pageIndex = 0,
-            [FromQuery] int pageSize = 20)
+            [FromQuery] TransactionSpecParams specParams)
         {
             var userId = User.GetUserId();
-            var result = await _transactionService.GetMyTransactionsAsync(userId, specParams, pageIndex, pageSize);
+            var result = await _transactionService.GetMyTransactionsAsync(userId, specParams);
             return this.ToIActionResult(result);
         }
 

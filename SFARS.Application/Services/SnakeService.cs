@@ -1,4 +1,4 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using MapsterMapper;
 using Microsoft.Extensions.Logging;
 using SFARS.Application.Common;
@@ -402,8 +402,8 @@ namespace SFARS.Application.Services
                 {
                     Items = dtos,
                     TotalCount = total,
-                    PageIndex = pageIndex,
-                    PageSize = pageSize
+                    Page = pageIndex + 1,
+                    Limit = pageSize
                 }
             };
         }

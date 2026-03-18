@@ -21,9 +21,9 @@ namespace SFARS.Domain.Interfaces.Services
             string? ipAddress = null);
 
         /// <summary>Get paginated audit logs with optional filters.</summary>
-        Task<IServiceResult> GetLogsAsync(AdminAuditLogSpecParams specParams, int pageIndex, int pageSize);
+        Task<IServiceResult> GetLogsAsync(AdminAuditLogSpecParams specParams);
 
         /// <summary>Get audit logs for a specific entity.</summary>
-        Task<IServiceResult> GetLogsByEntityAsync(string entityType, Guid entityId, int pageIndex, int pageSize);
+        Task<IServiceResult> GetLogsByEntityAsync(string entityType, Guid entityId, BaseSpecParams specParams);
     }
 }

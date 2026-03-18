@@ -61,12 +61,11 @@ public class TransactionService : ITransactionService<TransactionDto>
             : PaymentConstants.DefaultExpirationMinutes;
     }
 
-    public async Task<IServiceResult> GetMyTransactionsAsync(Guid userId, TransactionSpecParams specParams, int pageIndex = 0, int pageSize = 20)
+    public async Task<IServiceResult> GetMyTransactionsAsync(Guid userId, TransactionSpecParams specParams)
     {
-        if (pageSize <= 0) pageSize = 20;
-        if (pageIndex < 0) pageIndex = 0;
-
         specParams ??= new TransactionSpecParams();
+        var page = specParams.GetPage();
+        var limit = specParams.GetTake();
 
         var countSpec = TransactionSpecification.CountForUser(userId, specParams);
         var totalItems = await _unitOfWork.Repository<DomainTransaction, Guid>().CountAsync(countSpec);
@@ -76,27 +75,26 @@ public class TransactionService : ITransactionService<TransactionDto>
             return new ServiceResult(
                 ResultCodeConst.SYS_Warning0004,
                 await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004),
-                new PaginatedResultDto<TransactionDto>(Enumerable.Empty<TransactionDto>(), pageIndex, pageSize, 0, 0));
+                new PaginatedResultDto<TransactionDto>(Enumerable.Empty<TransactionDto>(), page, limit, 0, 0));
         }
 
-        var listSpec = TransactionSpecification.ListForUser(userId, specParams, pageIndex, pageSize);
+        var listSpec = TransactionSpecification.ListForUser(userId, specParams);
         var transactions = await _unitOfWork.Repository<DomainTransaction, Guid>().GetAllWithSpecAsync(listSpec, tracked: false);
 
         var data = transactions.Select(_mapper.Map<TransactionDto>).ToList();
-        var totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+        var totalPages = (int)Math.Ceiling((double)totalItems / limit);
 
         return new ServiceResult(
             ResultCodeConst.SYS_Success0002,
             await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
-            new PaginatedResultDto<TransactionDto>(data, pageIndex, pageSize, totalPages, totalItems));
+            new PaginatedResultDto<TransactionDto>(data, page, limit, totalPages, totalItems));
     }
 
-    public async Task<IServiceResult> GetAllTransactionsAsync(TransactionSpecParams specParams, int pageIndex = 0, int pageSize = 20)
+    public async Task<IServiceResult> GetAllTransactionsAsync(TransactionSpecParams specParams)
     {
-        if (pageSize <= 0) pageSize = 20;
-        if (pageIndex < 0) pageIndex = 0;
-
         specParams ??= new TransactionSpecParams();
+        var page = specParams.GetPage();
+        var limit = specParams.GetTake();
 
         var countSpec = TransactionSpecification.CountForAdmin(specParams);
         var totalItems = await _unitOfWork.Repository<DomainTransaction, Guid>().CountAsync(countSpec);
@@ -106,19 +104,19 @@ public class TransactionService : ITransactionService<TransactionDto>
             return new ServiceResult(
                 ResultCodeConst.SYS_Warning0004,
                 await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004),
-                new PaginatedResultDto<TransactionDto>(Enumerable.Empty<TransactionDto>(), pageIndex, pageSize, 0, 0));
+                new PaginatedResultDto<TransactionDto>(Enumerable.Empty<TransactionDto>(), page, limit, 0, 0));
         }
 
-        var listSpec = TransactionSpecification.ListForAdmin(specParams, pageIndex, pageSize);
+        var listSpec = TransactionSpecification.ListForAdmin(specParams);
         var transactions = await _unitOfWork.Repository<DomainTransaction, Guid>().GetAllWithSpecAsync(listSpec, tracked: false);
 
         var data = transactions.Select(_mapper.Map<TransactionDto>).ToList();
-        var totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+        var totalPages = (int)Math.Ceiling((double)totalItems / limit);
 
         return new ServiceResult(
             ResultCodeConst.SYS_Success0002,
             await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
-            new PaginatedResultDto<TransactionDto>(data, pageIndex, pageSize, totalPages, totalItems));
+            new PaginatedResultDto<TransactionDto>(data, page, limit, totalPages, totalItems));
     }
 
     public async Task<IServiceResult> GetTransactionOverviewAsync(TransactionSpecParams specParams)

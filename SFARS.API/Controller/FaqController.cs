@@ -63,7 +63,7 @@ namespace SFARS.API.Controller
         [HttpGet(APIRoute.Admin.GetAllFaqs, Name = "AdminFaq_GetAllPaginated")]
         public async Task<IActionResult> GetAllPaginatedAsync([FromQuery] BaseSpecParams specParams)
         {
-            var result = await _faqService.GetAllFaqsPaginatedAsync(specParams.PageIndex, specParams.PageSize);
+            var result = await _faqService.GetAllFaqsPaginatedAsync(specParams);
             return this.ToIActionResult(result);
         }
 

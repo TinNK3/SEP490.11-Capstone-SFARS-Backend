@@ -40,11 +40,9 @@ public class PaymentController : ControllerBase
     [Authorize(Roles = UserTypeConstants.Admin)]
     [HttpGet(APIRoute.Admin.GetAllPayments, Name = nameof(GetAllPaymentsAsync))]
     public async Task<IActionResult> GetAllPaymentsAsync(
-        [FromQuery] TransactionSpecParams specParams,
-        [FromQuery] int pageIndex = 0,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] TransactionSpecParams specParams)
     {
-        var result = await _transactionService.GetAllTransactionsAsync(specParams, pageIndex, pageSize);
+        var result = await _transactionService.GetAllTransactionsAsync(specParams);
         return this.ToIActionResult(result);
     }
 

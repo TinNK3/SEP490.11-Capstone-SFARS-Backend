@@ -25,7 +25,7 @@ namespace SFARS.Domain.Specifications.AdminAuditLogs
         /// Paginated, filtered audit log list for the Admin panel.
         /// Includes Admin navigation.
         /// </summary>
-        public static AdminAuditLogSpecification List(AdminAuditLogSpecParams p, int pageIndex, int pageSize)
+        public static AdminAuditLogSpecification List(AdminAuditLogSpecParams p)
         {
             var spec = new AdminAuditLogSpecification(_ => true);
 
@@ -34,7 +34,7 @@ namespace SFARS.Domain.Specifications.AdminAuditLogs
             ApplyFilters(spec, p);
             spec.ApplySorting(p.Sort);
 
-            spec.ApplyPaging(pageSize, pageIndex * pageSize);
+            spec.ApplyPaging(p.GetTake(), p.GetSkip());
             return spec;
         }
 
@@ -60,14 +60,14 @@ namespace SFARS.Domain.Specifications.AdminAuditLogs
         /// Fetches audit logs targeting a specific entity.
         /// </summary>
         public static AdminAuditLogSpecification ByEntityId(
-            string entityType, Guid entityId, int pageIndex, int pageSize)
+            string entityType, Guid entityId, BaseSpecParams p)
         {
             var spec = new AdminAuditLogSpecification(
                 a => a.EntityType == entityType && a.EntityId == entityId);
 
             spec.ApplyInclude(q => q.Include(a => a.Admin));
             spec.AddOrderByDescending(a => a.CreatedAt);
-            spec.ApplyPaging(pageSize, pageIndex * pageSize);
+            spec.ApplyPaging(p.GetTake(), p.GetSkip());
             return spec;
         }
 

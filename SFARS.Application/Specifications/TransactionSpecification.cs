@@ -112,13 +112,13 @@ public class TransactionSpecification : BaseSpecification<Transaction>
     //     }
     // }
 
-    public static TransactionSpecification ListForUser(Guid userId, TransactionSpecParams p, int pageIndex, int pageSize)
+    public static TransactionSpecification ListForUser(Guid userId, TransactionSpecParams p)
     {
         var spec = new TransactionSpecification();
         spec.AddFilter(t => t.UserId == userId);
         ApplyFilters(spec, p);
         ApplySorting(spec, p.Sort);
-        spec.ApplyPaging(pageSize, pageIndex * pageSize);
+        spec.ApplyPaging(p.GetTake(), p.GetSkip());
         return spec;
     }
 
@@ -130,12 +130,12 @@ public class TransactionSpecification : BaseSpecification<Transaction>
         return spec;
     }
 
-    public static TransactionSpecification ListForAdmin(TransactionSpecParams p, int pageIndex, int pageSize)
+    public static TransactionSpecification ListForAdmin(TransactionSpecParams p)
     {
         var spec = new TransactionSpecification();
         ApplyFilters(spec, p);
         ApplySorting(spec, p.Sort);
-        spec.ApplyPaging(pageSize, pageIndex * pageSize);
+        spec.ApplyPaging(p.GetTake(), p.GetSkip());
         return spec;
     }
 

@@ -125,7 +125,7 @@ public class TransactionServiceTests
             .ReturnsAsync(0);
 
         // Act
-        var result = await _sut.GetMyTransactionsAsync(userId, specParams, 0, 20);
+        var result = await _sut.GetMyTransactionsAsync(userId, specParams);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
@@ -180,7 +180,7 @@ public class TransactionServiceTests
             });
 
         // Act
-        var result = await _sut.GetMyTransactionsAsync(userId, specParams, 0, 20);
+        var result = await _sut.GetMyTransactionsAsync(userId, specParams);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
@@ -208,7 +208,9 @@ public class TransactionServiceTests
             .ReturnsAsync(0);
 
         // Act - negative pageIndex, zero pageSize
-        var result = await _sut.GetMyTransactionsAsync(userId, specParams, -5, 0);
+        specParams.Page = -5;
+        specParams.Limit = 0;
+        var result = await _sut.GetMyTransactionsAsync(userId, specParams);
 
         // Assert
         result.Should().NotBeNull();

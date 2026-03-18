@@ -45,7 +45,7 @@ namespace SFARS.API.Controller
         [HttpGet(APIRoute.Admin.GetAuditLogs, Name = nameof(GetAuditLogsAsync))]
         public async Task<IActionResult> GetAuditLogsAsync([FromQuery] AdminAuditLogSpecParams specParams)
         {
-            var result = await _auditLogService.GetLogsAsync(specParams, specParams.PageIndex, specParams.PageSize);
+            var result = await _auditLogService.GetLogsAsync(specParams);
             return this.ToIActionResult(result);
         }
 
@@ -57,7 +57,7 @@ namespace SFARS.API.Controller
             Guid id,
             [FromQuery] BaseSpecParams specParams)
         {
-            var result = await _auditLogService.GetLogsByEntityAsync("User", id, specParams.PageIndex, specParams.PageSize);
+            var result = await _auditLogService.GetLogsByEntityAsync("User", id, specParams);
             return this.ToIActionResult(result);
         }
     }

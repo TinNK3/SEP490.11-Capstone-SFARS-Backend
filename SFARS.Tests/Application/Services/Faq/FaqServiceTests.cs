@@ -697,7 +697,7 @@ public class FaqServiceTests
             .Returns(pageDtos);
 
         // Act
-        var result = await _sut.GetAllFaqsPaginatedAsync(pageIndex: 1, pageSize: 10);
+        var result = await _sut.GetAllFaqsPaginatedAsync(new SFARS.Domain.Specifications.Params.BaseSpecParams { Page = 2, Limit = 10 });
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
@@ -706,20 +706,20 @@ public class FaqServiceTests
         var dataType = result.Data!.GetType();
         var itemsProperty = dataType.GetProperty("Items");
         var totalCountProperty = dataType.GetProperty("TotalCount");
-        var pageIndexProperty = dataType.GetProperty("PageIndex");
-        var pageSizeProperty = dataType.GetProperty("PageSize");
+        var pageIndexProperty = dataType.GetProperty("Page");
+        var pageSizeProperty = dataType.GetProperty("Limit");
         var totalPagesProperty = dataType.GetProperty("TotalPages");
 
         var items = itemsProperty!.GetValue(result.Data) as List<FaqDto>;
         var totalCount = (int)totalCountProperty!.GetValue(result.Data)!;
-        var pageIndex = (int)pageIndexProperty!.GetValue(result.Data)!;
-        var pageSize = (int)pageSizeProperty!.GetValue(result.Data)!;
+        var page = (int)pageIndexProperty!.GetValue(result.Data)!;
+        var limit = (int)pageSizeProperty!.GetValue(result.Data)!;
         var totalPages = (int)totalPagesProperty!.GetValue(result.Data)!;
 
         items.Should().HaveCount(5); // Remaining items on page 1
         totalCount.Should().Be(15);
-        pageIndex.Should().Be(1);
-        pageSize.Should().Be(10);
+        page.Should().Be(2); // pageIndex + 1
+        limit.Should().Be(10);
         totalPages.Should().Be(2);
     }
 
@@ -757,7 +757,7 @@ public class FaqServiceTests
             .Returns(firstPageDtos);
 
         // Act
-        var result = await _sut.GetAllFaqsPaginatedAsync();
+        var result = await _sut.GetAllFaqsPaginatedAsync(new SFARS.Domain.Specifications.Params.BaseSpecParams());
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
@@ -765,17 +765,17 @@ public class FaqServiceTests
         var dataType = result.Data!.GetType();
         var itemsProperty = dataType.GetProperty("Items");
         var totalCountProperty = dataType.GetProperty("TotalCount");
-        var pageIndexProperty = dataType.GetProperty("PageIndex");
+        var pageIndexProperty = dataType.GetProperty("Page");
         var totalPagesProperty = dataType.GetProperty("TotalPages");
 
         var items = itemsProperty!.GetValue(result.Data) as List<FaqDto>;
         var totalCount = (int)totalCountProperty!.GetValue(result.Data)!;
-        var pageIndex = (int)pageIndexProperty!.GetValue(result.Data)!;
+        var page = (int)pageIndexProperty!.GetValue(result.Data)!;
         var totalPages = (int)totalPagesProperty!.GetValue(result.Data)!;
 
         items.Should().HaveCount(10);
         totalCount.Should().Be(25);
-        pageIndex.Should().Be(0);
+        page.Should().Be(1); // 0 + 1
         totalPages.Should().Be(3); // 25 / 10 = 2.5 -> 3 pages
     }
 

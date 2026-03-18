@@ -34,6 +34,6 @@ namespace SFARS.Domain.Interfaces.Services
         /// <summary>
         /// [Admin] Get all FAQs with pagination (including inactive)
         /// </summary>
-        Task<IServiceResult> GetAllFaqsPaginatedAsync(int pageIndex = 0, int pageSize = 10);
+        Task<IServiceResult> GetAllFaqsPaginatedAsync(SFARS.Domain.Specifications.Params.BaseSpecParams specParams);
     }
 }
