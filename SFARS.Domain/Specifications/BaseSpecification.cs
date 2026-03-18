@@ -1,8 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore.Query;
 using SFARS.Domain.Specifications.Interfaces;
-
 using System.Linq.Expressions;
-
 
 namespace SFARS.Domain.Specifications
 {

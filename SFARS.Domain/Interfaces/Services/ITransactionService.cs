@@ -9,12 +9,12 @@ public interface ITransactionService<TDto> where TDto : class
     /// <summary>
     /// Get paged transaction history for current user.
     /// </summary>
-    Task<IServiceResult> GetMyTransactionsAsync(Guid userId, TransactionSpecParams specParams, int pageIndex = 0, int pageSize = 20);
+    Task<IServiceResult> GetMyTransactionsAsync(Guid userId, TransactionSpecParams specParams);
 
     /// <summary>
     /// [Admin] Get paged transactions across the whole system.
     /// </summary>
-    Task<IServiceResult> GetAllTransactionsAsync(TransactionSpecParams specParams, int pageIndex = 0, int pageSize = 20);
+    Task<IServiceResult> GetAllTransactionsAsync(TransactionSpecParams specParams);
 
     /// <summary>
     /// [Admin] Get donation overview statistics.

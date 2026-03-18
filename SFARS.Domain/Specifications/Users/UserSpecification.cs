@@ -42,7 +42,7 @@ namespace SFARS.Domain.Specifications.Users
         /// Includes roles and rescuer profile; supports search, status, role,
         /// date-range, and dynamic sorting.
         /// </summary>
-        public static UserSpecification List(UserSpecParams p, int pageIndex, int pageSize)
+        public static UserSpecification List(UserSpecParams p)
         {
             var spec = new UserSpecification(BuildSearchCriteria(p.Search));
 
@@ -82,7 +82,7 @@ namespace SFARS.Domain.Specifications.Users
             else
                 spec.AddOrderByDescending(u => u.CreatedAt);
 
-            spec.ApplyPaging(pageSize, pageIndex * pageSize);
+            spec.ApplyPaging(p.GetTake(), p.GetSkip());
             return spec;
         }
 

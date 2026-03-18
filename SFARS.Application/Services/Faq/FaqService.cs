@@ -262,17 +262,21 @@ namespace SFARS.Application.Services.Faq
         /// <summary>
         /// [Admin] Get all FAQs with pagination (including inactive)
         /// </summary>
-        public async Task<IServiceResult> GetAllFaqsPaginatedAsync(int pageIndex = 0, int pageSize = 10)
+        public async Task<IServiceResult> GetAllFaqsPaginatedAsync(SFARS.Domain.Specifications.Params.BaseSpecParams specParams)
         {
             try
             {
                 var allEntities = await _unitOfWork.Repository<Domain.Entities.Faq, Guid>().GetAllAsync();
 
+                var limit = specParams.GetTake();
+                var page = specParams.GetPage();
+                var skip = specParams.GetSkip();
+
                 var totalCount = allEntities.Count();
                 var faqs = allEntities
                     .OrderBy(f => f.Order)
-                    .Skip(pageIndex * pageSize)
-                    .Take(pageSize)
+                    .Skip(skip)
+                    .Take(limit)
                     .ToList();
 
                 var dtos = _mapper.Map<List<FaqDto>>(faqs);
@@ -281,9 +285,9 @@ namespace SFARS.Application.Services.Faq
                 {
                     Items = dtos,
                     TotalCount = totalCount,
-                    PageIndex = pageIndex,
-                    PageSize = pageSize,
-                    TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+                    Page = page,
+                    Limit = limit,
+                    TotalPages = (int)Math.Ceiling(totalCount / (double)limit)
                 };
 
                 return new ServiceResult(

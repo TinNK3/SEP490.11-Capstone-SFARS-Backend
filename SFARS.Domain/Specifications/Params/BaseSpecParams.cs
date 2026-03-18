@@ -14,25 +14,22 @@ namespace SFARS.Domain.Specifications.Params
         public string? Search { get; set; }
         public string? Sort { get; set; }
 
-        public int PageNumber
+        public int GetTake()
         {
-            get
-            {
-                var page = Page.GetValueOrDefault(DefaultPage);
-                return page < DefaultPage ? DefaultPage : page;
-            }
+            var limit = Limit.GetValueOrDefault(DefaultLimit);
+            if (limit <= 0) return DefaultLimit;
+            return limit > MaxPageSize ? MaxPageSize : limit;
         }
 
-        public int PageSize
+        public int GetPage()
         {
-            get
-            {
-                var limit = Limit.GetValueOrDefault(DefaultLimit);
-                if (limit <= 0) return DefaultLimit;
-                return limit > MaxPageSize ? MaxPageSize : limit;
-            }
+            var page = Page.GetValueOrDefault(DefaultPage);
+            return page < DefaultPage ? DefaultPage : page;
         }
 
-        public int PageIndex => PageNumber - 1;
+        public int GetSkip()
+        {
+            return (GetPage() - 1) * GetTake();
+        }
     }
 }

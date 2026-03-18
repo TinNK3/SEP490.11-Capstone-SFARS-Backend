@@ -1,4 +1,4 @@
-﻿using MapsterMapper;
+using MapsterMapper;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -469,11 +469,11 @@ namespace SFARS.Application.Services
         /// [Admin] Returns a paginated, filtered list of all users.
         /// Filters: role name, status, registration date range, free-text search.
         /// </summary>
-        public async Task<IServiceResult> GetAllUsersAsync(
-            UserSpecParams specParams, int pageIndex, int pageSize)
+        public async Task<IServiceResult> GetAllUsersAsync(UserSpecParams specParams)
         {
-            if (pageSize <= 0) pageSize = 10;
-            if (pageIndex < 0) pageIndex = 0;
+            specParams ??= new UserSpecParams();
+            var page = specParams.GetPage();
+            var limit = specParams.GetTake();
 
             try
             {
@@ -486,18 +486,18 @@ namespace SFARS.Application.Services
                         ResultCodeConst.SYS_Warning0004,
                         await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004),
                         new PaginatedResultDto<UserDto>(
-                            Enumerable.Empty<UserDto>(), pageIndex, pageSize, 0, 0));
+                            Enumerable.Empty<UserDto>(), page, limit, 0, 0));
                 }
 
-                var spec = UserSpecification.List(specParams, pageIndex, pageSize);
+                var spec = UserSpecification.List(specParams);
                 var users = await _unitOfWork.Repository<User, Guid>().GetAllWithSpecAsync(spec, tracked: false);
                 var dtos = _mapper.Map<IEnumerable<UserDto>>(users);
-                var totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+                var totalPages = (int)Math.Ceiling((double)totalItems / limit);
 
                 return new ServiceResult(
                     ResultCodeConst.SYS_Success0002,
                     await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
-                    new PaginatedResultDto<UserDto>(dtos, pageIndex, pageSize, totalPages, totalItems));
+                    new PaginatedResultDto<UserDto>(dtos, page, limit, totalPages, totalItems));
             }
             catch (Exception ex)
             {

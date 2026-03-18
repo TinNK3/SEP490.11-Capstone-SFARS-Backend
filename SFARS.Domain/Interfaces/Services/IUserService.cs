@@ -1,4 +1,4 @@
-﻿using SFARS.Domain.Common.Enum;
+using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications.Params;
@@ -15,7 +15,7 @@ namespace SFARS.Domain.Interfaces.Services
         Task<IServiceResult> UpdatePasswordAsync(Guid userId, string newPasswordHash);
 
         // Admin — paginated user list with filters
-        Task<IServiceResult> GetAllUsersAsync(UserSpecParams specParams, int pageIndex, int pageSize);
+        Task<IServiceResult> GetAllUsersAsync(UserSpecParams specParams);
 
         // Admin — get single user by ID
         Task<IServiceResult> GetUserByIdAsync(Guid userId);

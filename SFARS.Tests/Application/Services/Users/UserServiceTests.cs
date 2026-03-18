@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using MapsterMapper;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -379,7 +379,7 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
                 .ReturnsAsync(0);
 
-            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: 10);
+            var result = await _sut.GetAllUsersAsync(EmptyParams());
 
             result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
             result.Data.Should().NotBeNull();
@@ -417,7 +417,7 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(m => m.Map<IEnumerable<UserDto>>(users))
                 .Returns(dtos);
 
-            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: 10);
+            var result = await _sut.GetAllUsersAsync(EmptyParams());
 
             result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
@@ -453,7 +453,7 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
                 .Returns(FakeDtos(pageSize));
 
-            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: pageSize);
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Limit = pageSize });
 
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
             paged.TotalPage.Should().Be(5);
@@ -488,7 +488,7 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
                 .Returns(FakeDtos(pageSize));
 
-            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: pageSize);
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Limit = pageSize });
 
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
             paged.TotalPage.Should().Be(3); // ceil(11/5) = 3
@@ -519,13 +519,13 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
                 .Returns(FakeDtos(3));
 
-            var act = () => _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: 0);
+            var act = () => _sut.GetAllUsersAsync(new UserSpecParams { Limit = 0 });
             await act.Should().NotThrowAsync();
 
-            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: 0);
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Limit = 0 });
             result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.PageSize.Should().Be(10);   // corrected from 0 → 10
+            paged.Limit.Should().Be(10);   // corrected from 0 → 10
             paged.TotalPage.Should().Be(1);   // ceil(3/10)
         }
 
@@ -554,12 +554,12 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
                 .Returns(FakeDtos(3));
 
-            var act = () => _sut.GetAllUsersAsync(EmptyParams(), pageIndex: -1, pageSize: 10);
+            var act = () => _sut.GetAllUsersAsync(new UserSpecParams { Page = 0 });
             await act.Should().NotThrowAsync();
 
-            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: -1, pageSize: 10);
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Page = 0 });
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.PageIndex.Should().Be(0);   // corrected from -1 → 0
+            paged.Page.Should().Be(1);   // 1-based indexing
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -587,7 +587,7 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
                 .Returns(FakeDtos(5));
 
-            await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: 10);
+            await _sut.GetAllUsersAsync(EmptyParams());
 
             _userRepoMock.Verify(
                 r => r.CountAsync(It.IsAny<ISpecification<User>>()),
@@ -615,7 +615,7 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(r => r.CountAsync(It.IsAny<ISpecification<User>>()))
                 .ReturnsAsync(0);
 
-            await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: 10);
+            await _sut.GetAllUsersAsync(EmptyParams());
 
             _userRepoMock.Verify(
                 r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<User>>(), It.IsAny<bool>()),
@@ -651,7 +651,7 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(m => m.Map<IEnumerable<UserDto>>(users))
                 .Returns(dtos);
 
-            var result = await _sut.GetAllUsersAsync(specParams, pageIndex: 0, pageSize: 10);
+            var result = await _sut.GetAllUsersAsync(specParams);
 
             result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
@@ -687,7 +687,7 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(m => m.Map<IEnumerable<UserDto>>(users))
                 .Returns(dtos);
 
-            var result = await _sut.GetAllUsersAsync(specParams, pageIndex: 0, pageSize: 10);
+            var result = await _sut.GetAllUsersAsync(specParams);
 
             result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
@@ -723,7 +723,7 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(m => m.Map<IEnumerable<UserDto>>(users))
                 .Returns(dtos);
 
-            var result = await _sut.GetAllUsersAsync(specParams, pageIndex: 0, pageSize: 10);
+            var result = await _sut.GetAllUsersAsync(specParams);
 
             result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
             result.Data.Should().NotBeNull();
@@ -761,7 +761,7 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(m => m.Map<IEnumerable<UserDto>>(users))
                 .Returns(dtos);
 
-            var result = await _sut.GetAllUsersAsync(specParams, pageIndex: 0, pageSize: 10);
+            var result = await _sut.GetAllUsersAsync(specParams);
 
             result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
@@ -797,11 +797,11 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
                 .Returns(FakeDtos(pageSize));
 
-            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex, pageSize);
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Page = pageIndex + 1, Limit = pageSize });
 
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.PageIndex.Should().Be(pageIndex);
-            paged.PageSize.Should().Be(pageSize);
+            paged.Page.Should().Be(pageIndex + 1);
+            paged.Limit.Should().Be(pageSize);
             paged.TotalActualItem.Should().Be(total);
             paged.TotalPage.Should().Be(3);           // ceil(15/5) = 3
             paged.Sources.Should().HaveCount(pageSize);
@@ -834,14 +834,14 @@ namespace SFARS.Tests.Application.Services.Users
                 .Returns(new List<UserDto>());
 
             // Act - Request page 1 (2nd page) when only page 0 exists
-            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 1, pageSize: 10);
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Page = 2 });
 
             // Assert
             result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002); // Should still be success
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
             paged.Sources.Should().BeEmpty();
             paged.TotalPage.Should().Be(1); // Only 1 page exists
-            paged.PageIndex.Should().Be(1); // Requested page
+            paged.Page.Should().Be(2); // Requested page
         }
 
         /// <summary>
@@ -868,7 +868,7 @@ namespace SFARS.Tests.Application.Services.Users
                 .Returns(FakeDtos(total));
 
             // Act - pageSize equals total
-            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: total);
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Limit = total });
 
             // Assert
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
@@ -902,7 +902,7 @@ namespace SFARS.Tests.Application.Services.Users
                 .Returns(FakeDtos(pageSize));
 
             // Act
-            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: pageSize);
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Limit = pageSize });
 
             // Assert - ceil(20/19) = 2
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
@@ -937,12 +937,12 @@ namespace SFARS.Tests.Application.Services.Users
                 .Returns(FakeDtos(lastPageItems));
 
             // Act - Request page 2 (3rd page, last page)
-            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 2, pageSize: pageSize);
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Page = 3, Limit = pageSize });
 
             // Assert
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
             paged.TotalPage.Should().Be(3); // ceil(25/10) = 3 pages
-            paged.PageIndex.Should().Be(2); // Last page index
+            paged.Page.Should().Be(3); // Requested page
             paged.Sources.Should().HaveCount(lastPageItems); // BOUNDARY: Partial page
         }
 
@@ -972,7 +972,7 @@ namespace SFARS.Tests.Application.Services.Users
                 .Returns(FakeDtos(total));
 
             // Act
-            var result = await _sut.GetAllUsersAsync(EmptyParams(), pageIndex: 0, pageSize: excessivePageSize);
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Limit = excessivePageSize });
 
             // Assert
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;

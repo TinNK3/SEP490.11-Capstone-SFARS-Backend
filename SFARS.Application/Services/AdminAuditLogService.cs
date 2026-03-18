@@ -70,23 +70,24 @@ namespace SFARS.Application.Services
 
         /// <inheritdoc />
         public async Task<IServiceResult> GetLogsAsync(
-            AdminAuditLogSpecParams specParams, int pageIndex, int pageSize)
+            AdminAuditLogSpecParams specParams)
         {
             try
             {
-                var listSpec  = AdminAuditLogSpecification.List(specParams, pageIndex, pageSize);
+                var listSpec  = AdminAuditLogSpecification.List(specParams);
                 var countSpec = AdminAuditLogSpecification.Count(specParams);
 
                 var logs       = await _unitOfWork.Repository<AdminAuditLog, Guid>().GetAllWithSpecAsync(listSpec);
                 var totalItems = await _unitOfWork.Repository<AdminAuditLog, Guid>().CountAsync(countSpec);
-                var totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+                var limit = specParams.GetTake();
+                var totalPages = (int)Math.Ceiling((double)totalItems / limit);
 
                 var dtos = _mapper.Map<List<AdminAuditLogDto>>(logs);
 
                 return new ServiceResult(
                     ResultCodeConst.SYS_Success0002,
                     await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
-                    new PaginatedResultDto<AdminAuditLogDto>(dtos, pageIndex, pageSize, totalPages, totalItems));
+                    new PaginatedResultDto<AdminAuditLogDto>(dtos, specParams.GetPage(), limit, totalPages, totalItems));
             }
             catch (Exception ex)
             {
@@ -97,11 +98,11 @@ namespace SFARS.Application.Services
 
         /// <inheritdoc />
         public async Task<IServiceResult> GetLogsByEntityAsync(
-            string entityType, Guid entityId, int pageIndex, int pageSize)
+            string entityType, Guid entityId, BaseSpecParams specParams)
         {
             try
             {
-                var spec = AdminAuditLogSpecification.ByEntityId(entityType, entityId, pageIndex, pageSize);
+                var spec = AdminAuditLogSpecification.ByEntityId(entityType, entityId, specParams);
                 var logs = await _unitOfWork.Repository<AdminAuditLog, Guid>().GetAllWithSpecAsync(spec);
 
                 // Count for the same entity
@@ -112,14 +113,15 @@ namespace SFARS.Application.Services
                 };
                 var countSpec  = AdminAuditLogSpecification.Count(countParams);
                 var totalItems = await _unitOfWork.Repository<AdminAuditLog, Guid>().CountAsync(countSpec);
-                var totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+                var limit = specParams.GetTake();
+                var totalPages = (int)Math.Ceiling((double)totalItems / limit);
 
                 var dtos = _mapper.Map<List<AdminAuditLogDto>>(logs);
 
                 return new ServiceResult(
                     ResultCodeConst.SYS_Success0002,
                     await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
-                    new PaginatedResultDto<AdminAuditLogDto>(dtos, pageIndex, pageSize, totalPages, totalItems));
+                    new PaginatedResultDto<AdminAuditLogDto>(dtos, specParams.GetPage(), limit, totalPages, totalItems));
             }
             catch (Exception ex)
             {
