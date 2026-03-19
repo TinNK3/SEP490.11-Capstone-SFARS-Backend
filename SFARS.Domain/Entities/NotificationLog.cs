@@ -1,12 +1,10 @@
 using SFARS.Domain.Common.Enum;
-using System.ComponentModel.DataAnnotations;
+using SFARS.Domain.Entities.Base;
 
 namespace SFARS.Domain.Entities;
 
-public class NotificationLog
+public class NotificationLog : BaseEntity
 {
-    [Key]
-    public long Id { get; set; }
     public Guid UserId { get; set; }
     public string Title { get; set; } = null!;
     public string Message { get; set; } = null!;

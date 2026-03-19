@@ -27,6 +27,11 @@ public class User : BaseEntity
 
     // Location (Real-time)
     public Point? CurrentLocation { get; set; }
+    public DateTime? LocationUpdatedAt { get; set; }
+    public double? LocationAccuracyMeters { get; set; }
+
+    // Email Verification
+    public string? EmailVerificationCode { get; set; }
 
     // Navigation Properties
     public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
@@ -34,6 +39,7 @@ public class User : BaseEntity
     public virtual ICollection<UserLoginHistory> LoginHistories { get; set; } = new List<UserLoginHistory>();
     public virtual RescuerProfile? RescuerProfile { get; set; }
     public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+    public virtual ICollection<OtpRequest> OtpRequests { get; set; } = new List<OtpRequest>();
     public virtual UserPoint? UserPoint { get; set; }
     public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
     public virtual ICollection<PointTransaction> PointTransactions { get; set; } = new List<PointTransaction>();

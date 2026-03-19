@@ -9,6 +9,8 @@ namespace SFARS.Domain.Common.Enum
         [Description("Tin tức")]
         News,
         [Description("Thông báo")]
-        Announcement
+        Announcement,
+        [Description("Cộng đồng")]
+        Community
     }
 }

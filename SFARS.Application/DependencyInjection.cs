@@ -5,16 +5,21 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Auth;
+using SFARS.Application.Dtos.Facility;
+using SFARS.Application.Dtos.Faq;
+using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Dtos.Role;
+using SFARS.Application.Dtos.Transaction;
 using SFARS.Application.Dtos.User;
 using SFARS.Application.Services;
 using SFARS.Application.Services.Auth;
-using SFARS.Application.Utils;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Application.Utils;
 using SFARS.Domain.Interfaces.Services.Base;
 using System.Reflection;
 
 namespace SFARS.Application;
+
 public static class DependencyInjection
 {
 
@@ -22,6 +27,10 @@ public static class DependencyInjection
     //		This class is to configure services for application layer
     public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
     {
+        // In-memory cache used by TokenBlacklistService (must be Singleton)
+        services.AddMemoryCache();
+        services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
+
         // Register application services
         services.AddScoped<ISystemMessageService, SystemMessageService>();
         services.AddScoped(typeof(IGenericService<,,>), typeof(GenericService<,,>));
@@ -35,8 +44,40 @@ public static class DependencyInjection
         services.AddScoped<IRefreshTokenService<RefreshTokenDto>, RefreshTokenService>();
         services.AddScoped<IAuthService<AuthUserDto>, AuthService>();
 
+        // Incident services
+        services.AddScoped<IIncidentService<IncidentDto>, IncidentService>();
+        services.AddScoped<IAiInferenceService, AiInferenceService>();
+        services.AddScoped<IAiReviewService, AiReviewService>();
+        services.AddScoped<IDispatchService, DispatchService>();
+        services.AddScoped<IMissionService, MissionService>();
+        services.AddScoped<IDeviceService, DeviceService>();
+
+        // Admin services — methods added directly to IUserService / UserService
+        services.AddScoped<IAdminAuditLogService, AdminAuditLogService>();
+
+        // Chat services
+        services.AddScoped<IChatService, ChatService>();
+
+        // Facility services
+        services.AddScoped<IMedicalFacilityService<FacilityDto>, MedicalFacilityService>();
+
+        // Rescuer services
+        services.AddScoped<IRescuerService, RescuerService>();
+
+        // Community Post services
+        services.AddScoped<ICommunityPostService, CommunityPostService>();
+
+        // FAQ services
+        services.AddScoped<IFaqService<FaqDto>, Services.Faq.FaqService>();
+
+        // Transaction / Donation services
+        services.AddScoped<ITransactionService<TransactionDto>, TransactionService>();
+
         // Register all validators from this assembly
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
+        // Register MediatR (IPublisher, IMediator, and all handlers from this assembly)
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
 
         services.ConfigureMapster();
 

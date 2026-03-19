@@ -23,6 +23,13 @@ public class RescuerProfileConfiguration : IEntityTypeConfiguration<RescuerProfi
         builder.Property(e => e.IsVerified).HasColumnName("is_verified");
         builder.Property(e => e.ApprovedBy).HasColumnName("approved_by");
 
+        builder.Property(x => x.IsAvailable)
+            .IsRequired()
+            .HasColumnName("is_available");
+
+        builder.Property(x => x.AvailableUpdatedAt)
+            .HasColumnName("available_updated_at");
+
         builder.HasOne(p => p.User)
             .WithOne(u => u.RescuerProfile)
             .HasForeignKey<RescuerProfile>(p => p.UserId)

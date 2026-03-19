@@ -75,6 +75,15 @@ namespace SFARS.Infrastructure.Data
 
             // [SystemMessages] - For result codes/messages (Sync Data)
             await SeedSystemMessagesAsync();
+
+            // [Snakes] - Master data for snake species (Sync Data)
+            await SeedSnakesAsync();
+
+            // [FirstAidDetails] - First aid steps by toxin group (Sync Data)
+            await SeedFirstAidDetailsAsync();
+
+            // [Faqs] - Frequently asked questions (Sync Data)
+            await SeedFaqsAsync();
         }
 
         //  Summary:
@@ -149,7 +158,11 @@ namespace SFARS.Infrastructure.Data
                     PasswordHash = passwordHash,
                     Gender = Gender.Male,
                     Status = UserStatus.Active,
-                    IsOnline = false
+                    IsOnline = false,
+                    Address = "25 Trần Phú, TP. Pleiku, Gia Lai",
+                    CurrentLocation = new NetTopologySuite.Geometries.Point(108.0089, 13.9833) { SRID = 4326 }, // TP. Pleiku
+                    LocationUpdatedAt = DateTime.UtcNow,
+                    LocationAccuracyMeters = 15.0
                 }, userRole),
                 (new User
                 {
@@ -160,7 +173,11 @@ namespace SFARS.Infrastructure.Data
                     PasswordHash = passwordHash,
                     Gender = Gender.Male,
                     Status = UserStatus.Active,
-                    IsOnline = false
+                    IsOnline = false,
+                    Address = "10 Lê Lợi, TP. Pleiku, Gia Lai",
+                    CurrentLocation = new NetTopologySuite.Geometries.Point(108.0200, 13.9900) { SRID = 4326 }, // Gần TP. Pleiku
+                    LocationUpdatedAt = DateTime.UtcNow,
+                    LocationAccuracyMeters = 10.0
                 }, rescuerRole)
             };
 
@@ -171,7 +188,20 @@ namespace SFARS.Infrastructure.Data
                 var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
                 if (existingUser != null)
                 {
-                    _logger.LogInformation("User {Email} already exists, skipping.", user.Email);
+                    // Update location if seed has location but existing user doesn't
+                    if (user.CurrentLocation != null && existingUser.CurrentLocation == null)
+                    {
+                        existingUser.CurrentLocation = user.CurrentLocation;
+                        existingUser.LocationUpdatedAt = user.LocationUpdatedAt ?? DateTime.UtcNow;
+                        existingUser.LocationAccuracyMeters = user.LocationAccuracyMeters;
+                        existingUser.Address ??= user.Address;
+                        await _context.SaveChangesAsync();
+                        _logger.LogInformation("Updated location for existing user {Email}.", user.Email);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("User {Email} already exists, skipping.", user.Email);
+                    }
                     continue;
                 }
 
@@ -281,6 +311,285 @@ namespace SFARS.Infrastructure.Data
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[Seeding] Error during deserialization or syncing.");
+                throw;
+            }
+        }
+
+        //  Summary:
+        //      Seeding Snake Master Data (Upsert by ScientificName)
+        private async Task SeedSnakesAsync()
+        {
+            var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Seeds", "snakes_seed.json");
+
+            if (!File.Exists(filePath))
+            {
+                _logger.LogWarning("[Seeding] Snakes seed file NOT found at: {FilePath}", filePath);
+                return;
+            }
+
+            try
+            {
+                var jsonData = await File.ReadAllTextAsync(filePath);
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip,
+                    Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+                };
+
+                var seedSnakes = System.Text.Json.JsonSerializer.Deserialize<List<Snake>>(jsonData, options);
+
+                if (seedSnakes == null || !seedSnakes.Any())
+                {
+                    _logger.LogWarning("[Seeding] Snake list is empty or null after deserialization.");
+                    return;
+                }
+
+                // 1. Get existing snakes keyed by ScientificName (natural key)
+                var existingSnakes = await _context.Snakes
+                    .ToDictionaryAsync(s => s.ScientificName, s => s);
+
+                var newSnakes = new List<Snake>();
+                var updatedCount = 0;
+                var now = DateTime.UtcNow;
+
+                // 2. Iterate and compare
+                foreach (var seed in seedSnakes)
+                {
+                    if (existingSnakes.TryGetValue(seed.ScientificName, out var existing))
+                    {
+                        // Update if content changed
+                        bool isChanged = false;
+                        if (existing.CommonName != seed.CommonName) { existing.CommonName = seed.CommonName; isChanged = true; }
+                        if (existing.ToxicityLevel != seed.ToxicityLevel) { existing.ToxicityLevel = seed.ToxicityLevel; isChanged = true; }
+                        if (existing.ToxinGroup != seed.ToxinGroup) { existing.ToxinGroup = seed.ToxinGroup; isChanged = true; }
+                        if (existing.Description != seed.Description) { existing.Description = seed.Description; isChanged = true; }
+                        if (existing.KeyIdentifiers != seed.KeyIdentifiers) { existing.KeyIdentifiers = seed.KeyIdentifiers; isChanged = true; }
+                        if (existing.TypicalSymptoms != seed.TypicalSymptoms) { existing.TypicalSymptoms = seed.TypicalSymptoms; isChanged = true; }
+                        if (existing.Habitat != seed.Habitat) { existing.Habitat = seed.Habitat; isChanged = true; }
+                        if (existing.DistributionNote != seed.DistributionNote) { existing.DistributionNote = seed.DistributionNote; isChanged = true; }
+                        if (existing.Note != seed.Note) { existing.Note = seed.Note; isChanged = true; }
+
+                        if (isChanged)
+                        {
+                            existing.UpdatedAt = now;
+                            updatedCount++;
+                        }
+                    }
+                    else
+                    {
+                        // New snake
+                        seed.Id = Guid.NewGuid();
+                        seed.CreatedAt = now;
+                        seed.IsActive = true;
+                        newSnakes.Add(seed);
+                    }
+                }
+
+                // 3. Batch save
+                if (newSnakes.Any())
+                {
+                    await _context.Snakes.AddRangeAsync(newSnakes);
+                }
+
+                if (newSnakes.Any() || updatedCount > 0)
+                {
+                    var rows = await _context.SaveChangesAsync();
+                    _logger.LogInformation("[Seeding] Snakes sync completed. Inserted: {Inserted}, Updated: {Updated}, DB rows: {Rows}.",
+                        newSnakes.Count, updatedCount, rows);
+                }
+                else
+                {
+                    _logger.LogInformation("[Seeding] Snakes are up-to-date. No changes needed.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Seeding] Error seeding snakes.");
+                throw;
+            }
+        }
+
+        //  Summary:
+        //      Seeding First Aid Details by ToxinGroup (Upsert by ToxinGroup + StepOrder + LanguageCode)
+        //      ToxinGroup.Unknown = General prohibitions ("Không nên làm") — always returned with any result
+        private async Task SeedFirstAidDetailsAsync()
+        {
+            var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Seeds", "first_aid_seed.json");
+
+            if (!File.Exists(filePath))
+            {
+                _logger.LogWarning("[Seeding] FirstAid seed file NOT found at: {FilePath}", filePath);
+                return;
+            }
+
+            try
+            {
+                var jsonData = await File.ReadAllTextAsync(filePath);
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip,
+                    Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+                };
+
+                var seedItems = System.Text.Json.JsonSerializer.Deserialize<List<FirstAidDetail>>(jsonData, options);
+
+                if (seedItems == null || !seedItems.Any())
+                {
+                    _logger.LogWarning("[Seeding] FirstAid list is empty or null after deserialization.");
+                    return;
+                }
+
+                // 1. Get existing records keyed by composite key (ToxinGroup, StepOrder, LanguageCode)
+                var existingItems = await _context.FirstAidDetails
+                    .Where(f => f.SnakeId == null) // Only general (non-snake-specific) records
+                    .ToListAsync();
+
+                var existingLookup = existingItems
+                    .ToDictionary(
+                        f => (f.ToxinGroup, f.StepOrder, f.LanguageCode),
+                        f => f);
+
+                var newItems = new List<FirstAidDetail>();
+                var updatedCount = 0;
+                var now = DateTime.UtcNow;
+
+                // 2. Iterate and compare
+                foreach (var seed in seedItems)
+                {
+                    var key = (seed.ToxinGroup, seed.StepOrder, seed.LanguageCode);
+
+                    if (existingLookup.TryGetValue(key, out var existing))
+                    {
+                        // Update if content changed
+                        bool isChanged = false;
+                        if (existing.Title != seed.Title) { existing.Title = seed.Title; isChanged = true; }
+                        if (existing.ContentMarkdown != seed.ContentMarkdown) { existing.ContentMarkdown = seed.ContentMarkdown; isChanged = true; }
+
+                        if (isChanged)
+                        {
+                            existing.UpdatedAt = now;
+                            updatedCount++;
+                        }
+                    }
+                    else
+                    {
+                        // New record
+                        seed.Id = Guid.NewGuid();
+                        seed.SnakeId = null; // General (not snake-specific)
+                        seed.CreatedAt = now;
+                        newItems.Add(seed);
+                    }
+                }
+
+                // 3. Batch save
+                if (newItems.Any())
+                {
+                    await _context.FirstAidDetails.AddRangeAsync(newItems);
+                }
+
+                if (newItems.Any() || updatedCount > 0)
+                {
+                    var rows = await _context.SaveChangesAsync();
+                    _logger.LogInformation("[Seeding] FirstAidDetails sync completed. Inserted: {Inserted}, Updated: {Updated}, DB rows: {Rows}.",
+                        newItems.Count, updatedCount, rows);
+                }
+                else
+                {
+                    _logger.LogInformation("[Seeding] FirstAidDetails are up-to-date. No changes needed.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Seeding] Error seeding FirstAidDetails.");
+                throw;
+            }
+        }
+
+        //  Summary:
+        //      Seeding FAQ Data (Upsert by Question text)
+        private async Task SeedFaqsAsync()
+        {
+            var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Seeds", "faq_seed.json");
+
+            if (!File.Exists(filePath))
+            {
+                _logger.LogWarning("[Seeding] FAQ seed file NOT found at: {FilePath}", filePath);
+                return;
+            }
+
+            try
+            {
+                var jsonData = await File.ReadAllTextAsync(filePath);
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip
+                };
+
+                var seedFaqs = System.Text.Json.JsonSerializer.Deserialize<List<Faq>>(jsonData, options);
+
+                if (seedFaqs == null || !seedFaqs.Any())
+                {
+                    _logger.LogWarning("[Seeding] FAQ list is empty or null after deserialization.");
+                    return;
+                }
+
+                // 1. Get existing FAQs keyed by Question (natural key)
+                var existingFaqs = await _context.Faqs
+                    .ToDictionaryAsync(f => f.Question, f => f);
+
+                var newFaqs = new List<Faq>();
+                var updatedCount = 0;
+                var now = DateTime.UtcNow;
+
+                // 2. Iterate and compare
+                foreach (var seed in seedFaqs)
+                {
+                    if (existingFaqs.TryGetValue(seed.Question, out var existing))
+                    {
+                        // Update if content changed
+                        bool isChanged = false;
+                        if (existing.Answer != seed.Answer) { existing.Answer = seed.Answer; isChanged = true; }
+                        if (existing.Order != seed.Order) { existing.Order = seed.Order; isChanged = true; }
+                        if (existing.IsActive != seed.IsActive) { existing.IsActive = seed.IsActive; isChanged = true; }
+
+                        if (isChanged)
+                        {
+                            existing.UpdatedAt = now;
+                            updatedCount++;
+                        }
+                    }
+                    else
+                    {
+                        // New FAQ
+                        seed.Id = Guid.NewGuid();
+                        seed.CreatedAt = now;
+                        newFaqs.Add(seed);
+                    }
+                }
+
+                // 3. Batch save
+                if (newFaqs.Any())
+                {
+                    await _context.Faqs.AddRangeAsync(newFaqs);
+                }
+
+                if (newFaqs.Any() || updatedCount > 0)
+                {
+                    var rows = await _context.SaveChangesAsync();
+                    _logger.LogInformation("[Seeding] FAQs sync completed. Inserted: {Inserted}, Updated: {Updated}, DB rows: {Rows}.",
+                        newFaqs.Count, updatedCount, rows);
+                }
+                else
+                {
+                    _logger.LogInformation("[Seeding] FAQs are up-to-date. No changes needed.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Seeding] Error seeding FAQs.");
                 throw;
             }
         }

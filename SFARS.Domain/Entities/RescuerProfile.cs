@@ -15,6 +15,8 @@ public class RescuerProfile
     public double CoverageRadiusKM { get; set; }
     public bool IsVerified { get; set; }
     public Guid? ApprovedBy { get; set; }
+    public bool IsAvailable { get; set; } = true;
+    public DateTime? AvailableUpdatedAt { get; set; }
 
     public virtual User User { get; set; } = null!;
 }

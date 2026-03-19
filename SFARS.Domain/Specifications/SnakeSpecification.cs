@@ -29,10 +29,7 @@ namespace SFARS.Domain.Specifications
         public static SnakeSpecification ByNameContains(string searchTerm)
         {
             var spec = new SnakeSpecification();
-            if (!string.IsNullOrWhiteSpace(searchTerm))
-            {
-                spec.AddFilter(s => s.CommonName.Contains(searchTerm) || s.ScientificName.Contains(searchTerm));
-            }
+            ApplySearchFilter(spec, searchTerm);
             spec.AddOrderBy(s => s.CommonName);
             return spec;
         }
@@ -54,16 +51,25 @@ namespace SFARS.Domain.Specifications
         public static SnakeSpecification SearchWithPagination(string? searchTerm, int pageIndex, int pageSize)
         {
             var spec = new SnakeSpecification();
-            
-            if (!string.IsNullOrWhiteSpace(searchTerm))
-            {
-                spec.AddFilter(s => s.CommonName.Contains(searchTerm) || s.ScientificName.Contains(searchTerm));
-            }
+
+            ApplySearchFilter(spec, searchTerm);
             
             spec.ApplyPaging(pageSize, pageIndex * pageSize);
             spec.AddOrderBy(s => s.CommonName);
             
             return spec;
+        }
+
+        private static void ApplySearchFilter(SnakeSpecification spec, string? rawSearch)
+        {
+            var search = rawSearch?.Trim();
+            if (string.IsNullOrEmpty(search))
+                return;
+
+            var normalized = search.ToLower();
+            spec.AddFilter(s =>
+                s.CommonName.ToLower().Contains(normalized)
+                || s.ScientificName.ToLower().Contains(normalized));
         }
     }
 }

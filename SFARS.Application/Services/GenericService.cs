@@ -166,30 +166,22 @@ namespace SFARS.Application.Services
 
             try
             {
-                // Retrieve the entity
-                var existingEntity = await _unitOfWork.Repository<TEntity, TKey>().GetByIdAsync(id);
-                if (existingEntity == null)
+                // EF Core 7+ ExecuteDeleteAsync - direct DELETE in database
+                // Returns number of rows affected (0 if not found, 1+ if deleted)
+                var rowsAffected = await _unitOfWork.Repository<TEntity, TKey>().DeleteAsync(id);
+                
+                if (rowsAffected == 0)
                 {
+                    // Entity not found
                     var errMsg = await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002);
                     return new ServiceResult(ResultCodeConst.SYS_Warning0002,
                         StringUtils.Format(errMsg, nameof(TEntity).ToLower()));
                 }
-
-                // Process add delete entity
-                await _unitOfWork.Repository<TEntity, TKey>().DeleteAsync(id);
-                // Save to DB
-                if (await _unitOfWork.SaveChangesAsync() > 0)
-                {
-                    serviceResult.ResultCode = ResultCodeConst.SYS_Success0004;
-                    serviceResult.Message = await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0004);
-                    serviceResult.Data = true;
-                }
-                else
-                {
-                    serviceResult.ResultCode = ResultCodeConst.SYS_Fail0004;
-                    serviceResult.Message = await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0004);
-                    serviceResult.Data = false;
-                }
+                
+                // rowsAffected > 0 means delete success
+                serviceResult.ResultCode = ResultCodeConst.SYS_Success0004;
+                serviceResult.Message = await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0004);
+                serviceResult.Data = true;
             }
             catch (DbUpdateException ex)
             {

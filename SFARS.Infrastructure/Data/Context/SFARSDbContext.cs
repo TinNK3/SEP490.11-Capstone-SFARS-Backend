@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using SFARS.Domain.Entities;
 using System.Reflection;
 
@@ -13,6 +13,7 @@ public partial class SFARSDbContext : DbContext
 
     // IAM
     public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<OtpRequest> OtpRequests { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<Role> Roles { get; set; }
     public DbSet<UserRole> UserRoles { get; set; }
@@ -23,6 +24,7 @@ public partial class SFARSDbContext : DbContext
     // Snake & Medical
     public DbSet<Snake> Snakes { get; set; }
     public DbSet<SnakeImage> SnakeImages { get; set; }
+    public DbSet<SnakeChangeLog> SnakeChangeLogs { get; set; }
     public DbSet<FirstAidDetail> FirstAidDetails { get; set; }
     public DbSet<MedicalFacility> MedicalFacilities { get; set; }
 
@@ -36,6 +38,9 @@ public partial class SFARSDbContext : DbContext
 
     // Community
     public DbSet<ContentPost> ContentPosts { get; set; }
+    public DbSet<PostMedia> PostMedias { get; set; }
+    public DbSet<PostComment> PostComments { get; set; }
+    public DbSet<PostLike> PostLikes { get; set; }
     public DbSet<Quiz> Quizzes { get; set; }
     public DbSet<UserPoint> UserPoints { get; set; }
     public DbSet<PointTransaction> PointTransactions { get; set; }
@@ -46,6 +51,23 @@ public partial class SFARSDbContext : DbContext
     public DbSet<SystemConfig> SystemConfigs { get; set; }
     public DbSet<NotificationLog> NotificationLogs { get; set; }
     public DbSet<SystemMessage> SystemMessages { get; set; }
+
+    // Admin
+    public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
+    public DbSet<Faq> Faqs { get; set; }
+
+    public DbSet<AiInference> AiInferences { get; set; }
+    public DbSet<AiInferenceCandidate> AiInferenceCandidates { get; set; }
+    public DbSet<IncidentSymptom> IncidentSymptoms { get; set; }
+
+    // Chat (Incident-specific)
+    public DbSet<IncidentChat> IncidentChats { get; set; }
+    public DbSet<IncidentChatMessage> IncidentChatMessages { get; set; }
+    public DbSet<IncidentChatMessageMedia> IncidentChatMessageMedias { get; set; }
+
+    // Chat (General — RAG-based AI chatbox)
+    public DbSet<ChatSession> ChatSessions { get; set; }
+    public DbSet<ChatMessage> ChatMessages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

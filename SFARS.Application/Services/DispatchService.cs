@@ -1,0 +1,356 @@
+using Hangfire;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using NetTopologySuite.Geometries;
+using SFARS.Application.Common;
+using SFARS.Application.Dtos.Dispatch;
+using SFARS.Domain.Common.Constants;
+using SFARS.Domain.Common.Enum;
+using SFARS.Domain.Entities;
+using SFARS.Domain.Interfaces;
+using SFARS.Domain.Interfaces.Services;
+using SFARS.Domain.Specifications;
+using SFARS.Infrastructure.Hubs;
+using SFARS.Infrastructure.Helpers;
+using StackExchange.Redis;
+using System.Text.Json;
+
+namespace SFARS.Application.Services;
+
+/// <summary>
+/// Tiered SOS dispatch service.
+/// </summary>
+public class DispatchService : IDispatchService
+{
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IHubContext<RescueDispatchHub> _rescueHub;
+    private readonly IHubContext<LocationTrackingHub> _locationHub;
+    private readonly ISystemMessageService _msgService;
+    private readonly ILogger<DispatchService> _logger;
+    private readonly IBackgroundJobClient _jobs;
+    private readonly IFcmPushService _fcmService;
+    private readonly IConnectionMultiplexer _redis;
+
+    public DispatchService(
+        IUnitOfWork unitOfWork,
+        IHubContext<RescueDispatchHub> rescueHub,
+        IHubContext<LocationTrackingHub> locationHub,
+        ISystemMessageService msgService,
+        ILogger<DispatchService> logger,
+        IBackgroundJobClient jobs,
+        IFcmPushService fcmService,
+        IConnectionMultiplexer redis)
+    {
+        _unitOfWork = unitOfWork;
+        _rescueHub = rescueHub;
+        _locationHub = locationHub;
+        _msgService = msgService;
+        _logger = logger;
+        _jobs = jobs;
+        _fcmService = fcmService;
+        _redis = redis;
+    }
+
+    /// <inheritdoc />
+    public async Task StartDispatchAsync(Guid incidentId)
+    {
+        var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
+        if (incident is null || incident.CurrentStatus != IncidentStatus.Pending)
+        {
+            _logger.LogWarning("StartDispatchAsync skipped. IncidentId={Id} status={S}",
+                incidentId, incident?.CurrentStatus);
+            return;
+        }
+
+        var anyRescuer = await AnyAvailableRescuerWithinAsync(incident.Location, DispatchConstants.FailFastRadiusMeters);
+        if (!anyRescuer)
+        {
+            _logger.LogWarning("Fail-fast: no available rescuer within {R} km for IncidentId={Id}",
+                DispatchConstants.FailFastRadiusMeters / 1000, incidentId);
+            await RunFallbackAsync(incidentId);
+            return;
+        }
+
+        var j1 = _jobs.Schedule<IDispatchService>(
+            q => q.RunTier1Async(incidentId), DispatchConstants.Tier1Delay);
+        var j2 = _jobs.Schedule<IDispatchService>(
+            q => q.RunTier2Async(incidentId), DispatchConstants.Tier2Delay);
+        var j3 = _jobs.Schedule<IDispatchService>(
+            q => q.RunTier3Async(incidentId), DispatchConstants.Tier3Delay);
+        var jf = _jobs.Schedule<IDispatchService>(
+            q => q.RunFallbackAsync(incidentId), DispatchConstants.FallbackDelay);
+
+        incident.DispatchJobIds = JsonSerializer.Serialize(new[] { j1, j2, j3, jf });
+        incident.CurrentStatus = IncidentStatus.Dispatching_Tier1;
+        incident.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.SaveChangesAsync();
+
+        _logger.LogInformation("Dispatch chain scheduled for IncidentId={Id}. Jobs={Jobs}",
+            incidentId, incident.DispatchJobIds);
+    }
+
+    /// <inheritdoc />
+    [Queue(DispatchConstants.HangfireQueue)]
+    public async Task RunTier1Async(Guid incidentId)
+        => await RunTierInternalAsync(incidentId, tier: 1,
+            expectedStatus: IncidentStatus.Dispatching_Tier1, 
+            radiusMeters: DispatchConstants.Tier1RadiusMeters, 
+            maxEtaMinutes: DispatchConstants.Tier1EtaMinutes,
+            nextStatus: IncidentStatus.Dispatching_Tier2,
+            freshnessMinutes: DispatchConstants.LocationHeartbeatWindowMinutes,
+            maxRescuers: DispatchConstants.Tier1MaxRescuers,
+            isSignalR: true);
+
+    /// <inheritdoc />
+    [Queue(DispatchConstants.HangfireQueue)]
+    public async Task RunTier2Async(Guid incidentId)
+        => await RunTierInternalAsync(incidentId, tier: 2,
+            expectedStatus: IncidentStatus.Dispatching_Tier2, 
+            radiusMeters: DispatchConstants.Tier2RadiusMeters, 
+            maxEtaMinutes: DispatchConstants.Tier2EtaMinutes,
+            nextStatus: IncidentStatus.Dispatching_Tier3,
+            freshnessMinutes: DispatchConstants.Tier2FreshnessHours * 60,
+            maxRescuers: DispatchConstants.Tier2MaxRescuers,
+            isSignalR: false);
+
+    /// <inheritdoc />
+    [Queue(DispatchConstants.HangfireQueue)]
+    public async Task RunTier3Async(Guid incidentId)
+        => await RunTierInternalAsync(incidentId, tier: 3,
+            expectedStatus: IncidentStatus.Dispatching_Tier3, 
+            radiusMeters: DispatchConstants.Tier3RadiusMeters, 
+            maxEtaMinutes: DispatchConstants.Tier3EtaMinutes,
+            nextStatus: null,
+            freshnessMinutes: DispatchConstants.Tier3FreshnessHours * 60,
+            maxRescuers: DispatchConstants.Tier3MaxRescuers,
+            isSignalR: false);
+
+    /// <inheritdoc />
+    [Queue(DispatchConstants.HangfireQueue)]
+    public async Task RunFallbackAsync(Guid incidentId)
+    {
+        var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
+
+        if (incident is null || incident.CurrentStatus == IncidentStatus.Assigned || incident.CurrentStatus == IncidentStatus.Cancelled)
+        {
+            _logger.LogInformation("Fallback skipped — status is {S}. IncidentId={Id}", incident?.CurrentStatus, incidentId);
+            return;
+        }
+
+        incident.CurrentStatus = IncidentStatus.Unassigned;
+        incident.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.SaveChangesAsync();
+
+        var message = await _msgService.GetMessageAsync(ResultCodeConst.Dispatch_Notify0002);
+        var fallbackDto = new SosFallbackDto
+        {
+            IncidentId = incidentId,
+            Message = message
+        };
+
+        await _locationHub.Clients
+            .Group(LocationConstants.SignalRGroupPrefix + incidentId)
+            .SendAsync(DispatchConstants.EventFallback, fallbackDto);
+
+        _logger.LogWarning("SOS Fallback triggered for IncidentId={Id}. Status=Unassigned.", incidentId);
+    }
+
+    private async Task RunTierInternalAsync(
+        Guid incidentId,
+        int tier,
+        IncidentStatus expectedStatus,
+        double radiusMeters,
+        int maxEtaMinutes,
+        IncidentStatus? nextStatus,
+        int freshnessMinutes,
+        int maxRescuers,
+        bool isSignalR)
+    {
+        var spec = new BaseSpecification<Incident>(i => i.Id == incidentId);
+        spec.ApplyInclude(q => q
+            .Include(i => i.Medias)
+            .Include(i => i.CurrentAiInference!)
+                .ThenInclude(ai => ai.SelectedSnake!));
+        
+        var incident = await _unitOfWork.Repository<Incident, Guid>().GetWithSpecAsync(spec);
+
+        if (incident is null || incident.CurrentStatus == IncidentStatus.Assigned || incident.CurrentStatus == IncidentStatus.Cancelled)
+        {
+            _logger.LogInformation("Tier{T} skipped (status is {S}). IncidentId={Id}", tier, incident?.CurrentStatus, incidentId);
+            return;
+        }
+
+        if (incident.CurrentStatus != expectedStatus)
+        {
+            _logger.LogInformation("Tier{T} expected {E} but was {S}. IncidentId={Id}", tier, expectedStatus, incident.CurrentStatus, incidentId);
+            return; // Out of sequence
+        }
+
+        var candidates = await FindRescuersInRadiusAsync(incidentId, incident.Location, radiusMeters, maxEtaMinutes, freshnessMinutes, maxRescuers);
+
+        if (candidates.Count == 0)
+        {
+            _logger.LogInformation("Tier{T}: 0 rescuers found. IncidentId={Id}", tier, incidentId);
+            if (nextStatus.HasValue)
+            {
+                incident.CurrentStatus = nextStatus.Value;
+                incident.UpdatedAt = DateTime.UtcNow;
+                await _unitOfWork.SaveChangesAsync();
+            }
+            return;
+        }
+
+        if (nextStatus.HasValue)
+        {
+            incident.CurrentStatus = nextStatus.Value;
+            incident.UpdatedAt = DateTime.UtcNow;
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        var now = DateTime.UtcNow;
+
+        var db = _redis.GetDatabase();
+
+        // Calculate AI fields ONCE before the loop for performance
+        var media = incident.Medias.FirstOrDefault(m => m.MediaType == MediaType.SnakePhoto);
+        var imageUrl = media?.MediaUrl;
+        var aiName = incident.AiPredictionResult;
+        
+        var isAiSkipped = string.Equals(aiName, AiInferenceConstants.UnknownSnake, StringComparison.OrdinalIgnoreCase)
+                       || incident.CurrentAiInference?.ModelName == AiInferenceConstants.SkippedModelName;
+        
+        var toxin = incident.CurrentAiInference?.SelectedSnake?.ToxinGroup.ToString();
+        var aiConfidence = incident.AiConfidenceScore;
+        var priorityText = incident.PriorityLevel.ToString();
+
+        if (isSignalR)
+        {
+            foreach (var rescuer in candidates)
+            {
+                var dedupKey = $"dispatch:{incidentId}:{rescuer.Id}";
+                // Atomic SETNX to prevent race conditions and double dispatch
+                var locked = await db.StringSetAsync(dedupKey, "1", TimeSpan.FromHours(3), When.NotExists);
+                if (!locked) continue;
+                
+                var distKm = LocationHelper.HaversineMeters(rescuer.CurrentLocation!, incident.Location) / 1000.0;
+                var etaMin = (int)Math.Ceiling(distKm / DispatchConstants.AvgSpeedKmh * 60);
+
+                var dto = new SosDispatchNotificationDto
+                {
+                    IncidentId = incidentId,
+                    IncidentCode = incident.Code,
+                    Latitude = incident.Location.Y,
+                    Longitude = incident.Location.X,
+                    AddressString = incident.AddressString,
+                    PriorityLevel = priorityText,
+                    DistanceKm = Math.Round(distKm, 2),
+                    EstimatedEtaMin = etaMin,
+                    Tier = tier,
+                    DispatchedAt = now,
+
+                    // Fields for Rich UI Push (Summary payload)
+                    IncidentImageUrl = imageUrl,
+                    IsAiSkipped = isAiSkipped,
+                    AiPrimarySnakeName = aiName,
+                    AiConfidence = aiConfidence,
+                    ToxinGroup = toxin
+                };
+
+                await _rescueHub.Clients
+                    .Group(DispatchConstants.RescuerGroupPrefix + rescuer.Id)
+                    .SendAsync(DispatchConstants.EventNewDispatch, dto);
+            }
+        }
+        else // FCM Push
+        {
+            var baseTitleMsg = DispatchConstants.PushTitlePrefix;
+            var defaultUnknownSnake = DispatchConstants.PushUnknownSnake;
+            var topSnake = isAiSkipped ? defaultUnknownSnake : (aiName ?? defaultUnknownSnake);
+
+            foreach (var rescuer in candidates)
+            {
+                var dedupKey = $"dispatch:{incidentId}:{rescuer.Id}";
+                // Atomic SETNX to prevent race conditions and double dispatch
+                var locked = await db.StringSetAsync(dedupKey, "1", TimeSpan.FromHours(3), When.NotExists);
+                if (!locked) continue;
+                
+                var distKm = LocationHelper.HaversineMeters(rescuer.CurrentLocation!, incident.Location) / 1000.0;
+                var bodyMsg = string.Format(DispatchConstants.PushBodyTemplate, topSnake, Math.Round(distKm, 1));
+
+                var data = new Dictionary<string, string>
+                {
+                    { "incidentId", incidentId.ToString() },
+                    { "lat", incident.Location.Y.ToString() },
+                    { "lng", incident.Location.X.ToString() },
+                    { "severity", incident.PriorityLevel.ToString() },
+                    { "type", DispatchConstants.FcmSosDispatchTitleKey },
+                    
+                    // Pass enriched AI summary to FCM Notification Click Payload
+                    { "imageUrl", imageUrl ?? "" },
+                    { "isAiSkipped", isAiSkipped.ToString() },
+                    { "aiPrimarySnakeName", aiName ?? "" },
+                    { "toxinGroup", toxin ?? "" }
+                };
+
+                await _fcmService.SendToUserAsync(rescuer.Id, baseTitleMsg, bodyMsg, data);
+            }
+        }
+
+        _logger.LogInformation("Tier{T} ({CH}) dispatched to {Count} rescuers. IncidentId={Id}",
+            tier, isSignalR ? "SignalR" : "FCM", candidates.Count, incidentId);
+    }
+
+    private async Task<List<User>> FindRescuersInRadiusAsync(
+        Guid incidentId, Point incidentLocation, double radiusMeters, int maxEtaMinutes, int freshnessMinutes, int maxRescuers)
+    {
+        var heartbeatCutoff = DateTime.UtcNow.AddMinutes(-freshnessMinutes);
+
+        // STDistance is executed inside SQL Server because it's in the Expression tree of the Specification.
+        var spec = new BaseSpecification<User>(u =>
+            u.RescuerProfile != null &&
+            u.RescuerProfile.IsAvailable &&
+            u.RescuerProfile.IsVerified &&
+            u.CurrentLocation != null &&
+            u.LocationUpdatedAt != null &&
+            u.LocationUpdatedAt >= heartbeatCutoff &&
+            u.CurrentLocation.Distance(incidentLocation) <= radiusMeters);
+
+        var allRescuers = await _unitOfWork.Repository<User, Guid>().GetAllWithSpecAsync(spec);
+
+        var candidates = allRescuers
+            .Where(u =>
+            {
+                var distKm = LocationHelper.HaversineMeters(u.CurrentLocation!, incidentLocation) / 1000.0;
+                var etaMin = distKm / DispatchConstants.AvgSpeedKmh * 60;
+                return etaMin <= maxEtaMinutes;
+            })
+            .ToList();
+
+        // Nearest rescuers first
+        var sortedCandidates = candidates
+            .OrderBy(u => LocationHelper.HaversineMeters(u.CurrentLocation!, incidentLocation))
+            .Take(maxRescuers)
+            .ToList();
+
+        return sortedCandidates;
+    }
+
+    private async Task<bool> AnyAvailableRescuerWithinAsync(Point incidentLocation, double radiusMeters)
+    {
+        // Fail-fast MUST be a superset of all dispatch tiers. 
+        // We use Tier3FreshnessHours (48h) so we don't prematurely fallback if a rescuer is eligible for Tier 3.
+        var heartbeatCutoff = DateTime.UtcNow.AddHours(-DispatchConstants.Tier3FreshnessHours);
+
+        var spec = new BaseSpecification<User>(u =>
+            u.RescuerProfile != null &&
+            u.RescuerProfile.IsAvailable &&
+            u.RescuerProfile.IsVerified &&
+            u.CurrentLocation != null &&
+            u.LocationUpdatedAt != null &&
+            u.LocationUpdatedAt >= heartbeatCutoff &&
+            u.CurrentLocation.Distance(incidentLocation) <= radiusMeters);
+
+        return await _unitOfWork.Repository<User, Guid>().AnyAsync(spec);
+    }
+}

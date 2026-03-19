@@ -18,6 +18,10 @@ public class SnakeConfiguration : IEntityTypeConfiguration<Snake>
             .HasMaxLength(200)
             .HasColumnName("scientific_name");
 
+        builder.HasIndex(e => e.ScientificName)
+            .IsUnique()
+            .HasDatabaseName("IX_Snake_ScientificName");
+
         builder.Property(e => e.CommonName)
             .IsRequired()
             .HasMaxLength(200)
@@ -29,11 +33,29 @@ public class SnakeConfiguration : IEntityTypeConfiguration<Snake>
             .HasMaxLength(50)
             .HasColumnName("toxicity_level");
 
+        builder.Property(e => e.ToxinGroup)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasColumnName("toxin_group");
+
         builder.Property(e => e.Description)
              .HasColumnName("description");
 
+        builder.Property(e => e.KeyIdentifiers)
+             .HasColumnName("key_identifiers");
+
+        builder.Property(e => e.TypicalSymptoms)
+             .HasColumnName("typical_symptoms");
+
         builder.Property(e => e.Habitat)
              .HasColumnName("habitat");
+
+        builder.Property(e => e.DistributionNote)
+             .HasColumnName("distribution_note");
+
+        builder.Property(e => e.Note)
+             .HasColumnName("note");
 
         builder.Property(e => e.IsActive)
              .HasColumnName("is_active");

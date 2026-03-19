@@ -15,20 +15,17 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
         builder.Property(e => e.UserId).HasColumnName("user_id");
         builder.Property(e => e.MissionId).HasColumnName("mission_id");
 
+        builder.Property(e => e.TransactionCode)
+            .HasMaxLength(50)
+            .HasColumnName("transaction_code");
+
         builder.Property(e => e.Amount)
             .HasColumnType("decimal(18,2)")
             .HasColumnName("amount");
 
-        builder.Property(e => e.Currency)
-            .HasConversion<string>()
-            .HasMaxLength(10)
-            .HasColumnName("currency");
-
-        builder.Property(e => e.Type)
-            .IsRequired()
-            .HasConversion<string>()
-            .HasMaxLength(50)
-            .HasColumnName("type");
+        builder.Property(e => e.Description)
+            .HasMaxLength(500)
+            .HasColumnName("description");
 
         builder.Property(e => e.Status)
             .IsRequired()
@@ -36,19 +33,21 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
             .HasMaxLength(20)
             .HasColumnName("status");
 
-        builder.Property(e => e.PaymentGateway)
-            .HasConversion<string>()
-            .HasMaxLength(50)
-            .HasColumnName("payment_gateway");
+        builder.Property(e => e.TransactionDate).HasColumnName("transaction_date");
+        builder.Property(e => e.ExpiredAt).HasColumnName("expired_at");
+        builder.Property(e => e.CancelledAt).HasColumnName("cancelled_at");
 
-        builder.Property(e => e.GatewayTransactionId)
-            .HasMaxLength(100)
-            .HasColumnName("gateway_transaction_id");
-
-        builder.Property(e => e.Description)
+        builder.Property(e => e.CancellationReason)
             .HasMaxLength(500)
-            .HasColumnName("description");
-            
+            .HasColumnName("cancellation_reason");
+
+        builder.Property(e => e.QrCode)
+            .HasColumnName("qr_code");
+
+        builder.Property(e => e.PaymentLinkId)
+            .HasMaxLength(100)
+            .HasColumnName("payment_link_id");
+
         builder.Property(e => e.CreatedAt).HasColumnName("created_at");
         builder.Property(e => e.CreatedBy).HasColumnName("created_by");
         builder.Property(e => e.UpdatedAt).HasColumnName("updated_at");
@@ -59,11 +58,5 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
             .HasForeignKey(t => t.UserId)
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("FK_Transaction_User_UserId");
-
-        builder.HasOne(t => t.Mission)
-            .WithMany()
-            .HasForeignKey(t => t.MissionId)
-            .OnDelete(DeleteBehavior.SetNull)
-            .HasConstraintName("FK_Transaction_RescueMission_MissionId");
     }
 }

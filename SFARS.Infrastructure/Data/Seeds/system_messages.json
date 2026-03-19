@@ -1,5 +1,29 @@
 [
   {
+    "MsgId": "Chat.Success0001",
+    "MsgContent": "Message sent successfully.",
+    "En": "Message sent successfully.",
+    "Vi": "Gửi tin nhắn thành công."
+  },
+  {
+    "MsgId": "Chat.Warning0001",
+    "MsgContent": "This chat session has ended.",
+    "En": "This chat session has ended.",
+    "Vi": "Phiên chat này đã kết thúc."
+  },
+  {
+    "MsgId": "Chat.Fail0001",
+    "MsgContent": "AI assistant is temporarily unavailable. Please try again later.",
+    "En": "AI assistant is temporarily unavailable. Please try again later.",
+    "Vi": "Hệ thống AI đang tạm thời không khả dụng. Vui lòng thử lại sau."
+  },
+  {
+    "MsgId": "Chat.Guard0001",
+    "MsgContent": "Make sure to: IMMOBILIZE - DO NOT tourniquet/cut/suck - GO TO HOSPITAL IMMEDIATELY. I cannot provide detailed medical instructions.",
+    "En": "Make sure to: IMMOBILIZE - DO NOT tourniquet/cut/suck - GO TO HOSPITAL IMMEDIATELY. I cannot provide detailed medical instructions.",
+    "Vi": "Mình không thể đưa ra hướng dẫn điều trị chi tiết. Nhưng YÊU CẦU LÀM NGAY: 1. BẤT ĐỘNG vùng bị cắn. 2. KHÔNG thắt garo, KHÔNG rạch/hút nọc. 3. ĐẾN NGAY CƠ SỞ Y TẾ."
+  },
+  {
     "MsgId": "SYS.Success0001",
     "MsgContent": "Created successfully.",
     "En": "Created successfully.",
@@ -108,10 +132,22 @@
     "Vi": "Không có dữ liệu."
   },
   {
+    "MsgId": "SYS.Warning0007",
+    "MsgContent": "You are not authorized to perform this action.",
+    "En": "You are not authorized to perform this action.",
+    "Vi": "Bạn không có quyền thực hiện hành động này."
+  },
+  {
+    "MsgId": "SYS.Warning0008",
+    "MsgContent": "File size exceeds the maximum limit (10MB).",
+    "En": "File size exceeds the maximum limit (10MB).",
+    "Vi": "Kích thước file vượt quá giới hạn cho phép (10MB)."
+  },
+  {
     "MsgId": "Auth.Success0001",
-    "MsgContent": "Registration successful. Please verify your email.",
-    "En": "Registration successful. Please verify your email.",
-    "Vi": "Đăng ký thành công. Vui lòng xác thực email."
+    "MsgContent": "Please continue with password sign-in.",
+    "En": "Please continue with password sign-in.",
+    "Vi": "Vui lòng đăng nhập bằng mật khẩu."
   },
   {
     "MsgId": "Auth.Success0002",
@@ -136,6 +172,12 @@
     "MsgContent": "Token refreshed successfully.",
     "En": "Token refreshed successfully.",
     "Vi": "Làm mới phiên đăng nhập thành công."
+  },
+  {
+    "MsgId": "Auth.Success0009",
+    "MsgContent": "Signed out successfully.",
+    "En": "Signed out successfully.",
+    "Vi": "Đăng xuất thành công."
   },
   {
     "MsgId": "Auth.Warning0001",
@@ -178,6 +220,12 @@
     "MsgContent": "Two-factor authentication is required.",
     "En": "Two-factor authentication is required.",
     "Vi": "Yêu cầu xác thực hai yếu tố."
+  },
+  {
+    "MsgId": "Auth.Warning0011",
+    "MsgContent": "New password must be different from old password.",
+    "En": "New password must be different from old password.",
+    "Vi": "Mật khẩu mới phải khác mật khẩu cũ."
   },
   {
     "MsgId": "Auth.Warning0013",
@@ -270,6 +318,60 @@
     "Vi": "Cơ sở này hiện đã hết huyết thanh kháng độc."
   },
   {
+    "MsgId": "Medical.Success0002",
+    "MsgContent": "Facility created successfully.",
+    "En": "Facility created successfully.",
+    "Vi": "Tạo cơ sở y tế thành công."
+  },
+  {
+    "MsgId": "Medical.Success0003",
+    "MsgContent": "Facility updated successfully.",
+    "En": "Facility updated successfully.",
+    "Vi": "Cập nhật cơ sở y tế thành công."
+  },
+  {
+    "MsgId": "Medical.Success0004",
+    "MsgContent": "Antivenom status updated successfully.",
+    "En": "Antivenom status updated successfully.",
+    "Vi": "Cập nhật tình trạng huyết thanh thành công."
+  },
+  {
+    "MsgId": "Medical.Success0005",
+    "MsgContent": "Facility deactivated successfully.",
+    "En": "Facility deactivated successfully.",
+    "Vi": "Ngừng hoạt động cơ sở y tế thành công."
+  },
+  {
+    "MsgId": "Medical.Success0006",
+    "MsgContent": "Facility activated successfully.",
+    "En": "Facility activated successfully.",
+    "Vi": "Kích hoạt cơ sở y tế thành công."
+  },
+  {
+    "MsgId": "Medical.Warning0003",
+    "MsgContent": "This facility is already deactivated.",
+    "En": "This facility is already deactivated.",
+    "Vi": "Cơ sở y tế này đã ngừng hoạt động."
+  },
+  {
+    "MsgId": "Medical.Warning0004",
+    "MsgContent": "This facility is already active.",
+    "En": "This facility is already active.",
+    "Vi": "Cơ sở y tế này đã đang hoạt động."
+  },
+  {
+    "MsgId": "Medical.Warning0005",
+    "MsgContent": "A facility with similar name and location may already exist.",
+    "En": "A facility with similar name and location may already exist.",
+    "Vi": "Có thể đã tồn tại cơ sở y tế có tên và vị trí tương tự."
+  },
+  {
+    "MsgId": "Medical.Warning0006",
+    "MsgContent": "Location required. Please provide latitude and longitude.",
+    "En": "Location required. Please provide latitude and longitude.",
+    "Vi": "Vui lòng cung cấp vị trí (latitude và longitude)."
+  },
+  {
     "MsgId": "Incident.Success0001",
     "MsgContent": "SOS signal sent! Searching for rescuers...",
     "En": "SOS signal sent! Searching for rescuers...",
@@ -348,6 +450,24 @@
     "Vi": "Tải thêm ảnh để tăng độ chính xác."
   },
   {
+    "MsgId": "AI.Warning0004",
+    "MsgContent": "Only image files (JPEG, PNG) are allowed for AI analysis.",
+    "En": "Only image files (JPEG, PNG) are allowed for AI analysis.",
+    "Vi": "Chỉ hỗ trợ phân tích file ảnh (JPEG, PNG)."
+  },
+  {
+    "MsgId": "AI.Warning0005",
+    "MsgContent": "Snake species not found in the system.",
+    "En": "Snake species not found in the system.",
+    "Vi": "Không tìm thấy thông tin loài rắn này trong hệ thống."
+  },
+  {
+    "MsgId": "AI.Warning0006",
+    "MsgContent": "First-aid instructions are not yet available for this toxin group. Please go to the hospital immediately.",
+    "En": "First-aid instructions are not yet available for this toxin group. Please go to the hospital immediately.",
+    "Vi": "Chưa có hướng dẫn sơ cứu riêng cho nhóm độc này. Vui lòng đến bệnh viện ngay."
+  },
+  {
     "MsgId": "Comm.Success0001",
     "MsgContent": "Post published successfully.",
     "En": "Post published successfully.",
@@ -412,5 +532,185 @@
     "MsgContent": "Payment gateway error.",
     "En": "Payment gateway error.",
     "Vi": "Lỗi cổng thanh toán."
+  },
+  {
+    "MsgId": "Incident.Notify0001",
+    "MsgContent": "SOS Request Received",
+    "En": "SOS Request Received",
+    "Vi": "Đã tiếp nhận yêu cầu SOS"
+  },
+  {
+    "MsgId": "Incident.Notify0002",
+    "MsgContent": "Your SOS request {0} has been received. Searching for nearby rescuers...",
+    "En": "Your SOS request {0} has been received. Searching for nearby rescuers...",
+    "Vi": "Yêu cầu cứu hộ {0} đã được tiếp nhận. Đang tìm kiếm nhân viên cứu hộ gần bạn..."
+  },
+  {
+    "MsgId": "Incident.Reason0001",
+    "MsgContent": "Incident created by user",
+    "En": "Incident created by user",
+    "Vi": "Người dùng tạo sự cố"
+  },
+  {
+    "MsgId": "Incident.Reason0002",
+    "MsgContent": "Victim cancelled during grace period",
+    "En": "Victim cancelled during grace period",
+    "Vi": "Nạn nhân huỷ trong thời gian cho phép"
+  },
+  {
+    "MsgId": "Incident.Success0005",
+    "MsgContent": "SOS cancelled successfully.",
+    "En": "SOS cancelled successfully.",
+    "Vi": "Huỷ SOS thành công."
+  },
+  {
+    "MsgId": "Incident.Warning0004",
+    "MsgContent": "Your account is temporarily blocked from creating SOS due to repeated cancellations. Please try again in 30 minutes.",
+    "En": "Your account is temporarily blocked from creating SOS due to repeated cancellations. Please try again in 30 minutes.",
+    "Vi": "Tài khoản tạm thời bị khoá tạo SOS do quá nhiều lần huỷ liên tiếp. Vui lòng thử lại sau 30 phút."
+  },
+  {
+    "MsgId": "Incident.Warning0005",
+    "MsgContent": "AI analysis has not been completed yet. Cancellation is not available at this stage.",
+    "En": "AI analysis has not been completed yet. Cancellation is not available at this stage.",
+    "Vi": "Phân tích AI chưa hoàn tất. Chức năng huỷ chưa khả dụng ở bước này."
+  },
+  {
+    "MsgId": "Incident.Warning0006",
+    "MsgContent": "The cancellation window has expired. Your SOS has already been dispatched to rescuers.",
+    "En": "The cancellation window has expired. Your SOS has already been dispatched to rescuers.",
+    "Vi": "Thời gian cho phép huỷ đã hết. SOS của bạn đã được gửi đến nhân viên cứu hộ."
+  },
+  {
+    "MsgId": "Dispatch.Success0001",
+    "MsgContent": "SOS dispatch initiated. Searching for rescuers...",
+    "En": "SOS dispatch initiated. Searching for rescuers...",
+    "Vi": "Đã bắt đầu tìm kiếm nhân viên cứu hộ..."
+  },
+  {
+    "MsgId": "Dispatch.Warning0001",
+    "MsgContent": "No available rescuers found within 20 km. Activating emergency fallback.",
+    "En": "No available rescuers found within 20 km. Activating emergency fallback.",
+    "Vi": "Không tìm thấy nhân viên cứu hộ trong vòng 20 km. Đang kích hoạt phương án dự phòng."
+  },
+  {
+    "MsgId": "Dispatch.Warning0002",
+    "MsgContent": "All rescue tiers exhausted. No rescuer has accepted the mission.",
+    "En": "All rescue tiers exhausted. No rescuer has accepted the mission.",
+    "Vi": "Đã hết tất cả vòng tìm kiếm. Chưa có nhân viên cứu hộ nào nhận ca."
+  },
+  {
+    "MsgId": "Dispatch.Notify0001",
+    "MsgContent": "New SOS nearby! Tap to view details.",
+    "En": "New SOS nearby! Tap to view details.",
+    "Vi": "Có SOS gần bạn! Nhấn để xem chi tiết."
+  },
+  {
+    "MsgId": "Dispatch.Notify0002",
+    "MsgContent": "We are expanding the search to offline volunteers. While waiting, for your safety: CALL 115 or GO TO HOSPITAL NOW. IMMOBILIZE the bite area — DO NOT tourniquet or cut the wound.",
+    "En": "We are expanding the search to offline volunteers. While waiting, for your safety: CALL 115 or GO TO HOSPITAL NOW. IMMOBILIZE the bite area — DO NOT tourniquet or cut the wound.",
+    "Vi": "Hệ thống đang chờ phản hồi từ các tình nguyện viên offline. Trong lúc chờ đợi, để đảm bảo an toàn: GỌI 115 hoặc ĐẾN BỆNH VIỆN NGAY. BẤT ĐỘNG vùng bị cắn — KHÔNG thắt garo/rạch vết thương."
+  },
+  {
+    "MsgId": "Incident.Warning0007",
+    "MsgContent": "This incident has already been claimed by another rescuer. Thank you for your willingness to help.",
+    "En": "This incident has already been claimed by another rescuer. Thank you for your willingness to help.",
+    "Vi": "Sự cố này đã được nhận bởi một nhân viên cứu hộ khác. Cảm ơn sự nhiệt tình của bạn."
+  },
+  {
+    "MsgId": "Incident.Warning0008",
+    "MsgContent": "You are too far from the incident location to accept this mission.",
+    "En": "You are too far from the incident location to accept this mission.",
+    "Vi": "Bạn ở quá xa vị trí sự cố để có thể nhận nhiệm vụ này."
+  },
+  {
+    "MsgId": "Payment.Success0001",
+    "MsgContent": "Payment transaction created successfully.",
+    "En": "Payment transaction created successfully.",
+    "Vi": "Tạo giao dịch thanh toán thành công."
+  },
+  {
+    "MsgId": "Payment.Success0002",
+    "MsgContent": "Payment webhook processed successfully.",
+    "En": "Payment webhook processed successfully.",
+    "Vi": "Xử lý webhook thanh toán thành công."
+  },
+  {
+    "MsgId": "Payment.Success0003",
+    "MsgContent": "Payment transaction cancelled successfully.",
+    "En": "Payment transaction cancelled successfully.",
+    "Vi": "Hủy giao dịch thanh toán thành công."
+  },
+  {
+    "MsgId": "Payment.Warning0001",
+    "MsgContent": "Invalid payment webhook signature.",
+    "En": "Invalid payment webhook signature.",
+    "Vi": "Chữ ký webhook thanh toán không hợp lệ."
+  },
+  {
+    "MsgId": "Payment.Warning0002",
+    "MsgContent": "Payment transaction not found.",
+    "En": "Payment transaction not found.",
+    "Vi": "Không tìm thấy giao dịch thanh toán."
+  },
+  {
+    "MsgId": "Payment.Warning0003",
+    "MsgContent": "Payment transaction has already been processed.",
+    "En": "Payment transaction has already been processed.",
+    "Vi": "Giao dịch thanh toán đã được xử lý trước đó."
+  },
+  {
+    "MsgId": "Payment.Warning0004",
+    "MsgContent": "Payment amount validation failed.",
+    "En": "Payment amount validation failed.",
+    "Vi": "Xác thực số tiền thanh toán thất bại."
+  },
+  {
+    "MsgId": "AiReview.Success0001",
+    "MsgContent": "AI Review submitted successfully.",
+    "En": "AI Review submitted successfully.",
+    "Vi": "Gửi đánh giá AI thành công."
+  },
+  {
+    "MsgId": "AiReview.Fail0001",
+    "MsgContent": "Review record not found on this incident.",
+    "En": "Review record not found on this incident.",
+    "Vi": "Không tìm thấy bản ghi đánh giá cho ca cứu hộ này."
+  },
+  {
+    "MsgId": "AiReview.Fail0002",
+    "MsgContent": "Review record not found.",
+    "En": "Review record not found.",
+    "Vi": "Không tìm thấy bản ghi đánh giá."
+  },
+  {
+    "MsgId": "AiReview.Fail0003",
+    "MsgContent": "You are not authorized to evaluate this AI result.",
+    "En": "You are not authorized to evaluate this AI result.",
+    "Vi": "Bạn không có quyền đánh giá kết quả AI này."
+  },
+  {
+    "MsgId": "AiReview.Fail0004",
+    "MsgContent": "This review is already in a final state and cannot be modified.",
+    "En": "This review is already in a final state and cannot be modified.",
+    "Vi": "Đánh giá này đã ở trạng thái cuối và không thể thay đổi."
+  },
+  {
+    "MsgId": "AiReview.Warning.Pending",
+    "MsgContent": "AI Review is still pending. Cannot close.",
+    "En": "AI Review is still pending. Cannot close.",
+    "Vi": "Đánh giá AI đang chờ xử lý. Không thể đóng ca."
+  },
+  {
+    "MsgId": "Mission.Success0001",
+    "MsgContent": "Mission status updated successfully.",
+    "En": "Mission status updated successfully.",
+    "Vi": "Cập nhật trạng thái nhiệm vụ thành công."
+  },
+  {
+    "MsgId": "Mission.Warning0001",
+    "MsgContent": "Incident is closed or cancelled, cannot update status.",
+    "En": "Incident is closed or cancelled, cannot update status.",
+    "Vi": "Sự cố đã đóng hoặc đã huỷ, không thể cập nhật trạng thái."
   }
 ]

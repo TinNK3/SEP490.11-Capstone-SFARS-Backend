@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using SFARS.Domain.Interfaces.Repositories.Base;
 using SFARS.Domain.Specifications.Interfaces;
 using SFARS.Infrastructure.Data;
@@ -24,6 +24,11 @@ namespace SFARS.Infrastructure.Repositories
         public async Task<TEntity?> GetByIdAsync(TKey id)
         {
             return await _dbSet.FindAsync(id);
+        }
+
+        public IQueryable<TEntity> GetQueryable(bool tracked = true)
+        {
+            return tracked ? _dbSet : _dbSet.AsNoTracking();
         }
 
         public async Task<IEnumerable<TEntity>> GetAllAsync(bool tracked = true)
@@ -199,10 +204,11 @@ namespace SFARS.Infrastructure.Repositories
             return await ApplySpecification(specification).ExecuteDeleteAsync();
         }
 
-        public async Task UpdateAsync(TEntity entity)
+        public Task UpdateAsync(TEntity entity)
         {
             _dbSet.Attach(entity);
             _dbSet.Entry(entity).State = EntityState.Modified;
+            return Task.CompletedTask;
         }
 
         #endregion

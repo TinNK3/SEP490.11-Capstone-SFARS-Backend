@@ -1,4 +1,6 @@
-﻿using SFARS.Domain.Interfaces;
+﻿using Microsoft.EntityFrameworkCore;
+using SFARS.Domain.Common.Constants;
+using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Repositories.Base;
 using SFARS.Infrastructure.Data.Context;
 using SFARS.Infrastructure.Repositories;
@@ -94,6 +96,39 @@ namespace SFARS.Infrastructure.Data
             return result;
         }
 
+        /// <summary>
+        /// Get next value from SQL SEQUENCE (thread-safe, atomic)
+        /// </summary>
+        public async Task<long> GetNextSequenceValueAsync(string sequenceName)
+        {
+            if (!SequenceNames.IsValid(sequenceName))
+                throw new ArgumentException($"Invalid sequence name: {sequenceName}", nameof(sequenceName));
+
+            var connection = _context.Database.GetDbConnection();
+            try
+            {
+                if (connection.State != System.Data.ConnectionState.Open)
+                    await _context.Database.OpenConnectionAsync();
+
+                await using var command = connection.CreateCommand();
+                command.CommandText = $"SELECT NEXT VALUE FOR dbo.{sequenceName};";
+                var result = await command.ExecuteScalarAsync();
+
+                return Convert.ToInt64(result);
+            }
+            finally
+            {
+                await _context.Database.CloseConnectionAsync();
+            }
+        }
+
+        public async Task<int> ExecuteSqlRawAsync(string sql, params object[] parameters)
+        {
+            return await _context.Database.ExecuteSqlRawAsync(sql, parameters);
+        }
+
         public void Dispose() => _context.Dispose();
+
+        public void ClearTracking() => _context.ChangeTracker.Clear();
     }
 }

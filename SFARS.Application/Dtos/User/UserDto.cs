@@ -33,8 +33,14 @@ namespace SFARS.Application.Dtos.User
 
         // Security - internal use only (not serialized to response)
         [JsonIgnore]
+        public string? Password { get; set; }
+
+        [JsonIgnore]
         public string? PasswordHash { get; set; }
-        
+
+        [JsonIgnore]
+        public string? EmailVerificationCode { get; set; }
+
         [JsonIgnore]
         public bool TwoFactorEnabled { get; set; }
 
@@ -55,11 +61,15 @@ namespace SFARS.Application.Dtos.User
                 FirstName = userDto.FirstName,
                 LastName = userDto.LastName,
                 Phone = userDto.Phone,
+                PasswordHash = userDto.PasswordHash,
+                EmailVerificationCode = userDto.EmailVerificationCode,
                 Avatar = userDto.Avatar,
                 Address = userDto.Address,
                 Gender = userDto.Gender,
                 Dob = userDto.Dob,
                 Status = userDto.Status,
+                IsOnline = userDto.IsOnline,
+                LastActiveAt = userDto.LastActiveAt,
                 CreatedAt = userDto.CreatedAt,
                 UpdatedAt = userDto.UpdatedAt,
                 RoleName = role,

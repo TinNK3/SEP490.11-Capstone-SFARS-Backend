@@ -15,10 +15,26 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         builder.Property(e => e.VictimId).HasColumnName("victim_id");
         builder.Property(e => e.SnakeId).HasColumnName("snake_id");
 
+        builder.Property(e => e.CurrentAiInferenceId).HasColumnName("current_ai_inference_id");
+
         builder.Property(e => e.Code)
             .IsRequired()
             .HasMaxLength(20)
             .HasColumnName("code");
+
+        // AI Review Snapshots
+        builder.Property(e => e.CurrentAiReviewStatus)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasColumnName("current_ai_review_status");
+
+        builder.Property(e => e.CurrentAiReviewId).HasColumnName("current_ai_review_id");
+        builder.Property(e => e.HumanReviewedSnakeId).HasColumnName("human_reviewed_snake_id");
+
+        builder.Property(e => e.HumanReviewedToxinGroup)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasColumnName("human_reviewed_toxin_group");
 
         builder.Property(e => e.Location)
             .IsRequired()
@@ -68,6 +84,39 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         builder.HasOne(i => i.Snake)
             .WithMany()
             .HasForeignKey(i => i.SnakeId)
+            .OnDelete(DeleteBehavior.SetNull)
             .HasConstraintName("FK_Incident_Snake_SnakeId");
+
+        builder.HasOne(i => i.CurrentAiInference)
+            .WithMany()
+            .HasForeignKey(i => i.CurrentAiInferenceId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .HasConstraintName("FK_Incident_AiInference_CurrentAiInferenceId");
+
+        builder.HasOne(i => i.Chat)
+            .WithOne(c => c.Incident)
+            .HasForeignKey<IncidentChat>(c => c.IncidentId);
+
+        // Public tracking (QR code sharing)
+        builder.Property(e => e.TrackingCode)
+            .HasMaxLength(32)
+            .HasColumnName("tracking_code");
+
+        builder.Property(e => e.TrackingCodeExpiresAt)
+            .HasColumnName("tracking_code_expires_at");
+
+        builder.HasIndex(e => e.TrackingCode)
+            .IsUnique()
+            .HasDatabaseName("IX_Incident_TrackingCode")
+            .HasFilter("[tracking_code] IS NOT NULL");
+
+        // SOS grace period (set by AnalyzeAsync; null until AI analysis completes)
+        builder.Property(e => e.GraceExpiresAt)
+            .HasColumnName("grace_expires_at");
+
+        // Hangfire job IDs for the dispatch chain (JSON array string)
+        // Used by CancelIncidentAsync to clean up scheduled jobs
+        builder.Property(e => e.DispatchJobIds)
+            .HasColumnName("dispatch_job_ids");
     }
 }

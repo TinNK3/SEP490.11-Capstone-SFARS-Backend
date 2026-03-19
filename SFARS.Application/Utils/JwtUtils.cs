@@ -1,7 +1,9 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using SFARS.Application.Configurations;
 using SFARS.Application.Dtos.Auth;
+using SFARS.Application.Exceptions;
 using SFARS.Domain.Common.Constants;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -12,27 +14,16 @@ namespace SFARS.Application.Utils
 {
     public class JwtUtils : IJwtUtils
     {
-        private readonly WebTokenSettings _webTokenSettings;
-        private readonly TokenValidationParameters _tokenValidationParameters;
+        private readonly WebTokenSettings _settings;
+        private readonly SymmetricSecurityKey _signingKey;
+        private readonly ILogger<JwtUtils> _logger;
 
-        public JwtUtils()
+        public JwtUtils(IOptions<WebTokenSettings> options, ILogger<JwtUtils> logger)
         {
-            _webTokenSettings = null!;
-            _tokenValidationParameters = null!;
-        }
-
-        public JwtUtils(
-            IOptions<WebTokenSettings> webTokenSettings)
-        {
-            _webTokenSettings = webTokenSettings.Value;
-            _tokenValidationParameters = null!;
-        }
-
-        public JwtUtils(
-            TokenValidationParameters tokenValidationParameters)
-        {
-            _webTokenSettings = null!;
-            _tokenValidationParameters = tokenValidationParameters;
+            _settings = options.Value;
+            _signingKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(_settings.IssuerSigningKey));
+            _logger = logger;
         }
 
         // Generate JWT token 
@@ -40,7 +31,7 @@ namespace SFARS.Application.Utils
             string tokenId, AuthUserDto user)
         {
             //Get security key
-            var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_webTokenSettings.IssuerSigningKey));
+            var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.IssuerSigningKey));
 
             // JWT token handler
             var jwtTokenHandler = new JwtSecurityTokenHandler();
@@ -48,6 +39,7 @@ namespace SFARS.Application.Utils
             //Token claims
             List<Claim> authClaims = new()
             {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Role, user.RoleName),
                 new Claim(CustomClaimTypes.UserType, user.IsRescuer
                     ? ClaimValues.RESCUER_CLAIMVALUE // Is rescuer
@@ -62,9 +54,9 @@ namespace SFARS.Application.Utils
             {
                 // Token claims (email, role, username, id...)
                 Subject = new ClaimsIdentity(authClaims),
-                Expires = DateTime.UtcNow.AddMinutes(_webTokenSettings.TokenLifeTimeInMinutes),
-                Issuer = _webTokenSettings.ValidIssuer,
-                Audience = _webTokenSettings.ValidAudience,
+                Expires = DateTime.UtcNow.AddMinutes(_settings.TokenLifeTimeInMinutes),
+                Issuer = _settings.ValidIssuer,
+                Audience = _settings.ValidAudience,
                 SigningCredentials = new SigningCredentials(
                     authSigningKey, SecurityAlgorithms.HmacSha256)
             };
@@ -85,6 +77,53 @@ namespace SFARS.Application.Utils
             }
 
             return await Task.FromResult(Convert.ToBase64String(randomNumber));
+        }
+
+        /// <summary>
+        /// Extract expỉred token
+        /// </summary>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        public ClaimsPrincipal? GetPrincipalFromExpiredToken(string accessToken)
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+
+            var signingKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(_settings.IssuerSigningKey));
+
+
+            var validationParameters = new TokenValidationParameters
+            {
+                ValidateAudience = true,
+                ValidateIssuer = true,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = signingKey,
+
+                ValidIssuer = _settings.ValidIssuer,
+                ValidAudience = _settings.ValidAudience,
+
+                ValidateLifetime = false // allow expired token
+            };
+
+            try
+            {
+                var principal = tokenHandler.ValidateToken(accessToken, validationParameters, out var securityToken);
+
+                if (securityToken is not JwtSecurityToken jwtToken ||
+                    !jwtToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256,
+                        StringComparison.InvariantCultureIgnoreCase))
+                {
+                    return null;
+                }
+
+                return principal;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to validate access token for refresh. Issuer: {Issuer}, Audience: {Audience}",
+                    _settings.ValidIssuer, _settings.ValidAudience);
+                return null;
+            }
         }
     }
 }

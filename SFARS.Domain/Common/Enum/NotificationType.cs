@@ -11,6 +11,8 @@ namespace SFARS.Domain.Common.Enum
         [Description("Khuyến mãi")]
         Promotion,
         [Description("Cảnh báo")]
-        Alert
+        Alert,
+        [Description("Điều phối SOS")]
+        SosDispatch
     }
 }

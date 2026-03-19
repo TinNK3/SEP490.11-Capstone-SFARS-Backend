@@ -7,6 +7,6 @@ namespace SFARS.Domain.Interfaces.Services
         where TDto : class
     {
         Task<IServiceResult> GetByUserIdAsync(Guid userId);
-        //Task<IServiceResult> GetByRecuserIdAsync(Guid rescuerId);
+        Task<IServiceResult> GetByTokenIdAndRefreshTokenIdAsync(string tokenId, string refreshTokenId);
     }
 }

@@ -1,9 +1,11 @@
 ﻿using Microsoft.Data.SqlClient;
 using Serilog;
 using SFARS.Application.Configurations;
-using SFARS.Domain.Configurations;
 using SFARS.Application.HealthChecks;
+using SFARS.Infrastructure.Configurations;
 using System.Data.Common;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SFARS.API.Extension
 {
@@ -16,12 +18,11 @@ namespace SFARS.API.Extension
             // Add controllers
             services.AddControllers().AddJsonOptions(options =>
             {
-                options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+                options.JsonSerializerOptions.Converters.Add(
+                    new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
             });
             // Configures ApiExplorer
             services.AddEndpointsApiExplorer();
-            // Add swagger
-            services.AddSwaggerGen();
 
             return services;
         }
@@ -105,9 +106,34 @@ namespace SFARS.API.Extension
 
             // Configure WebTokenSettings for JWT
             services.Configure<WebTokenSettings>(builder.Configuration.GetSection("WebTokenSettings"));
+            // Configure GoogleAuthSettings for Google OAuth
             services.Configure<GoogleAuthSettings>(builder.Configuration.GetSection("GoogleAuthSettings"));
+            // Configure CloudinarySettings for Cloudinary image service
+            services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
+            // Configure PayOSSettings for PayOS payment gateway
+            services.Configure<PayOSSettings>(builder.Configuration.GetSection("PayOSSettings"));
+            
+            // Configure general payment settings
+            services.Configure<PaymentSettings>(builder.Configuration.GetSection("PaymentSettings"));
+
+            services.Configure<StorageOptions>(builder.Configuration.GetSection("Storage"));
+            
+            // AI Services Configuration
+            services.Configure<GeminiOptions>(builder.Configuration.GetSection("Gemini"));
+            services.Configure<YoloModelOptions>(builder.Configuration.GetSection("YoloModel"));
 
             return services;
+        }
+
+        public static IServiceCollection EstablishApplicationConfiguration(
+        this IServiceCollection services,
+        IConfiguration configuration)
+        {
+
+        // PayOS Configuration - Payment Gateway
+        services.Configure<PayOSSettings>(configuration.GetSection("PayOSSettings"));
+
+        return services;
         }
 
         public static IServiceCollection AddCors(this IServiceCollection services,
@@ -119,7 +145,8 @@ namespace SFARS.API.Extension
             {
                 policy.WithOrigins(allowedOrigins)
                     .AllowAnyHeader()
-                    .AllowAnyMethod();
+                    .AllowAnyMethod()
+                    .AllowCredentials();
             }));
             return services;
         }
