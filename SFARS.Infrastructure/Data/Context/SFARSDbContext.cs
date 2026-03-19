@@ -38,6 +38,9 @@ public partial class SFARSDbContext : DbContext
 
     // Community
     public DbSet<ContentPost> ContentPosts { get; set; }
+    public DbSet<PostMedia> PostMedias { get; set; }
+    public DbSet<PostComment> PostComments { get; set; }
+    public DbSet<PostLike> PostLikes { get; set; }
     public DbSet<Quiz> Quizzes { get; set; }
     public DbSet<UserPoint> UserPoints { get; set; }
     public DbSet<PointTransaction> PointTransactions { get; set; }

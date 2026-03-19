@@ -18,6 +18,7 @@ using SFARS.Domain.Interfaces.Services.Base;
 using System.Reflection;
 
 namespace SFARS.Application;
+
 public static class DependencyInjection
 {
 
@@ -60,6 +61,9 @@ public static class DependencyInjection
 
         // Rescuer services
         services.AddScoped<IRescuerService, RescuerService>();
+
+        // Community Post services
+        services.AddScoped<ICommunityPostService, CommunityPostService>();
 
         // FAQ services
         services.AddScoped<IFaqService<FaqDto>, Services.Faq.FaqService>();

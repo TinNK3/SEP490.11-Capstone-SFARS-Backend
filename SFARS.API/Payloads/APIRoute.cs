@@ -61,6 +61,28 @@
         }
 
         /// <summary>
+        /// Community endpoints
+        /// </summary>
+        public static class Community
+        {
+            private const string Base = "api/community";
+
+            // [GET]
+            public const string GetPosts = Base + "/posts";
+            public const string GetPostById = Base + "/posts/{id}";
+            public const string GetComments = Base + "/posts/{id}/comments";
+
+            // [POST]
+            public const string CreatePost = Base + "/posts";
+            public const string AddComment = Base + "/posts/{id}/comments";
+            public const string ToggleLike = Base + "/posts/{id}/like";
+
+            // [DELETE]
+            public const string DeletePost = Base + "/posts/{id}";
+            public const string DeleteComment = Base + "/posts/comments/{commentId}";
+        }
+
+        /// <summary>
         /// Incident endpoints
         /// </summary>
         public static class Incident
@@ -163,15 +185,15 @@
         public static class AdminFacility
         {
             // [GET]
-            public const string GetAll     = Base + "/admin/facilities";
-            public const string GetById    = Base + "/admin/facilities/{id}";
+            public const string GetAll = Base + "/admin/facilities";
+            public const string GetById = Base + "/admin/facilities/{id}";
             // [POST]
-            public const string Create     = Base + "/admin/facilities";
+            public const string Create = Base + "/admin/facilities";
             // [PUT]
-            public const string Update     = Base + "/admin/facilities/{id}";
-            public const string Antivenom  = Base + "/admin/facilities/{id}/antivenom";
+            public const string Update = Base + "/admin/facilities/{id}";
+            public const string Antivenom = Base + "/admin/facilities/{id}/antivenom";
             public const string Deactivate = Base + "/admin/facilities/{id}/deactivate";
-            public const string Activate   = Base + "/admin/facilities/{id}/activate";
+            public const string Activate = Base + "/admin/facilities/{id}/activate";
         }
 
         /// <summary>

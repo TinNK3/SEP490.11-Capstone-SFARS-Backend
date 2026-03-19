@@ -90,6 +90,7 @@ app.UseAuthorization();
 // Map SignalR hubs (must be after UseAuthorization)
 app.MapHub<LocationTrackingHub>("/hubs/location-tracking");
 app.MapHub<RescueDispatchHub>("/hubs/rescue");
+app.MapHub<CommunityHub>("/hubs/community");
 
 // Hangfire dashboard (admin access only)
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
