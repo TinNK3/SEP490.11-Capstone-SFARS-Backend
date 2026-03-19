@@ -13,5 +13,11 @@ public class ContentPost : BaseEntity
     public Guid AuthorId { get; set; }
     public bool IsPublished { get; set; }
 
+    public int LikeCount { get; set; }
+    public int CommentCount { get; set; }
+
     public virtual User Author { get; set; } = null!;
+    public virtual ICollection<PostMedia> Medias { get; set; } = [];
+    public virtual ICollection<PostComment> Comments { get; set; } = [];
+    public virtual ICollection<PostLike> Likes { get; set; } = [];
 }
