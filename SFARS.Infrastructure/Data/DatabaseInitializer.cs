@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SFARS.Domain.Interfaces;
 using SFARS.Infrastructure.Data.Context;
@@ -347,11 +347,13 @@ namespace SFARS.Infrastructure.Data
 
                 // 1. Get existing snakes keyed by ScientificName (natural key)
                 var existingSnakes = await _context.Snakes
+                    .Include(s => s.SnakeImages)
                     .ToDictionaryAsync(s => s.ScientificName, s => s);
 
                 var newSnakes = new List<Snake>();
                 var updatedCount = 0;
                 var now = DateTime.UtcNow;
+                bool hasNewImages = false;
 
                 // 2. Iterate and compare
                 foreach (var seed in seedSnakes)
@@ -369,6 +371,24 @@ namespace SFARS.Infrastructure.Data
                         if (existing.Habitat != seed.Habitat) { existing.Habitat = seed.Habitat; isChanged = true; }
                         if (existing.DistributionNote != seed.DistributionNote) { existing.DistributionNote = seed.DistributionNote; isChanged = true; }
                         if (existing.Note != seed.Note) { existing.Note = seed.Note; isChanged = true; }
+
+                        // Check and insert images if they are completely missing
+                        if (seed.SnakeImages != null && seed.SnakeImages.Any() && !existing.SnakeImages.Any())
+                        {
+                            foreach (var seedImg in seed.SnakeImages)
+                            {
+                                var newImg = new SnakeImage
+                                {
+                                    Id = Guid.NewGuid(),
+                                    SnakeId = existing.Id,
+                                    ImageUrl = seedImg.ImageUrl,
+                                    IsPrimary = seedImg.IsPrimary,
+                                    CreatedAt = now
+                                };
+                                await _context.SnakeImages.AddAsync(newImg);
+                            }
+                            hasNewImages = true;
+                        }
 
                         if (isChanged)
                         {
@@ -392,11 +412,10 @@ namespace SFARS.Infrastructure.Data
                     await _context.Snakes.AddRangeAsync(newSnakes);
                 }
 
-                if (newSnakes.Any() || updatedCount > 0)
+                if (newSnakes.Any() || updatedCount > 0 || hasNewImages)
                 {
                     var rows = await _context.SaveChangesAsync();
-                    _logger.LogInformation("[Seeding] Snakes sync completed. Inserted: {Inserted}, Updated: {Updated}, DB rows: {Rows}.",
-                        newSnakes.Count, updatedCount, rows);
+                    _logger.LogInformation("[Seeding] Snakes sync completed. Inserted/Updated: {Rows}.", rows);
                 }
                 else
                 {

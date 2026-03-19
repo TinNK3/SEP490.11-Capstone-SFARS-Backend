@@ -30,6 +30,174 @@ public class GeminiAiService : IGeminiAiService
         _httpClient.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
     }
 
+    #region Snake Detection (Gemini Vision — replaces binary ONNX model)
+
+    private const string SnakeDetectionSystemPrompt =
+        """
+        Bạn là chuyên gia phân loại động vật, đặc biệt là rắn.
+        Nhiệm vụ: Phân tích hình ảnh và xác định có rắn trong ảnh hay không.
+        
+        Quy tắc:
+        - Chỉ trả lời dưới dạng JSON, KHÔNG markdown, KHÔNG giải thích thêm.
+        - is_snake: true nếu hình ảnh chứa rắn (bất kỳ loài nào), false nếu không.
+        - confidence: float từ 0.0 đến 1.0, mức độ chắc chắn.
+        - reasoning: Lý do ngắn gọn (1 câu, tiếng Việt).
+        
+        Response format:
+        {"is_snake": true/false, "confidence": 0.95, "reasoning": "..."}
+        """;
+
+    /// <inheritdoc />
+    public async Task<GeminiSnakeDetectionResult> DetectSnakeInImageAsync(byte[] imageBytes, string mimeType)
+    {
+        var base64Image = Convert.ToBase64String(imageBytes);
+
+        var body = new
+        {
+            systemInstruction = new
+            {
+                parts = new[] { new { text = SnakeDetectionSystemPrompt } }
+            },
+            contents = new[]
+            {
+                new
+                {
+                    role = "user",
+                    parts = new object[]
+                    {
+                        new { text = "Hình ảnh này có chứa rắn không? Trả lời bằng JSON." },
+                        new
+                        {
+                            inlineData = new
+                            {
+                                mimeType,
+                                data = base64Image
+                            }
+                        }
+                    }
+                }
+            },
+            generationConfig = new
+            {
+                temperature = 0.1,   // Low temperature for deterministic classification
+                maxOutputTokens = 256 // Short response expected
+            }
+        };
+
+        var url = $"{_options.BaseUrl}/models/{_options.Model}:generateContent?key={_options.ApiKey}";
+
+        int maxRetries = _options.MaxRetries + 1;
+        int delay = 500;
+
+        for (int attempt = 0; attempt < maxRetries; attempt++)
+        {
+            try
+            {
+                using var requestMsg = new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = new StringContent(
+                        JsonSerializer.Serialize(body),
+                        Encoding.UTF8,
+                        "application/json")
+                };
+
+                var response = await _httpClient.SendAsync(requestMsg);
+
+                if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
+                {
+                    if (attempt < maxRetries - 1)
+                    {
+                        _logger.LogWarning(
+                            "Gemini 503 (snake detection), retry {Attempt} after {Delay}ms",
+                            attempt + 1, delay);
+                        await Task.Delay(delay);
+                        delay *= 2;
+                        continue;
+                    }
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError(
+                        "Gemini snake detection API error {StatusCode}: {Error}",
+                        response.StatusCode, errorContent);
+                }
+
+                response.EnsureSuccessStatusCode();
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                _logger.LogDebug("Gemini snake detection raw response: {Response}", responseContent);
+
+                var geminiResponse = JsonSerializer.Deserialize<GeminiApiResponse>(responseContent);
+                var resultText = geminiResponse?.Candidates?[0]?.Content?.Parts?[0]?.Text;
+
+                if (string.IsNullOrEmpty(resultText))
+                {
+                    throw new InvalidOperationException("Gemini returned empty response for snake detection.");
+                }
+
+                return ParseSnakeDetectionResponse(resultText);
+            }
+            catch (HttpRequestException ex) when (attempt < maxRetries - 1)
+            {
+                _logger.LogWarning(ex, "Gemini snake detection HTTP error, retry {Attempt}", attempt + 1);
+                await Task.Delay(delay);
+                delay *= 2;
+            }
+        }
+
+        // Exhausted retries — fallback: assume snake to be safe (avoid missing real emergencies)
+        _logger.LogWarning("Gemini snake detection failed after all retries, falling back to IsSnake=true");
+        return new GeminiSnakeDetectionResult(IsSnake: true, Confidence: 0.5f, Reasoning: "Không thể kết nối AI xác nhận. Mặc định xác nhận có rắn để đảm bảo an toàn.");
+    }
+
+    /// <summary>
+    /// Parse Gemini's text response into a structured detection result.
+    /// Handles markdown code fences and case-insensitive JSON properties.
+    /// </summary>
+    private GeminiSnakeDetectionResult ParseSnakeDetectionResponse(string text)
+    {
+        var jsonText = StripMarkdownCodeFence(text);
+
+        try
+        {
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var parsed = JsonSerializer.Deserialize<SnakeDetectionJsonResponse>(jsonText, options);
+
+            if (parsed == null)
+            {
+                throw new InvalidOperationException($"Failed to parse snake detection JSON: {jsonText}");
+            }
+
+            return new GeminiSnakeDetectionResult(
+                IsSnake: parsed.IsSnake,
+                Confidence: Math.Clamp(parsed.Confidence, 0f, 1f),
+                Reasoning: parsed.Reasoning
+            );
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse Gemini snake detection response: {Text}", jsonText);
+            // Safe fallback: assume snake
+            return new GeminiSnakeDetectionResult(IsSnake: true, Confidence: 0.5f, Reasoning: "Không thể phân tích kết quả AI. Mặc định xác nhận có rắn.");
+        }
+    }
+
+    private sealed class SnakeDetectionJsonResponse
+    {
+        [JsonPropertyName("is_snake")]
+        public bool IsSnake { get; set; }
+
+        [JsonPropertyName("confidence")]
+        public float Confidence { get; set; }
+
+        [JsonPropertyName("reasoning")]
+        public string? Reasoning { get; set; }
+    }
+
+    #endregion
+
     public async Task<GeminiAnalysisResult> AnalyzeSnakeBiteAsync(GeminiAnalysisRequest request)
     {
         var systemPrompt = BuildSystemPrompt();
@@ -123,31 +291,7 @@ public class GeminiAiService : IGeminiAiService
 
                 _logger.LogInformation("Gemini result text: {ResultText}", resultText);
                 
-                var jsonText = resultText.Trim();
-                if (jsonText.StartsWith("```json"))
-                {
-                    jsonText = jsonText.Substring(7);
-                    if (jsonText.EndsWith("```"))
-                    {
-                        jsonText = jsonText.Substring(0, jsonText.Length - 3);
-                    }
-                    jsonText = jsonText.Trim();
-                    _logger.LogInformation("Stripped markdown wrapper from Gemini response");
-                }
-                else if (jsonText.StartsWith("```"))
-                {
-                    var firstNewline = jsonText.IndexOf('\n');
-                    if (firstNewline > 0)
-                    {
-                        jsonText = jsonText.Substring(firstNewline + 1);
-                    }
-                    if (jsonText.EndsWith("```"))
-                    {
-                        jsonText = jsonText.Substring(0, jsonText.Length - 3);
-                    }
-                    jsonText = jsonText.Trim();
-                    _logger.LogInformation("Stripped generic markdown wrapper from Gemini response");
-                }
+                var jsonText = StripMarkdownCodeFence(resultText);
                 
                 var result = JsonSerializer.Deserialize<GeminiAnalysisResult>(jsonText);
                 if (result == null)
@@ -291,7 +435,7 @@ Response format (JSON):
 
         var url = $"{_options.BaseUrl}/models/{_options.Model}:generateContent?key={_options.ApiKey}";
 
-        int maxRetries = 3;
+        int maxRetries = _options.MaxRetries + 1;
         int delay = 500;
 
         for (int attempt = 0; attempt < maxRetries; attempt++)
@@ -321,9 +465,7 @@ Response format (JSON):
 
                 response.EnsureSuccessStatusCode();
 
-                    var json = await response.Content.ReadAsStringAsync();
-
-                // var result = JsonSerializer.Deserialize<GeminiApiResponse>(json);
+                var json = await response.Content.ReadAsStringAsync();
 
                 var options = new JsonSerializerOptions 
                 { 
@@ -346,7 +488,38 @@ Response format (JSON):
         return "Hệ thống AI đang tạm thời quá tải. Vui lòng thử lại sau.";
     }
 
-    // Gemini API response models
+    #region Shared Helpers
+
+    /// <summary>
+    /// Strip markdown code fences (```json ... ``` or ``` ... ```) from Gemini response text.
+    /// Gemini occasionally wraps JSON in markdown code blocks.
+    /// </summary>
+    private static string StripMarkdownCodeFence(string text)
+    {
+        var trimmed = text.Trim();
+
+        if (trimmed.StartsWith("```json"))
+        {
+            trimmed = trimmed[7..]; // Remove ```json
+        }
+        else if (trimmed.StartsWith("```"))
+        {
+            var firstNewline = trimmed.IndexOf('\n');
+            trimmed = firstNewline > 0 ? trimmed[(firstNewline + 1)..] : trimmed[3..];
+        }
+
+        if (trimmed.EndsWith("```"))
+        {
+            trimmed = trimmed[..^3];
+        }
+
+        return trimmed.Trim();
+    }
+
+    #endregion
+
+    #region Gemini API Response Models
+
     private class GeminiApiResponse
     {
         [JsonPropertyName("candidates")]
@@ -370,4 +543,6 @@ Response format (JSON):
         [JsonPropertyName("text")]
         public string? Text { get; set; }
     }
+
+    #endregion
 }

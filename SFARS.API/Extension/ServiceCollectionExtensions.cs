@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using Serilog;
 using SFARS.Application.Configurations;
 using SFARS.Application.HealthChecks;
@@ -121,6 +121,7 @@ namespace SFARS.API.Extension
             // AI Services Configuration
             services.Configure<GeminiOptions>(builder.Configuration.GetSection("Gemini"));
             services.Configure<YoloModelOptions>(builder.Configuration.GetSection("YoloModel"));
+            services.Configure<MlopsOptions>(builder.Configuration.GetSection("Mlops"));
 
             return services;
         }

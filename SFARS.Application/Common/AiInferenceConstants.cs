@@ -11,10 +11,9 @@ public static class AiInferenceConstants
     #region YOLO Model
 
     /// <summary>
-    /// Default YOLO model identifier stored in AiInference records.
-    /// Renamed to reflect the cascaded pipeline.
+    /// Pipeline model identifier: Gemini Vision (binary) → YOLO Species (classification).
     /// </summary>
-    public const string ModelName = "snake-cascade-v1";
+    public const string ModelName = "gemini-yolo-cascade-v1";
 
     public const string ModelVersion = "1.0.0";
 

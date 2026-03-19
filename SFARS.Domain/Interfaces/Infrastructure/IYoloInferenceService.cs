@@ -1,27 +1,29 @@
 namespace SFARS.Domain.Interfaces.Infrastructure;
 
 /// <summary>
-/// Service for YOLO model inference to detect snakes in images
+/// Service for YOLO model inference to detect and classify snake species.
 /// </summary>
 public interface IYoloInferenceService
 {
+
+
     /// <summary>
-    /// Run inference on an image using cascaded models (Binary -> Species)
+    /// Run species-only classification (skip binary snake/not-snake detection).
+    /// Called after Gemini Vision confirms the image contains a snake.
     /// </summary>
-    /// <param name="imageStream">Image stream to analyze</param>
-    /// <param name="topK">Number of top species predictions to return if it's a snake (default: 3)</param>
-    /// <returns>Pipeline result containing IsSnake flag and species predictions</returns>
-    Task<YoloPipelineResult> InferCascadedAsync(Stream imageStream, int topK = 3);
+    /// <param name="imageStream">Image stream to classify.</param>
+    /// <param name="topK">Number of top species predictions to return (default: 3).</param>
+    /// <returns>Ranked list of species predictions.</returns>
+    Task<IReadOnlyList<YoloPrediction>> InferSpeciesOnlyAsync(Stream imageStream, int topK = 3);
+    
+    /// <summary>
+    /// Hot-reload the species ONNX model from disk without app restart.
+    /// Thread-safe: uses read-write lock to prevent inference during reload.
+    /// </summary>
+    Task<bool> ReloadSpeciesModelAsync(string? newModelPath = null);
 }
 
-/// <summary>
-/// Represents the result of the entire cascaded YOLO pipeline
-/// </summary>
-public record YoloPipelineResult(
-    bool IsSnake,
-    float BinaryConfidence,
-    IReadOnlyList<YoloPrediction> SpeciesPredictions
-);
+
 
 /// <summary>
 /// Represents a single YOLO prediction result

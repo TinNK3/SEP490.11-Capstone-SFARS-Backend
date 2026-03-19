@@ -9,7 +9,13 @@
         "TypicalSymptoms": "Liệt cơ; sụp mí; khó thở/ngưng thở; thường ít/không sưng đau tại vết cắn",
         "Habitat": "Cánh đồng; gần nước; có thể bò vào nhà ban đêm",
         "DistributionNote": "Miền Nam Việt Nam; vùng nông thôn",
-        "Note": "Cần thở máy sớm"
+        "Note": "Cần thở máy sớm",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Bungar_candi_120608-0343_krw.jpg/330px-Bungar_candi_120608-0343_krw.jpg",
+                "IsPrimary": true
+            }
+        ]
     },
     {
         "ScientificName": "Bungarus fasciatus",
@@ -21,7 +27,13 @@
         "TypicalSymptoms": "Buồn ngủ; yếu cơ tiến triển; khó nuốt; suy hô hấp",
         "Habitat": "Vùng rừng núi; ven sông suối; nương rẫy",
         "DistributionNote": "Toàn Việt Nam",
-        "Note": "Di chuyển chậm chạp nhưng cắn rất đau"
+        "Note": "Di chuyển chậm chạp nhưng cắn rất đau",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/The_Banded_Krait.jpg/330px-The_Banded_Krait.jpg",
+                "IsPrimary": true
+            }
+        ]
     },
     {
         "ScientificName": "Calloselasma rhodostoma",
@@ -33,7 +45,13 @@
         "TypicalSymptoms": "Chảy máu vết cắn khó cầm; sưng nề; hoại tử; rối loạn đông máu nặng",
         "Habitat": "Rẫy cao su; vùng đất đỏ; dưới lớp lá khô mục",
         "DistributionNote": "Tây Nguyên; Đông Nam Bộ",
-        "Note": "Ngụy trang rất giỏi trên lá khô"
+        "Note": "Ngụy trang rất giỏi trên lá khô",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Callos_rhodos_120610-0642_krw.jpg/330px-Callos_rhodos_120610-0642_krw.jpg",
+                "IsPrimary": true
+            }
+        ]
     },
     {
         "ScientificName": "Rhabdophis subminiatus",
@@ -45,7 +63,13 @@
         "TypicalSymptoms": "Xuất huyết dưới da; chảy máu chân răng; suy thận cấp; nước tiểu đỏ",
         "Habitat": "Cạnh ao hồ; suối; đồng ruộng; nơi ẩm ướt",
         "DistributionNote": "Toàn Việt Nam (gần nguồn nước)",
-        "Note": "Tuyệt đối không chủ quan dù vết cắn nhỏ"
+        "Note": "Tuyệt đối không chủ quan dù vết cắn nhỏ",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Rhabdop_submin_080217-4693_ipb.jpg/330px-Rhabdop_submin_080217-4693_ipb.jpg",
+                "IsPrimary": true
+            }
+        ]
     },
     {
         "ScientificName": "Ophiophagus hannah",
@@ -57,7 +81,13 @@
         "TypicalSymptoms": "Đau dữ dội; sưng lan nhanh; hoại tử; suy hô hấp diễn tiến nhanh",
         "Habitat": "Rừng sâu; bụi rậm; hang hốc tự nhiên; ít khi vào nhà",
         "DistributionNote": "Rừng núi khắp Việt Nam",
-        "Note": "Lượng nọc phóng ra rất lớn"
+        "Note": "Lượng nọc phóng ra rất lớn",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/12_-_The_Mystical_King_Cobra_and_Coffee_Forests.jpg/330px-12_-_The_Mystical_King_Cobra_and_Coffee_Forests.jpg",
+                "IsPrimary": true
+            }
+        ]
     },
     {
         "ScientificName": "Naja kaouthia",
@@ -69,7 +99,13 @@
         "TypicalSymptoms": "Vết cắn sưng nề; phồng rộp; hoại tử mô đen; đau nhức; suy hô hấp",
         "Habitat": "Vườn rẫy; dưới đống củi; chuồng trại; khu dân cư",
         "DistributionNote": "Toàn Việt Nam",
-        "Note": "Hay hoạt động chiều tối"
+        "Note": "Hay hoạt động chiều tối",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Monocled_cobra_%28cropped%29.jpg/330px-Monocled_cobra_%28cropped%29.jpg",
+                "IsPrimary": true
+            }
+        ]
     },
     {
         "ScientificName": "Naja siamensis",
@@ -81,7 +117,13 @@
         "TypicalSymptoms": "Nếu vào mắt: viêm kết mạc/mù lòa. Cắn: hoại tử nặng; ít gây liệt hơn hổ đất",
         "Habitat": "Vùng đất khô ráo; lùm bụi; kho bãi; đống gạch",
         "DistributionNote": "Miền Đông Nam Bộ; miền Trung",
-        "Note": "Cần rửa mắt ngay nếu bị phun"
+        "Note": "Cần rửa mắt ngay nếu bị phun",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Naja_siamensis_by_Danny_S..jpg/330px-Naja_siamensis_by_Danny_S..jpg",
+                "IsPrimary": true
+            }
+        ]
     },
     {
         "ScientificName": "Azemiops feae",
@@ -93,7 +135,13 @@
         "TypicalSymptoms": "Sưng nề; bầm tím; đau nhức cơ; ít gây rối loạn đông máu hơn lục đuôi đỏ",
         "Habitat": "Vùng núi cao >800m; khí hậu lạnh; rừng tre nứa",
         "DistributionNote": "Miền Bắc Việt Nam (Cao Bằng; Lạng Sơn)",
-        "Note": "Rất hiếm gặp"
+        "Note": "Rất hiếm gặp",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Azemiops_feae.jpg/330px-Azemiops_feae.jpg",
+                "IsPrimary": true
+            }
+        ]
     },
     {
         "ScientificName": "Trimeresurus albolabris",
@@ -105,7 +153,13 @@
         "TypicalSymptoms": "Rối loạn đông máu; sưng phù nề lan rộng; xuất huyết dưới da",
         "Habitat": "Bụi cây thấp; bờ rào; vườn cây ăn trái; cây cảnh",
         "DistributionNote": "Toàn Việt Nam",
-        "Note": "Thường cắn vào tay/chân khi làm vườn"
+        "Note": "Thường cắn vào tay/chân khi làm vườn",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Trimeresurus_albolabris%2C_White-lipped_pit_viper_%28female%29_-_Kaeng_Krachan_National_Park_%2827493423545%29.jpg/330px-Trimeresurus_albolabris%2C_White-lipped_pit_viper_%28female%29_-_Kaeng_Krachan_National_Park_%2827493423545%29.jpg",
+                "IsPrimary": true
+            }
+        ]
     },
     {
         "ScientificName": "Trimeresurus vogeli",
@@ -117,7 +171,13 @@
         "TypicalSymptoms": "Sưng đau; xuất huyết cục bộ; nguy cơ hoại tử",
         "Habitat": "Rừng rậm; khu vực gần suối; thảm thực vật ẩm",
         "DistributionNote": "Miền Trung (Gia Lai; Đồng Nai)",
-        "Note": "Ít gặp hơn lục đuôi đỏ"
+        "Note": "Ít gặp hơn lục đuôi đỏ",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Vogel%27s_Pit_Viper%2C_Trimeresurus_vogeli.jpg/330px-Vogel%27s_Pit_Viper%2C_Trimeresurus_vogeli.jpg",
+                "IsPrimary": true
+            }
+        ]
     },
     {
         "ScientificName": "Enhydris enhydris",
@@ -129,7 +189,13 @@
         "TypicalSymptoms": "Đau nhẹ tại chỗ; trầy xước; hiếm khi sưng tấy (Nọc yếu với người)",
         "Habitat": "Ao; hồ; mương rãnh; ruộng lúa ngập nước",
         "DistributionNote": "Vùng nước ngọt toàn Việt Nam",
-        "Note": "Thường bị nhầm là rắn độc"
+        "Note": "Thường bị nhầm là rắn độc",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Rainbow_Water_Snake_%28Enhydris_enhydris%29_%287845020860%29.jpg/330px-Rainbow_Water_Snake_%28Enhydris_enhydris%29_%287845020860%29.jpg",
+                "IsPrimary": true
+            }
+        ]
     },
     {
         "ScientificName": "Chrysopelea ornata",
@@ -141,7 +207,13 @@
         "TypicalSymptoms": "Vết cắn chỉ gây ngứa/đau nhẹ; không gây triệu chứng toàn thân",
         "Habitat": "Bụi cây; mái nhà; khe cửa; vườn tược (leo trèo)",
         "DistributionNote": "Toàn Việt Nam",
-        "Note": "Có thể lượn từ cây này sang cây khác"
+        "Note": "Có thể lượn từ cây này sang cây khác",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Chrysopelea_ornata.jpg/330px-Chrysopelea_ornata.jpg",
+                "IsPrimary": true
+            }
+        ]
     },
     {
         "ScientificName": "Xenopeltis unicolor",
@@ -153,7 +225,13 @@
         "TypicalSymptoms": "Vết răng li ti như kim châm; không độc",
         "Habitat": "Dưới lớp đất ẩm; đống lá mục; vườn tược",
         "DistributionNote": "Toàn Việt Nam",
-        "Note": "Thường bị giết nhầm do vẻ ngoài kỳ lạ"
+        "Note": "Thường bị giết nhầm do vẻ ngoài kỳ lạ",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Sunbeam_Snake_%28Xenopeltis_unicolor%29_%287121228691%29.jpg/330px-Sunbeam_Snake_%28Xenopeltis_unicolor%29_%287121228691%29.jpg",
+                "IsPrimary": true
+            }
+        ]
     },
     {
         "ScientificName": "Ptyas mucosa",
@@ -165,7 +243,13 @@
         "TypicalSymptoms": "Vết cắn đau và chảy máu nhiều do răng sắc (cơ học); không nhiễm độc",
         "Habitat": "Đồng ruộng; bụi rậm; kho bãi (săn chuột)",
         "DistributionNote": "Vùng nông thôn toàn Việt Nam",
-        "Note": "Rất hung dữ khi bị dồn ép"
+        "Note": "Rất hung dữ khi bị dồn ép",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Indian_Rat_Snake_%28Grey_and_Yellow%29.jpg/330px-Indian_Rat_Snake_%28Grey_and_Yellow%29.jpg",
+                "IsPrimary": true
+            }
+        ]
     },
     {
         "ScientificName": "Ptyas korros",
@@ -177,7 +261,13 @@
         "TypicalSymptoms": "Vết cắn nông; chảy máu nhẹ; không sưng tấy",
         "Habitat": "Bụi cỏ; vườn nhà; bờ ao",
         "DistributionNote": "Toàn Việt Nam",
-        "Note": "Hoàn toàn vô hại"
+        "Note": "Hoàn toàn vô hại",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Ptyas_korros-_Indochinese_rat_snake.jpg/330px-Ptyas_korros-_Indochinese_rat_snake.jpg",
+                "IsPrimary": true
+            }
+        ]
     },
     {
         "ScientificName": "Homalopsis buccata",
@@ -189,7 +279,13 @@
         "TypicalSymptoms": "Đau sưng nhẹ tại chỗ (do vi khuẩn hoặc nọc yếu); không nguy hiểm",
         "Habitat": "Sông suối; ao hồ; đầm lầy",
         "DistributionNote": "Vùng nước ngọt toàn Việt Nam",
-        "Note": "Thường giả chết khi bị bắt"
+        "Note": "Thường giả chết khi bị bắt",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Homalopsis_buccata.png/330px-Homalopsis_buccata.png",
+                "IsPrimary": true
+            }
+        ]
     },
     {
         "ScientificName": "Subsessor bocourti",
@@ -201,7 +297,13 @@
         "TypicalSymptoms": "Chảy máu nhiều do răng hàm sắc; nguy cơ nhiễm trùng uốn ván cao hơn là nhiễm độc",
         "Habitat": "Vùng đất ngập nước; đầm lầy; rừng ngập mặn",
         "DistributionNote": "Miền Nam (ĐBSCL)",
-        "Note": "Bơi giỏi nhưng chậm chạp trên cạn"
+        "Note": "Bơi giỏi nhưng chậm chạp trên cạn",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Subsessor_bocourti_448210413.jpg/330px-Subsessor_bocourti_448210413.jpg",
+                "IsPrimary": true
+            }
+        ]
     },
     {
         "ScientificName": "Coelognathus radiatus",
@@ -213,6 +315,12 @@
         "TypicalSymptoms": "Nhiều dấu răng nhỏ hình vòng cung; không sưng/không đau lan rộng",
         "Habitat": "Quanh nhà; chuồng gà; bụi rậm",
         "DistributionNote": "Toàn Việt Nam",
-        "Note": "Vô hại nhưng rất hay cắn khi bị bắt"
+        "Note": "Vô hại nhưng rất hay cắn khi bị bắt",
+        "SnakeImages": [
+            {
+                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Coelognathus_radiatus.jpg/330px-Coelognathus_radiatus.jpg",
+                "IsPrimary": true
+            }
+        ]
     }
 ]

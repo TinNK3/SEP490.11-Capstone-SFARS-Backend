@@ -59,6 +59,7 @@ public partial class SFARSDbContext : DbContext
     public DbSet<AiInference> AiInferences { get; set; }
     public DbSet<AiInferenceCandidate> AiInferenceCandidates { get; set; }
     public DbSet<IncidentSymptom> IncidentSymptoms { get; set; }
+    public DbSet<RetrainHistory> RetrainHistories { get; set; }
 
     // Chat (Incident-specific)
     public DbSet<IncidentChat> IncidentChats { get; set; }

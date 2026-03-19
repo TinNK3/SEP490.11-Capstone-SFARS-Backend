@@ -434,3 +434,14 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+
+# =========================
+# SFARS MLOps Data & Models
+# =========================
+scripts/mlops/mlops_data/
+scripts/mlops/runs/
+**/*.pt
+**/*.onnx
+!SFARS.API/wwwroot/models/snake_detector_production.onnx
+

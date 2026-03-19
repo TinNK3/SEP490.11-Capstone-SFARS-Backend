@@ -15,7 +15,6 @@ namespace SFARS.Domain.Entities
         public Guid? SelectedSnakeId { get; set; }
         public virtual Snake? SelectedSnake { get; set; }
         public double? SelectedConfidence { get; set; }
-        public double? BinaryConfidence { get; set; }
 
         public ToxinGroup SelectedToxinGroup { get; set; } = ToxinGroup.Unknown;
 

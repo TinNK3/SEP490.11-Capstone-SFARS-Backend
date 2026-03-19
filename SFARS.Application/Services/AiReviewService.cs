@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos.AiInference;
 using SFARS.Application.Dtos.AiReview;
@@ -10,27 +12,35 @@ using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
+using SFARS.Infrastructure.Configurations;
 using SFARS.Infrastructure.Hubs;
+using Hangfire;
 
 namespace SFARS.Application.Services;
 
-public class AiReviewService : IAiReviewService
+public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstAidStepDto>
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ISystemMessageService _msgService;
     private readonly IHubContext<LocationTrackingHub> _locationHub;
     private readonly ILogger<AiReviewService> _logger;
+    private readonly IBackgroundJobClient _backgroundJobs;
+    private readonly MlopsOptions _mlopsOptions;
 
     public AiReviewService(
         IUnitOfWork unitOfWork,
         ISystemMessageService msgService,
         IHubContext<LocationTrackingHub> locationHub,
-        ILogger<AiReviewService> logger)
+        ILogger<AiReviewService> logger,
+        IBackgroundJobClient backgroundJobs,
+        IOptions<MlopsOptions> mlopsOptions)
     {
         _unitOfWork = unitOfWork;
         _msgService = msgService;
         _locationHub = locationHub;
         _logger = logger;
+        _backgroundJobs = backgroundJobs;
+        _mlopsOptions = mlopsOptions.Value;
     }
 
     public async Task<IServiceResult> SubmitReviewAsync(Guid incidentId, Guid rescuerId, SubmitAiReviewRequestDto request)
@@ -170,7 +180,58 @@ public class AiReviewService : IAiReviewService
             .GroupExcept(LocationConstants.SignalRGroupPrefix + incidentId, new[] { rescuerId.ToString() })
             .SendAsync(LocationConstants.SignalRAiReviewed, notificationPayload);
 
+        // 4. Checking Threshold for Automated MLOps Retrain (Only if verified)
+        if (request.ReviewStatus == AiReviewStatus.ConfirmedCorrect || request.ReviewStatus == AiReviewStatus.Corrected)
+        {
+            await CheckAndTriggerAutoRetrainAsync();
+        }
+
         return new ServiceResult(ResultCodeConst.AiReview_Success0001, await _msgService.GetMessageAsync(ResultCodeConst.AiReview_Success0001), request.ReviewStatus.ToString());
+    }
+    
+    private async Task CheckAndTriggerAutoRetrainAsync()
+    {
+        try
+        {
+            int threshold = _mlopsOptions.AutoRetrainThreshold;
+
+            // 1. Get the last successful/pending retrain time
+            var lastRetrain = await _unitOfWork.Repository<RetrainHistory, Guid>().GetQueryable(tracked: false)
+                .OrderByDescending(x => x.StartedAt)
+                .FirstOrDefaultAsync(x => x.Status == RetrainStatus.Success || x.Status == RetrainStatus.Pending || x.Status == RetrainStatus.Training);
+
+            DateTime? since = lastRetrain?.StartedAt;
+
+            // 2. Count new verified reviews since then
+            var newSamplesCount = await _unitOfWork.Repository<AiInferenceReview, Guid>().GetQueryable(tracked: false)
+                .Where(r => (r.ReviewStatus == AiReviewStatus.ConfirmedCorrect || r.ReviewStatus == AiReviewStatus.Corrected) 
+                         && (since == null || r.ReviewedAt > since))
+                .CountAsync();
+
+            _logger.LogInformation("MLOps Check: {Count}/{Threshold} new verified samples accumulated since last retrain.", newSamplesCount, threshold);
+
+            // 3. Trigger retrain if threshold reached
+            if (newSamplesCount >= threshold)
+            {
+                // Ensure no retrain is currently running
+                bool isRunning = await _unitOfWork.Repository<RetrainHistory, Guid>().GetQueryable(tracked: false)
+                    .AnyAsync(x => x.Status == RetrainStatus.Pending || x.Status == RetrainStatus.Training || x.Status == RetrainStatus.ExportingData);
+
+                if (!isRunning)
+                {
+                    _logger.LogInformation("Threshold reached! Automatically queueing MLOps Retrain Pipeline.");
+                    _backgroundJobs.Enqueue<IRetrainOrchestrationService>(service => service.TriggerRetrainAsync(since));
+                }
+                else
+                {
+                    _logger.LogInformation("MLOps Retrain Pipeline already running. Skipping trigger.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to check or trigger auto-retrain pipeline.");
+        }
     }
 
     public async Task<(List<FirstAidStepDto> steps, List<string> prohibitions)> GetEffectiveFirstAidProtocolAsync(Incident incident)
