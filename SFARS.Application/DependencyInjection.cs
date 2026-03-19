@@ -1,9 +1,11 @@
-﻿using FluentValidation;
+using FluentValidation;
 using Mapster;
 using MapsterMapper;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SFARS.Application.Dtos;
+using SFARS.Application.Dtos.AiInference;
+using SFARS.Application.Dtos.AiReview;
 using SFARS.Application.Dtos.Auth;
 using SFARS.Application.Dtos.Facility;
 using SFARS.Application.Dtos.Faq;
@@ -47,13 +49,15 @@ public static class DependencyInjection
         // Incident services
         services.AddScoped<IIncidentService<IncidentDto>, IncidentService>();
         services.AddScoped<IAiInferenceService, AiInferenceService>();
-        services.AddScoped<IAiReviewService, AiReviewService>();
+        services.AddScoped<IAiReviewService<SubmitAiReviewRequestDto, FirstAidStepDto>, AiReviewService>();
         services.AddScoped<IDispatchService, DispatchService>();
         services.AddScoped<IMissionService, MissionService>();
         services.AddScoped<IDeviceService, DeviceService>();
 
         // Admin services — methods added directly to IUserService / UserService
         services.AddScoped<IAdminAuditLogService, AdminAuditLogService>();
+        services.AddScoped<IDataSetExportService, DataSetExportService>();
+        services.AddScoped<IRetrainOrchestrationService, RetrainOrchestrationService>();
 
         // Chat services
         services.AddScoped<IChatService, ChatService>();

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SFARS.Infrastructure.Data.Context;
@@ -12,9 +13,11 @@ using SFARS.Infrastructure.Data.Context;
 namespace SFARS.Infrastructure.Migrations
 {
     [DbContext(typeof(SFARSDbContext))]
-    partial class SFARSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260317080621_ConfigureRetrainHistory")]
+    partial class ConfigureRetrainHistory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -105,6 +108,9 @@ namespace SFARS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
+
+                    b.Property<double?>("BinaryConfidence")
+                        .HasColumnType("float");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2")
@@ -465,12 +471,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("body_content");
 
-                    b.Property<int>("CommentCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("comment_count");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("created_at");
@@ -482,12 +482,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<bool>("IsPublished")
                         .HasColumnType("bit")
                         .HasColumnName("is_published");
-
-                    b.Property<int>("LikeCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("like_count");
 
                     b.Property<string>("Slug")
                         .IsRequired()
@@ -1365,147 +1359,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.ToTable("PointTransaction", (string)null);
                 });
 
-            modelBuilder.Entity("SFARS.Domain.Entities.PostComment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("AuthorId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("author_id");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)")
-                        .HasColumnName("content");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("created_by");
-
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_deleted");
-
-                    b.Property<Guid?>("ParentId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("parent_id");
-
-                    b.Property<Guid>("PostId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("post_id");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("updated_by");
-
-                    b.HasKey("Id")
-                        .HasName("PK_PostComment_Id");
-
-                    b.HasIndex("AuthorId");
-
-                    b.HasIndex("ParentId")
-                        .HasDatabaseName("IX_PostComment_ParentId");
-
-                    b.HasIndex("PostId")
-                        .HasDatabaseName("IX_PostComment_PostId");
-
-                    b.ToTable("PostComment", (string)null);
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.PostLike", b =>
-                {
-                    b.Property<Guid>("PostId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("post_id");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("user_id");
-
-                    b.Property<DateTime>("LikedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("liked_at");
-
-                    b.HasKey("PostId", "UserId")
-                        .HasName("PK_PostLike");
-
-                    b.HasIndex("PostId")
-                        .HasDatabaseName("IX_PostLike_PostId");
-
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("IX_PostLike_UserId");
-
-                    b.ToTable("PostLike", (string)null);
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.PostMedia", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("content_type");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("created_by");
-
-                    b.Property<int>("Order")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("order");
-
-                    b.Property<Guid>("PostId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("post_id");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("updated_by");
-
-                    b.Property<string>("Url")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
-                        .HasColumnName("url");
-
-                    b.HasKey("Id")
-                        .HasName("PK_PostMedia_Id");
-
-                    b.HasIndex("PostId")
-                        .HasDatabaseName("IX_PostMedia_PostId");
-
-                    b.ToTable("PostMedia", (string)null);
-                });
-
             modelBuilder.Entity("SFARS.Domain.Entities.Quiz", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2308,15 +2161,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("amount");
 
-                    b.Property<string>("CancellationReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
-                        .HasColumnName("cancellation_reason");
-
-                    b.Property<DateTime?>("CancelledAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("cancelled_at");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("created_at");
@@ -2325,27 +2169,30 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("created_by");
 
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("currency");
+
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)")
                         .HasColumnName("description");
 
-                    b.Property<DateTime?>("ExpiredAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("expired_at");
+                    b.Property<string>("GatewayTransactionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("gateway_transaction_id");
 
                     b.Property<Guid?>("MissionId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("mission_id");
 
-                    b.Property<string>("PaymentLinkId")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("payment_link_id");
-
-                    b.Property<string>("QrCode")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("qr_code");
+                    b.Property<string>("PaymentGateway")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("payment_gateway");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -2353,14 +2200,11 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(20)")
                         .HasColumnName("status");
 
-                    b.Property<string>("TransactionCode")
+                    b.Property<string>("Type")
+                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)")
-                        .HasColumnName("transaction_code");
-
-                    b.Property<DateTime?>("TransactionDate")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("transaction_date");
+                        .HasColumnName("type");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2")
@@ -2376,6 +2220,8 @@ namespace SFARS.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("PK_Transaction_Id");
+
+                    b.HasIndex("MissionId");
 
                     b.HasIndex("UserId");
 
@@ -2971,68 +2817,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("SFARS.Domain.Entities.PostComment", b =>
-                {
-                    b.HasOne("SFARS.Domain.Entities.User", "Author")
-                        .WithMany()
-                        .HasForeignKey("AuthorId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired()
-                        .HasConstraintName("FK_PostComment_User_AuthorId");
-
-                    b.HasOne("SFARS.Domain.Entities.PostComment", "Parent")
-                        .WithMany("Replies")
-                        .HasForeignKey("ParentId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .HasConstraintName("FK_PostComment_PostComment_ParentId");
-
-                    b.HasOne("SFARS.Domain.Entities.ContentPost", "Post")
-                        .WithMany("Comments")
-                        .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_PostComment_ContentPost_PostId");
-
-                    b.Navigation("Author");
-
-                    b.Navigation("Parent");
-
-                    b.Navigation("Post");
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.PostLike", b =>
-                {
-                    b.HasOne("SFARS.Domain.Entities.ContentPost", "Post")
-                        .WithMany("Likes")
-                        .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_PostLike_ContentPost_PostId");
-
-                    b.HasOne("SFARS.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired()
-                        .HasConstraintName("FK_PostLike_User_UserId");
-
-                    b.Navigation("Post");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.PostMedia", b =>
-                {
-                    b.HasOne("SFARS.Domain.Entities.ContentPost", "Post")
-                        .WithMany("Medias")
-                        .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_PostMedia_ContentPost_PostId");
-
-                    b.Navigation("Post");
-                });
-
             modelBuilder.Entity("SFARS.Domain.Entities.RefreshToken", b =>
                 {
                     b.HasOne("SFARS.Domain.Entities.User", "User")
@@ -3164,12 +2948,20 @@ namespace SFARS.Infrastructure.Migrations
 
             modelBuilder.Entity("SFARS.Domain.Entities.Transaction", b =>
                 {
+                    b.HasOne("SFARS.Domain.Entities.RescueMission", "Mission")
+                        .WithMany()
+                        .HasForeignKey("MissionId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("FK_Transaction_RescueMission_MissionId");
+
                     b.HasOne("SFARS.Domain.Entities.User", "User")
                         .WithMany("Transactions")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_Transaction_User_UserId");
+
+                    b.Navigation("Mission");
 
                     b.Navigation("User");
                 });
@@ -3241,15 +3033,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Navigation("Messages");
                 });
 
-            modelBuilder.Entity("SFARS.Domain.Entities.ContentPost", b =>
-                {
-                    b.Navigation("Comments");
-
-                    b.Navigation("Likes");
-
-                    b.Navigation("Medias");
-                });
-
             modelBuilder.Entity("SFARS.Domain.Entities.Incident", b =>
                 {
                     b.Navigation("AiInferences");
@@ -3273,11 +3056,6 @@ namespace SFARS.Infrastructure.Migrations
             modelBuilder.Entity("SFARS.Domain.Entities.IncidentChatMessage", b =>
                 {
                     b.Navigation("Medias");
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.PostComment", b =>
-                {
-                    b.Navigation("Replies");
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.RescueMission", b =>

@@ -11,17 +11,16 @@ using SixLabors.ImageSharp.Processing;
 namespace SFARS.Infrastructure.Services;
 
 /// <summary>
-/// YOLO inference service using cascaded ONNX Runtime models (Snake vs Not Snake -> 15 Species)
+/// YOLO inference service using ONNX Runtime for 15 Species classification
 /// </summary>
 public class YoloInferenceService : IYoloInferenceService, IDisposable
 {
     private readonly ILogger<YoloInferenceService> _logger;
     private readonly YoloModelOptions _options;
     
-    private readonly InferenceSession _binarySession;
-    private readonly InferenceSession _speciesSession;
+    private InferenceSession _speciesSession;
+    private readonly ReaderWriterLockSlim _speciesLock = new ReaderWriterLockSlim();
     
-    private readonly Dictionary<int, string> _binaryClassMapping;
     private readonly Dictionary<int, string> _speciesClassMapping;
 
     public YoloInferenceService(
@@ -37,88 +36,127 @@ public class YoloInferenceService : IYoloInferenceService, IDisposable
             GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
         };
 
-        // Load Binary ONNX model
-        _binarySession = new InferenceSession(_options.BinaryModelPath, sessionOptions);
-        _binaryClassMapping = ParseClassMapping(_options.BinaryClassMapping);
-        _logger.LogInformation("Binary YOLO model loaded: {ModelPath}", _options.BinaryModelPath);
-
         // Load Species ONNX model
         _speciesSession = new InferenceSession(_options.ModelPath, sessionOptions);
         _speciesClassMapping = ParseClassMapping(_options.ClassMapping);
         _logger.LogInformation("Species YOLO model loaded: {ModelPath}", _options.ModelPath);
     }
 
-    public async Task<YoloPipelineResult> InferCascadedAsync(Stream imageStream, int topK = 3)
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<YoloPrediction>> InferSpeciesOnlyAsync(Stream imageStream, int topK = 3)
     {
         try
         {
-            // 1. Preprocess image ONCE
-            var inputTensor = await PreprocessImageAsync(imageStream);
-            var inputs = new List<NamedOnnxValue>
+            using var image = await Image.LoadAsync<Rgb24>(imageStream);
+
+            var speciesTensor = PreprocessImage(image,
+                _options.SpeciesInputWidth,
+                _options.SpeciesInputHeight);
+
+            var speciesInputs = new List<NamedOnnxValue>
             {
-                NamedOnnxValue.CreateFromTensor("images", inputTensor)
+                NamedOnnxValue.CreateFromTensor("images", speciesTensor)
             };
 
-            // 2. Binary Inference (Snake vs Not Snake)
-            using var binaryResults = _binarySession.Run(inputs);
-            var binaryOutput = binaryResults.First().AsEnumerable<float>().ToArray();
-            var binaryPredictions = GetPredictionsTopK(binaryOutput, _binaryClassMapping, topK: 1); // Only need top 1
+            float[] speciesOutput;
             
-            var topBinary = binaryPredictions.FirstOrDefault();
-            bool isSnake = topBinary != null && topBinary.ClassName.Equals("snake", StringComparison.OrdinalIgnoreCase);
-            
-            _logger.LogInformation("Binary inference completed. Top class: {Class} ({Confidence:P})", 
-                topBinary?.ClassName, topBinary?.Confidence);
-
-            // 3. Early Exit if Not Snake
-            if (!isSnake)
+            _speciesLock.EnterReadLock();
+            try
             {
-                return new YoloPipelineResult(
-                    IsSnake: false,
-                    BinaryConfidence: topBinary?.Confidence ?? 0f,
-                    SpeciesPredictions: new List<YoloPrediction>()
-                );
+                using var speciesResults = _speciesSession.Run(speciesInputs);
+                speciesOutput = speciesResults.First().AsEnumerable<float>().ToArray();
+            }
+            finally
+            {
+                _speciesLock.ExitReadLock();
             }
 
-            // 4. Species Inference (using the EXACT SAME TENSOR)
-            using var speciesResults = _speciesSession.Run(inputs); // Re-using `inputs`
-            var speciesOutput = speciesResults.First().AsEnumerable<float>().ToArray();
-            var speciesPredictions = GetPredictionsTopK(speciesOutput, _speciesClassMapping, topK);
+            var predictions = GetPredictionsTopK(speciesOutput, _speciesClassMapping, topK);
 
-            _logger.LogInformation("Species inference completed. Top prediction: {Class} ({Confidence:P})", 
-                speciesPredictions.FirstOrDefault()?.ClassName, 
-                speciesPredictions.FirstOrDefault()?.Confidence);
+            _logger.LogInformation(
+                "Species-only inference completed. Top prediction: {Class} ({Confidence:P})",
+                predictions.FirstOrDefault()?.ClassName,
+                predictions.FirstOrDefault()?.Confidence);
 
-            return new YoloPipelineResult(
-                IsSnake: true,
-                BinaryConfidence: topBinary?.Confidence ?? 0f,
-                SpeciesPredictions: speciesPredictions
-            );
+            return predictions;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Cascaded YOLO inference failed");
-            throw new InvalidOperationException("AI inference pipeline failed. Please try again.", ex);
+            _logger.LogError(ex, "Species-only YOLO inference failed");
+
+            throw new InvalidOperationException(
+                "AI species classification failed. Please try again.",
+                ex);
         }
     }
 
-    private async Task<DenseTensor<float>> PreprocessImageAsync(Stream imageStream)
+    /// <inheritdoc />
+    public Task<bool> ReloadSpeciesModelAsync(string? newModelPath = null)
     {
-        using var image = await Image.LoadAsync<Rgb24>(imageStream);
-        
-        // Resize to model input size
-        image.Mutate(x => x.Resize(_options.InputWidth, _options.InputHeight));
-
-        // Convert to tensor (NCHW format: Batch, Channels, Height, Width)
-        var tensor = new DenseTensor<float>(new[] { 1, 3, _options.InputHeight, _options.InputWidth });
-
-        for (int y = 0; y < _options.InputHeight; y++)
+        return Task.Run(() =>
         {
-            for (int x = 0; x < _options.InputWidth; x++)
+            string pathToLoad = newModelPath ?? _options.ModelPath;
+
+            if (!File.Exists(pathToLoad))
+            {
+                _logger.LogError("Hot-Swap Failed: Model file not found at {Path}", pathToLoad);
+                return false;
+            }
+
+            try
+            {
+                _logger.LogInformation("Initiating Hot-Swap for Species ONNX model from {Path}", pathToLoad);
+
+                var sessionOptions = new SessionOptions
+                {
+                    GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
+                };
+
+                // Load new session first to ensure it's valid BEFORE acquiring write lock
+                var newSession = new InferenceSession(pathToLoad, sessionOptions);
+
+                // Acquire write lock: Blocks all new incoming InferCascadedAsync / InferSpeciesOnlyAsync 
+                // Wait for existing inferences to finish, then swap.
+                _speciesLock.EnterWriteLock();
+                try
+                {
+                    var oldSession = _speciesSession;
+                    _speciesSession = newSession;
+                    
+                    // Dispose old session safely
+                    oldSession?.Dispose();
+                }
+                finally
+                {
+                    _speciesLock.ExitWriteLock();
+                }
+
+                _logger.LogInformation("Hot-Swap Successful: New Species YOLO model loaded");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Hot-Swap Failed: Error loading new ONNX model");
+                return false;
+            }
+        });
+    }
+
+    private DenseTensor<float> PreprocessImage(
+    Image<Rgb24> originalImage,
+    int width,
+    int height)
+    {
+        using var image = originalImage.Clone(ctx => ctx.Resize(width, height));
+
+        var tensor = new DenseTensor<float>(new[] { 1, 3, height, width });
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
             {
                 var pixel = image[x, y];
-                
-                // Normalize to [0, 1]
+
                 tensor[0, 0, y, x] = pixel.R / 255f;
                 tensor[0, 1, y, x] = pixel.G / 255f;
                 tensor[0, 2, y, x] = pixel.B / 255f;
@@ -171,7 +209,15 @@ public class YoloInferenceService : IYoloInferenceService, IDisposable
 
     public void Dispose()
     {
-        _binarySession?.Dispose();
-        _speciesSession?.Dispose();
+        _speciesLock.EnterWriteLock();
+        try
+        {
+            _speciesSession?.Dispose();
+        }
+        finally
+        {
+            _speciesLock.ExitWriteLock();
+            _speciesLock.Dispose();
+        }
     }
 }

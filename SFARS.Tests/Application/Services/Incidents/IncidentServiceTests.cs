@@ -6,6 +6,7 @@ using Moq;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Dtos.AiInference;
+using SFARS.Application.Dtos.AiReview;
 using SFARS.Application.Services;
 using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
@@ -31,7 +32,7 @@ public class IncidentServiceTests
     protected readonly Mock<IFileStorageService> _fileStorageServiceMock;
     protected readonly Mock<IOptions<StorageOptions>> _storageOptionsMock;
     protected readonly Mock<ISosSpamGuardService> _spamGuardMock;
-    protected readonly Mock<IAiReviewService> _aiReviewServiceMock;
+    protected readonly Mock<IAiReviewService<SubmitAiReviewRequestDto, FirstAidStepDto>> _aiReviewServiceMock;
     protected readonly Mock<IGenericRepository<Incident, Guid>> _incidentRepoMock;
     protected readonly Mock<IGenericRepository<IncidentMedia, Guid>> _incidentMediaRepoMock;
     protected readonly Mock<IGenericRepository<IncidentStatusHistory, Guid>> _statusHistoryRepoMock;
@@ -49,7 +50,7 @@ public class IncidentServiceTests
         _fileStorageServiceMock = new Mock<IFileStorageService>();
         _storageOptionsMock = new Mock<IOptions<StorageOptions>>();
         _spamGuardMock = new Mock<ISosSpamGuardService>();
-        _aiReviewServiceMock = new Mock<IAiReviewService>();
+        _aiReviewServiceMock = new Mock<IAiReviewService<SubmitAiReviewRequestDto, FirstAidStepDto>>();
         _incidentRepoMock = new Mock<IGenericRepository<Incident, Guid>>();
         _incidentMediaRepoMock = new Mock<IGenericRepository<IncidentMedia, Guid>>();
         _statusHistoryRepoMock = new Mock<IGenericRepository<IncidentStatusHistory, Guid>>();

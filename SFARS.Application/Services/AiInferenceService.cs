@@ -24,19 +24,17 @@ public class AiInferenceService : IAiInferenceService
     private readonly ISystemMessageService _msgService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<AiInferenceService> _logger;
+    private readonly IGeminiAiService _geminiService;
     private readonly IYoloInferenceService _yoloService;
     private readonly IFileStorageService _storageService;
     private readonly IOptions<StorageOptions> _storageOptions;
     private readonly IBackgroundJobClient _backgroundJobClient;
 
-    // [Gemini AI] Commented out — first-aid data now sourced from DB (FirstAidDetail table).
-    // Kept for potential future features (chatbot, content generation).
-    // private readonly IGeminiAiService _geminiService;
-
     public AiInferenceService(
         ISystemMessageService msgService,
         IUnitOfWork unitOfWork,
         ILogger<AiInferenceService> logger,
+        IGeminiAiService geminiService,
         IYoloInferenceService yoloService,
         IFileStorageService storageService,
         IOptions<StorageOptions> storageOptions,
@@ -45,6 +43,7 @@ public class AiInferenceService : IAiInferenceService
         _msgService = msgService;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _geminiService = geminiService;
         _yoloService = yoloService;
         _storageService = storageService;
         _storageOptions = storageOptions;
@@ -137,7 +136,6 @@ public class AiInferenceService : IAiInferenceService
             Snake? primarySnake = null;
             double topConfidence = 0;
             bool isSnakeClassified = true;
-            YoloPipelineResult? inferenceResult = null;
 
             // Cache active snakes once per request to avoid N+1 queries
             var activeSnakes = await _unitOfWork.Repository<Snake, Guid>().GetAllAsync(tracked: false);
@@ -161,15 +159,26 @@ public class AiInferenceService : IAiInferenceService
                     uploadResult = await _storageService.UploadAsync(uploadStream, fileName!, folder, contentType!);
                 }
 
-                using var yoloStream = new MemoryStream(imageBytes);
-                inferenceResult = await _yoloService.InferCascadedAsync(yoloStream, topK: 3);
-                
-                isSnakeClassified = inferenceResult.IsSnake;
-                topConfidence = inferenceResult.IsSnake ? (inferenceResult.SpeciesPredictions.FirstOrDefault()?.Confidence ?? 0) : inferenceResult.BinaryConfidence;
-                
+                // ── Stage 1: Gemini Vision — snake / not-snake ──
+                var geminiDetection = await _geminiService.DetectSnakeInImageAsync(imageBytes, contentType!);
+
+                isSnakeClassified = geminiDetection.IsSnake;
+                topConfidence = geminiDetection.Confidence;
+
+                _logger.LogInformation(
+                    "Gemini snake detection: IsSnake={IsSnake}, Confidence={Confidence:P}, Reasoning={Reasoning}",
+                    geminiDetection.IsSnake, geminiDetection.Confidence, geminiDetection.Reasoning);
+
                 if (isSnakeClassified)
                 {
-                    yoloPredictions = inferenceResult.SpeciesPredictions.ToList();
+                    // ── Stage 2: YOLO Species — classify the specific snake species ──
+                    using var yoloStream = new MemoryStream(imageBytes);
+                    var speciesPredictions = await _yoloService.InferSpeciesOnlyAsync(yoloStream, topK: 3);
+
+
+                    yoloPredictions = speciesPredictions.ToList();
+                    topConfidence = yoloPredictions.FirstOrDefault()?.Confidence ?? 0;
+
                     if (!yoloPredictions.Any())
                     {
                         return new ServiceResult(
@@ -192,7 +201,10 @@ public class AiInferenceService : IAiInferenceService
                 }
                 else
                 {
-                    _logger.LogInformation("Image identified as Not Snake. Confidence: {BinaryConfidence:P}", inferenceResult.BinaryConfidence);
+
+                    _logger.LogInformation(
+                        "Image identified as Not Snake by Gemini. Confidence: {Confidence:P}",
+                        geminiDetection.Confidence);
                 }
             }
 
@@ -231,7 +243,6 @@ public class AiInferenceService : IAiInferenceService
                 TopK = isSkip ? 0 : AiInferenceConstants.DefaultTopK,
                 SelectedSnakeId = primarySnake?.Id, // null if skipped or !isSnake
                 SelectedConfidence = isSkip ? 0 : topConfidence,
-                BinaryConfidence = isSkip ? null : inferenceResult?.BinaryConfidence,
                 SelectedToxinGroup = toxinGroup,
                 DecisionRule = decisionRule,
                 CreatedAt = now,

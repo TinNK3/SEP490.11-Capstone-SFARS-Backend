@@ -20,14 +20,15 @@ namespace SFARS.Tests.Application.Services.AiInference;
 /// Unit tests for AiInferenceService:
 /// - AnalyzeAsync  (POST /api/ai/analyze)
 ///
-/// Scope: Application service layer - AI inference pipeline for snake detection.
-/// Pipeline: Upload → YOLO inference → DB lookup → First-aid retrieval → Save in 1 transaction.
+/// Scope: Application service layer — AI inference pipeline for snake detection.
+/// Pipeline: Upload → Gemini Vision (snake/not) → YOLO Species → DB lookup → First-aid → Save.
 /// </summary>
 public class AiInferenceServiceTests
 {
     private readonly Mock<ISystemMessageService> _msgServiceMock;
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
     private readonly Mock<ILogger<AiInferenceService>> _loggerMock;
+    private readonly Mock<IGeminiAiService> _geminiServiceMock;
     private readonly Mock<IYoloInferenceService> _yoloServiceMock;
     private readonly Mock<IFileStorageService> _storageServiceMock;
     private readonly Mock<IOptions<StorageOptions>> _storageOptionsMock;
@@ -48,6 +49,7 @@ public class AiInferenceServiceTests
         _msgServiceMock = new Mock<ISystemMessageService>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
         _loggerMock = new Mock<ILogger<AiInferenceService>>();
+        _geminiServiceMock = new Mock<IGeminiAiService>();
         _yoloServiceMock = new Mock<IYoloInferenceService>();
         _storageServiceMock = new Mock<IFileStorageService>();
         _storageOptionsMock = new Mock<IOptions<StorageOptions>>();
@@ -87,6 +89,7 @@ public class AiInferenceServiceTests
             _msgServiceMock.Object,
             _unitOfWorkMock.Object,
             _loggerMock.Object,
+            _geminiServiceMock.Object,
             _yoloServiceMock.Object,
             _storageServiceMock.Object,
             _storageOptionsMock.Object,
@@ -297,9 +300,9 @@ public class AiInferenceServiceTests
 
     /// <summary>
     /// Test Type: ABNORMAL
-    /// Tests: AnalyzeAsync when YOLO returns no predictions
-    /// Precondition: Valid image but YOLO does not detect any snakes
-    /// Expected Result: Returns AI_Warning0001 (no snake detected)
+    /// Tests: AnalyzeAsync when Gemini detects snake but YOLO returns no species predictions
+    /// Precondition: Gemini says IsSnake=true but YOLO species model returns empty list
+    /// Expected Result: Returns AI_Warning0001 (no snake species detected)
     /// </summary>
     [Fact]
     public async Task AnalyzeAsync_NoSnakeDetected_ReturnsNoDetectionWarning()
@@ -324,9 +327,15 @@ public class AiInferenceServiceTests
             .Setup(s => s.UploadAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(new FileUploadResult("https://example.com/image.jpg", "publicId", 1024L, "jpg"));
 
+        // Gemini says it IS a snake
+        _geminiServiceMock
+            .Setup(g => g.DetectSnakeInImageAsync(It.IsAny<byte[]>(), It.IsAny<string>()))
+            .ReturnsAsync(new GeminiSnakeDetectionResult(true, 0.95f, "Hình ảnh chứa rắn"));
+
+        // But YOLO species returns empty predictions
         _yoloServiceMock
-            .Setup(y => y.InferCascadedAsync(It.IsAny<Stream>(), It.IsAny<int>()))
-            .ReturnsAsync(new YoloPipelineResult(true, 1f, new List<YoloPrediction>())); // Empty list!
+            .Setup(y => y.InferSpeciesOnlyAsync(It.IsAny<Stream>(), It.IsAny<int>()))
+            .ReturnsAsync(new List<YoloPrediction>());
 
         // Act
         var result = await _sut.AnalyzeAsync(
@@ -340,7 +349,7 @@ public class AiInferenceServiceTests
     /// <summary>
     /// Test Type: ABNORMAL
     /// Tests: AnalyzeAsync when detected snake class not found in database
-    /// Precondition: YOLO returns prediction but snake class not in DB
+    /// Precondition: Gemini detects snake, YOLO classifies, but species not in DB
     /// Expected Result: Returns AI_Warning0005 (snake not found in database)
     /// </summary>
     [Fact]
@@ -366,14 +375,18 @@ public class AiInferenceServiceTests
             .Setup(s => s.UploadAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(new FileUploadResult("https://example.com/image.jpg", "publicId", 1024L, "jpg"));
 
+        _geminiServiceMock
+            .Setup(g => g.DetectSnakeInImageAsync(It.IsAny<byte[]>(), It.IsAny<string>()))
+            .ReturnsAsync(new GeminiSnakeDetectionResult(true, 0.95f, "Hình ảnh chứa rắn"));
+
         var predictions = new List<YoloPrediction>
         {
             new YoloPrediction("unknown_snake", 0.95f, 0)
         };
 
         _yoloServiceMock
-            .Setup(y => y.InferCascadedAsync(It.IsAny<Stream>(), It.IsAny<int>()))
-            .ReturnsAsync(new YoloPipelineResult(true, 1f, predictions));
+            .Setup(y => y.InferSpeciesOnlyAsync(It.IsAny<Stream>(), It.IsAny<int>()))
+            .ReturnsAsync(predictions);
 
         _snakeRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<Snake>()); // Empty snake DB
 
@@ -388,8 +401,8 @@ public class AiInferenceServiceTests
 
     /// <summary>
     /// Test Type: NORMAL
-    /// Tests: AnalyzeAsync successfully processes image and saves inference
-    /// Precondition: Valid image, YOLO detects snake, snake found in DB
+    /// Tests: AnalyzeAsync successfully processes image via Gemini → YOLO → DB
+    /// Precondition: Gemini detects snake, YOLO classifies species, snake found in DB
     /// Expected Result: Returns success with inference result and first-aid recommendations
     /// </summary>
     [Fact]
@@ -426,6 +439,12 @@ public class AiInferenceServiceTests
             .Setup(s => s.UploadAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(new FileUploadResult("https://example.com/image.jpg", "publicId", 1024L, "jpg"));
 
+        // Gemini Vision detects snake
+        _geminiServiceMock
+            .Setup(g => g.DetectSnakeInImageAsync(It.IsAny<byte[]>(), It.IsAny<string>()))
+            .ReturnsAsync(new GeminiSnakeDetectionResult(true, 0.98f, "Hình ảnh chứa rắn"));
+
+        // YOLO species classification
         var predictions = new List<YoloPrediction>
         {
             new YoloPrediction("naja_kaouthia", 0.95f, 0),
@@ -433,8 +452,8 @@ public class AiInferenceServiceTests
         };
 
         _yoloServiceMock
-            .Setup(y => y.InferCascadedAsync(It.IsAny<Stream>(), It.IsAny<int>()))
-            .ReturnsAsync(new YoloPipelineResult(true, 1f, predictions));
+            .Setup(y => y.InferSpeciesOnlyAsync(It.IsAny<Stream>(), It.IsAny<int>()))
+            .ReturnsAsync(predictions);
 
         _snakeRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<Snake> { snake });
         _firstAidRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<FirstAidDetail>());
@@ -448,6 +467,8 @@ public class AiInferenceServiceTests
 
         // Assert
         result.Data.Should().NotBeNull();
+        _geminiServiceMock.Verify(g => g.DetectSnakeInImageAsync(It.IsAny<byte[]>(), "image/jpeg"), Times.Once);
+        _yoloServiceMock.Verify(y => y.InferSpeciesOnlyAsync(It.IsAny<Stream>(), 3), Times.Once);
         _mediaRepoMock.Verify(r => r.AddAsync(It.IsAny<IncidentMedia>()), Times.Once);
         _inferenceRepoMock.Verify(r => r.AddAsync(It.IsAny<AiInferenceEntity>()), Times.Once);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(), Times.Once);
@@ -455,12 +476,63 @@ public class AiInferenceServiceTests
 
     /// <summary>
     /// Test Type: NORMAL
-    /// Tests: AnalyzeAsync with skipped upload (no image provided)
-    /// Precondition: imageStream is null (skip mode)
-    /// Expected Result: Returns success with skipped inference (no YOLO call)
+    /// Tests: AnalyzeAsync when Gemini Vision determines image is NOT a snake
+    /// Precondition: Gemini returns IsSnake=false
+    /// Expected Result: Returns success with "Not Snake" status, YOLO species NOT called
     /// </summary>
     [Fact]
-    public async Task AnalyzeAsync_SkipMode_ReturnsSuccessWithoutYolo()
+    public async Task AnalyzeAsync_GeminiDetectsNotSnake_ReturnsNotSnakeResult()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var incidentId = Guid.NewGuid();
+
+        var incident = new Incident
+        {
+            Id = incidentId,
+            VictimId = userId,
+            CurrentStatus = IncidentStatus.Pending
+        };
+
+        _incidentRepoMock.Setup(r => r.GetByIdAsync(incidentId)).ReturnsAsync(incident);
+
+        var imageStream = new MemoryStream(new byte[1024]);
+        var fileSize = 1024L;
+
+        _storageServiceMock
+            .Setup(s => s.UploadAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(new FileUploadResult("https://example.com/image.jpg", "publicId", 1024L, "jpg"));
+
+        // Gemini says NOT a snake
+        _geminiServiceMock
+            .Setup(g => g.DetectSnakeInImageAsync(It.IsAny<byte[]>(), It.IsAny<string>()))
+            .ReturnsAsync(new GeminiSnakeDetectionResult(false, 0.92f, "Hình ảnh không chứa rắn"));
+
+        _snakeRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<Snake>());
+        _firstAidRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<FirstAidDetail>());
+        _chatRepoMock.Setup(r => r.GetAllAsync(true)).ReturnsAsync(new List<IncidentChat>());
+
+        _unitOfWorkMock.Setup(x => x.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Act
+        var result = await _sut.AnalyzeAsync(
+            userId, incidentId, imageStream, "test.jpg", "image/jpeg", fileSize, MediaType.SnakePhoto);
+
+        // Assert
+        result.Data.Should().NotBeNull();
+        _geminiServiceMock.Verify(g => g.DetectSnakeInImageAsync(It.IsAny<byte[]>(), "image/jpeg"), Times.Once);
+        _yoloServiceMock.Verify(y => y.InferSpeciesOnlyAsync(It.IsAny<Stream>(), It.IsAny<int>()), Times.Never);
+        _unitOfWorkMock.Verify(x => x.SaveChangesAsync(), Times.Once);
+    }
+
+    /// <summary>
+    /// Test Type: NORMAL
+    /// Tests: AnalyzeAsync with skipped upload (no image provided)
+    /// Precondition: imageStream is null (skip mode)
+    /// Expected Result: Returns success with skipped inference (no Gemini/YOLO call)
+    /// </summary>
+    [Fact]
+    public async Task AnalyzeAsync_SkipMode_ReturnsSuccessWithoutAiCalls()
     {
         // Arrange
         var userId = Guid.NewGuid();
@@ -484,7 +556,8 @@ public class AiInferenceServiceTests
 
         // Assert
         result.Data.Should().NotBeNull();
-        _yoloServiceMock.Verify(y => y.InferCascadedAsync(It.IsAny<Stream>(), It.IsAny<int>()), Times.Never);
+        _geminiServiceMock.Verify(g => g.DetectSnakeInImageAsync(It.IsAny<byte[]>(), It.IsAny<string>()), Times.Never);
+        _yoloServiceMock.Verify(y => y.InferSpeciesOnlyAsync(It.IsAny<Stream>(), It.IsAny<int>()), Times.Never);
         _storageServiceMock.Verify(s => s.UploadAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         _inferenceRepoMock.Verify(r => r.AddAsync(It.IsAny<AiInferenceEntity>()), Times.Once);
     }
@@ -528,14 +601,18 @@ public class AiInferenceServiceTests
             .Setup(s => s.UploadAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(new FileUploadResult("https://example.com/image.jpg", "publicId", 1024L, "jpg"));
 
+        _geminiServiceMock
+            .Setup(g => g.DetectSnakeInImageAsync(It.IsAny<byte[]>(), It.IsAny<string>()))
+            .ReturnsAsync(new GeminiSnakeDetectionResult(true, 0.99f, "Hình ảnh chứa rắn"));
+
         var predictions = new List<YoloPrediction>
         {
             new YoloPrediction("naja_kaouthia", 0.85f, 0)
         };
 
         _yoloServiceMock
-            .Setup(y => y.InferCascadedAsync(It.IsAny<Stream>(), It.IsAny<int>()))
-            .ReturnsAsync(new YoloPipelineResult(true, 1f, predictions));
+            .Setup(y => y.InferSpeciesOnlyAsync(It.IsAny<Stream>(), It.IsAny<int>()))
+            .ReturnsAsync(predictions);
 
         _snakeRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<Snake> { snake });
         _firstAidRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<FirstAidDetail>());
@@ -555,7 +632,7 @@ public class AiInferenceServiceTests
     /// <summary>
     /// Test Type: BOUNDARY
     /// Tests: AnalyzeAsync with multiple YOLO predictions (top-K)
-    /// Precondition: YOLO returns 3 predictions (top-K=3)
+    /// Precondition: Gemini detects snake, YOLO returns 3 predictions (top-K=3)
     /// Expected Result: All 3 candidates saved, highest confidence selected
     /// </summary>
     [Fact]
@@ -588,6 +665,10 @@ public class AiInferenceServiceTests
             .Setup(s => s.UploadAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(new FileUploadResult("https://example.com/image.jpg", "publicId", 1024L, "jpg"));
 
+        _geminiServiceMock
+            .Setup(g => g.DetectSnakeInImageAsync(It.IsAny<byte[]>(), It.IsAny<string>()))
+            .ReturnsAsync(new GeminiSnakeDetectionResult(true, 0.97f, "Hình ảnh chứa rắn"));
+
         var predictions = new List<YoloPrediction>
         {
             new YoloPrediction("naja_kaouthia", 0.85f, 0),
@@ -596,8 +677,8 @@ public class AiInferenceServiceTests
         };
 
         _yoloServiceMock
-            .Setup(y => y.InferCascadedAsync(It.IsAny<Stream>(), It.IsAny<int>()))
-            .ReturnsAsync(new YoloPipelineResult(true, 1f, predictions));
+            .Setup(y => y.InferSpeciesOnlyAsync(It.IsAny<Stream>(), It.IsAny<int>()))
+            .ReturnsAsync(predictions);
 
         _snakeRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(snakes);
         _firstAidRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<FirstAidDetail>());

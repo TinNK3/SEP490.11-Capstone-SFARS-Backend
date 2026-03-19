@@ -1,7 +1,7 @@
 namespace SFARS.Domain.Interfaces.Infrastructure;
 
 /// <summary>
-/// Service for Gemini AI to enrich snake detection results with first aid advice
+/// Service for Gemini AI — snake detection (vision), first-aid enrichment, and RAG chat.
 /// </summary>
 public interface IGeminiAiService
 {
@@ -11,7 +11,16 @@ public interface IGeminiAiService
     string ModelName { get; }
 
     /// <summary>
-    /// Get enriched snake information and first aid recommendations from Gemini
+    /// Analyze an image using Gemini Vision to determine whether it contains a snake.
+    /// Replaces the binary ONNX classification model for higher accuracy.
+    /// </summary>
+    /// <param name="imageBytes">Raw image bytes (JPEG/PNG).</param>
+    /// <param name="mimeType">MIME type of the image (e.g. "image/jpeg").</param>
+    /// <returns>Detection result with confidence and optional reasoning.</returns>
+    Task<GeminiSnakeDetectionResult> DetectSnakeInImageAsync(byte[] imageBytes, string mimeType);
+
+    /// <summary>
+    /// Get enriched snake information and first aid recommendations from Gemini.
     /// </summary>
     Task<GeminiAnalysisResult> AnalyzeSnakeBiteAsync(GeminiAnalysisRequest request);
 
@@ -26,7 +35,18 @@ public interface IGeminiAiService
         List<ChatHistoryItem>? history = null);
 }
 
-// ─── Existing records (snake analysis) ───
+// ─── Snake detection (Gemini Vision) ───
+
+/// <summary>
+/// Result from Gemini Vision snake detection — replaces binary ONNX model output.
+/// </summary>
+public record GeminiSnakeDetectionResult(
+    bool IsSnake,
+    float Confidence,
+    string? Reasoning
+);
+
+// ─── Snake analysis (first-aid enrichment) ───
 
 public record GeminiAnalysisRequest(
     string PrimarySnakeName,

@@ -1,4 +1,4 @@
-﻿namespace SFARS.API.Payloads
+namespace SFARS.API.Payloads
 {
     public class APIRoute
     {
@@ -200,6 +200,19 @@
             public const string Antivenom = Base + "/admin/facilities/{id}/antivenom";
             public const string Deactivate = Base + "/admin/facilities/{id}/deactivate";
             public const string Activate = Base + "/admin/facilities/{id}/activate";
+        }
+
+        /// <summary>
+        /// Admin — MLOps & AI Retraining endpoints
+        /// </summary>
+        public static class AdminMlops
+        {
+            // [GET]
+            public const string ExportData = Base + "/admin/mlops/export";
+            public const string ExportByKey = Base + "/admin/mlops/export-by-key";
+            public const string GetRetrainHistory = Base + "/admin/mlops/retrain-history";
+            // [POST]
+            public const string TriggerRetrain = Base + "/admin/mlops/trigger-retrain";
         }
 
         /// <summary>

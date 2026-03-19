@@ -5,6 +5,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NetTopologySuite.Geometries;
 using SFARS.Application.Common;
+using SFARS.Application.Dtos.AiInference;
+using SFARS.Application.Dtos.AiReview;
 using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Validations;
 using SFARS.Domain.Common.Constants;
@@ -27,7 +29,7 @@ namespace SFARS.Application.Services
         private readonly IFileStorageService _fileStorageService;
         private readonly IOptions<StorageOptions> _storageOptions;
         private readonly ISosSpamGuardService _spamGuard;
-        private readonly IAiReviewService _aiReviewService;
+        private readonly IAiReviewService<SubmitAiReviewRequestDto, FirstAidStepDto> _aiReviewService;
 
         public IncidentService(
             ISystemMessageService msgService,
@@ -37,7 +39,7 @@ namespace SFARS.Application.Services
             IFileStorageService fileStorageService,
             IOptions<StorageOptions> storageOptions,
             ISosSpamGuardService spamGuard,
-            IAiReviewService aiReviewService)
+            IAiReviewService<SubmitAiReviewRequestDto, FirstAidStepDto> aiReviewService)
             : base(msgService, unitOfWork, mapper, logger)
         {
             _fileStorageService = fileStorageService;

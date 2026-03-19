@@ -4,9 +4,9 @@ using SFARS.API.Extension;
 using SFARS.API.Extensions;
 using SFARS.API.Payloads;
 using SFARS.API.Payloads.Request.Incident;
+using SFARS.Application.Dtos.AiInference;
 using SFARS.Application.Dtos.AiReview;
 using SFARS.Application.Dtos.Incident;
-using SFARS.Application.Services;
 using SFARS.Domain.Interfaces.Services;
 
 namespace SFARS.API.Controller
@@ -125,7 +125,7 @@ namespace SFARS.API.Controller
             var userId = User.GetUserId();
 
             var aiReviewService = HttpContext.RequestServices
-                .GetRequiredService<IAiReviewService>();
+                .GetRequiredService<IAiReviewService<SubmitAiReviewRequestDto, FirstAidStepDto>>();
 
             var result = await aiReviewService.SubmitReviewAsync(id, userId, req);
 
