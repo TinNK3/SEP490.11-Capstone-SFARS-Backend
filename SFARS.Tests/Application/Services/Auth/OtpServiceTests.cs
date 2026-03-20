@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -99,7 +99,8 @@ public class OtpServiceTests
             _loggerMock.Object,
             _externalAuthServiceMock.Object,
             _emailServiceMock.Object,
-            _tokenBlacklistServiceMock.Object
+            _tokenBlacklistServiceMock.Object,
+            new Moq.Mock<Microsoft.AspNetCore.Http.IHttpContextAccessor>().Object
         );
     }
 
@@ -1248,3 +1249,4 @@ public class OtpServiceTests
 
     #endregion
 }
+

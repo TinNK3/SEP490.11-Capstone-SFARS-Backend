@@ -210,6 +210,19 @@ namespace SFARS.API.Controller
             return this.ToIActionResult(result);
         }
 
+        /// <summary>
+        /// Resolve an unassigned SOS incident (Fallback mode) when the victim resolves it externally (e.g., calling 115).
+        /// </summary>
+        /// <param name="id">Incident ID</param>
+        [Authorize]
+        [HttpPost(APIRoute.Incident.ResolveFallback, Name = nameof(ResolveFallbackAsync))]
+        public async Task<IActionResult> ResolveFallbackAsync([FromRoute] Guid id)
+        {
+            var userId = User.GetUserId();
+            var result = await _incidentService.ResolveFallbackAsync(userId, id);
+            return this.ToIActionResult(result);
+        }
+
         #endregion
     }
 }

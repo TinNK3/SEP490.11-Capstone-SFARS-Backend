@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -38,6 +38,7 @@ namespace SFARS.Application.Services.Auth
         private readonly ILogger<AuthService> _logger;
         private readonly IEmailService _emailService;
         private readonly ITokenBlacklistService _tokenBlacklistService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public AuthService(
             IUserService<UserDto> userService,
@@ -50,7 +51,8 @@ namespace SFARS.Application.Services.Auth
             ILogger<AuthService> logger,
             IExternalAuthService externalAuthService,
             IEmailService emailService,
-            ITokenBlacklistService tokenBlacklistService)
+            ITokenBlacklistService tokenBlacklistService,
+            IHttpContextAccessor httpContextAccessor)
         {
             _userService = userService;
             _msgService = msgService;
@@ -63,6 +65,7 @@ namespace SFARS.Application.Services.Auth
             _externalAuthService = externalAuthService;
             _emailService = emailService;
             _tokenBlacklistService = tokenBlacklistService;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         #region Sign-In
@@ -798,6 +801,22 @@ namespace SFARS.Application.Services.Auth
             }
 
             _logger.LogInformation("User {UserId} authenticated. Token generated.", user.Id);
+
+            // Domain Audit: Record Login History
+            var httpContext = _httpContextAccessor.HttpContext;
+            var ipAddress = httpContext?.Connection?.RemoteIpAddress?.ToString();
+            var userAgent = httpContext?.Request?.Headers != null 
+                ? httpContext.Request.Headers["User-Agent"].ToString() 
+                : null;
+
+            await _unitOfWork.Repository<UserLoginHistory, long>().AddAsync(new UserLoginHistory
+            {
+                UserId = user.Id,
+                LoginAt = DateTime.UtcNow,
+                IPAddress = ipAddress,
+                UserAgent = userAgent
+            });
+            await _unitOfWork.SaveChangesAsync();
 
             // Handle refresh token
             var refreshTokenResult = await HandleRefreshTokenAsync(user, tokenId);
