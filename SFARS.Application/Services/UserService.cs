@@ -342,8 +342,9 @@ namespace SFARS.Application.Services
 
         /// <summary>
         /// Update user's real-time location.
-        /// High-Performance implementation: defer DB writes unless moved > 50m or 2 mins passed to avoid IOPS spike.
+        /// High-Performance implementation: defer DB writes unless moved > 250m or 3 mins passed to avoid IOPS spike.
         /// Always publishes to MediatR so SignalR and Redis update instantly for Real-time tracking.
+        /// RescueTrackingLog is appended via AppendTrackingLogIfNeededAsync using the same throttling rules.
         /// </summary>
         public async Task<IServiceResult> UpdateUserLocationAsync(
             Guid userId, double latitude, double longitude, double? accuracyMeters)

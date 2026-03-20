@@ -77,7 +77,8 @@ public static class LocationHelper
 
     /// <summary>
     /// Determines if a tracking log should be written based on movement and time.
-    /// Rules: skip if accuracy > 200m, log if moved ≥ 50m OR ≥ 30s elapsed.
+    /// Rules: skip if accuracy > 200m, log if moved ≥ 250m OR ≥ 180s elapsed.
+    /// Thresholds are tuned for optimal DB IOPS (~80 records per 20km trip).
     /// </summary>
     public static bool ShouldLogTracking(
         Point? newLocation, Point? lastLocation, DateTime? lastLoggedAt,

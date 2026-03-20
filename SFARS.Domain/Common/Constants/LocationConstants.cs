@@ -58,12 +58,15 @@ public static class LocationConstants
     public const int GeofenceArrivedSuggestConsecutiveHits = 3; // Must be stable for 3 pings
     public const string GeofenceArrivedSuggestMessage = "Bạn có vẻ đã tới nơi. Xác nhận Đã Tới?";
 
-    // Tracking Log Sampling Rules
-    /// <summary>Minimum movement in meters before writing a new tracking log entry</summary>
-    public const double TrackingLogMinMovementMeters = 50;
+    /// <summary>
+    /// Minimum movement in meters before writing a new tracking log entry.
+    /// </summary>
+    public const double TrackingLogMinMovementMeters = 250;
 
-    /// <summary>Minimum time in seconds before writing a new tracking log entry regardless of movement</summary>
-    public const double TrackingLogMinIntervalSeconds = 30;
+    /// <summary>
+    /// Minimum time in seconds before writing a heartbeat log entry regardless of movement.
+    /// </summary>
+    public const double TrackingLogMinIntervalSeconds = 180;
 
     // TTL Configuration
     /// <summary>How long a user location is cached in Redis before it's considered stale</summary>

@@ -30,6 +30,7 @@ namespace SFARS.Domain.Interfaces.Services
 
         // Check spam
         Task<IServiceResult> CancelIncidentAsync(Guid userId, Guid incidentId);
+        Task<IServiceResult> ResolveFallbackAsync(Guid userId, Guid incidentId);
         Task<IServiceResult> GetSosEligibilityAsync(Guid userId);
     }
 }

@@ -22,19 +22,22 @@ public class MissionService : IMissionService
     private readonly IHubContext<LocationTrackingHub> _locationHub;
     private readonly ISystemMessageService _msgService;
     private readonly ILogger<MissionService> _logger;
+    private readonly IFcmPushService _fcmService;
 
     public MissionService(
         IUnitOfWork unitOfWork,
         IBackgroundJobClient jobs,
         IHubContext<LocationTrackingHub> locationHub,
         ISystemMessageService msgService,
-        ILogger<MissionService> logger)
+        ILogger<MissionService> logger,
+        IFcmPushService fcmService)
     {
         _unitOfWork = unitOfWork;
         _jobs = jobs;
         _locationHub = locationHub;
         _msgService = msgService;
         _logger = logger;
+        _fcmService = fcmService;
     }
 
     public async Task<IServiceResult> AcceptMissionAsync(Guid incidentId, Guid rescuerId)
@@ -121,6 +124,42 @@ public class MissionService : IMissionService
         };
         await _unitOfWork.Repository<RescueMission, Guid>().AddAsync(mission);
 
+        // Audit Trail
+        var statusHistory = new IncidentStatusHistory
+        {
+            Id = Guid.NewGuid(),
+            IncidentId = incidentId,
+            StatusFrom = incident.CurrentStatus, // snapshot before atomic UPDATE
+            StatusTo = IncidentStatus.EnRoute,
+            ChangedBy = rescuerId,
+            ChangeReason = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Reason0003),
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = rescuerId
+        };
+        await _unitOfWork.Repository<IncidentStatusHistory, Guid>().AddAsync(statusHistory);
+
+        // NotificationLog for Victim
+        var rescuerUser = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(rescuerId);
+        var notifyTitle = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Notify0003);
+        var notifyBody = string.Format(
+            await _msgService.GetMessageAsync(ResultCodeConst.Incident_Success0002),
+            rescuerUser?.FullName ?? "Rescuer");
+
+        await _unitOfWork.Repository<NotificationLog, Guid>().AddAsync(new NotificationLog
+        {
+            Id = Guid.NewGuid(),
+            UserId = incident.VictimId,
+            Title = notifyTitle,
+            Message = notifyBody,
+            Type = NotificationType.Mission,
+            IsRead = false,
+            SentAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = rescuerId
+        });
+
+        await _fcmService.SendToUserAsync(incident.VictimId, notifyTitle, notifyBody);
+
         // Clear Hangfire Jobs
         if (!string.IsNullOrEmpty(incident.DispatchJobIds))
         {
@@ -199,6 +238,7 @@ public class MissionService : IMissionService
             mission.Status = RescueStatus.Rejected;
             mission.UpdatedAt = DateTime.UtcNow;
 
+            var oldStatus = incident.CurrentStatus;
             incident.CurrentStatus = IncidentStatus.Unassigned;
             
             // Revert review snapshot so new rescuer can review
@@ -228,17 +268,62 @@ public class MissionService : IMissionService
             }
             incident.UpdatedAt = DateTime.UtcNow;
 
+            // Audit Trail for Timeout Revert
+            await _unitOfWork.Repository<IncidentStatusHistory, Guid>().AddAsync(new IncidentStatusHistory
+            {
+                Id = Guid.NewGuid(),
+                IncidentId = incident.Id,
+                StatusFrom = oldStatus,
+                StatusTo = IncidentStatus.Unassigned,
+                ChangedBy = Guid.Empty, // System-initiated
+                ChangeReason = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Reason0006),
+                CreatedAt = DateTime.UtcNow
+            });
+
             await _unitOfWork.SaveChangesAsync();
 
             // Notify victim that rescuer cancelled/timed out, searching... (could trigger RunTier1 again, but for now just fallback to Unassigned)
+            var message = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Notify0005);
+            var title = "Hệ thống - Ca cứu hộ";
             var dto = new SosFallbackDto
             {
                 IncidentId = incident.Id,
-                Message = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0002) // "Mission cancelled" (can be a better message)
+                Message = message
             };
             await _locationHub.Clients
                 .Group(LocationConstants.SignalRGroupPrefix + incident.Id)
                 .SendAsync(DispatchConstants.EventFallback, dto);
+            
+            // FCM Notification & NotificationLog for Victim
+            await _fcmService.SendToUserAsync(incident.VictimId, title, message);
+            await _unitOfWork.Repository<NotificationLog, Guid>().AddAsync(new NotificationLog
+            {
+                Id = Guid.NewGuid(),
+                UserId = incident.VictimId,
+                Title = title,
+                Message = message,
+                Type = NotificationType.Mission,
+                IsRead = false,
+                SentAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            // FCM Notification & NotificationLog for Rescuer
+            var rescuerMsg = await _msgService.GetMessageAsync(ResultCodeConst.Mission_Notify0002);
+            await _fcmService.SendToUserAsync(mission.RescuerId, title, rescuerMsg);
+            await _unitOfWork.Repository<NotificationLog, Guid>().AddAsync(new NotificationLog
+            {
+                Id = Guid.NewGuid(),
+                UserId = mission.RescuerId,
+                Title = title,
+                Message = rescuerMsg,
+                Type = NotificationType.Mission,
+                IsRead = false,
+                SentAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _unitOfWork.SaveChangesAsync(); // save logs
             
             // Re-trigger dispatch?
             // To ensure reliability, we can enqueue StartDispatchAsync.
@@ -286,6 +371,46 @@ public class MissionService : IMissionService
         incident.CurrentStatus = newStatus;
         incident.UpdatedAt = DateTime.UtcNow;
         mission.UpdatedAt = DateTime.UtcNow;
+
+        // Audit Trail
+        var reasonCode = newStatus switch
+        {
+            IncidentStatus.Arrived => ResultCodeConst.Incident_Reason0004,
+            IncidentStatus.Closed  => ResultCodeConst.Incident_Reason0005,
+            _                      => ResultCodeConst.Incident_Reason0003
+        };
+        await _unitOfWork.Repository<IncidentStatusHistory, Guid>().AddAsync(new IncidentStatusHistory
+        {
+            Id = Guid.NewGuid(),
+            IncidentId = incident.Id,
+            StatusFrom = oldStatus,
+            StatusTo = newStatus,
+            ChangedBy = rescuerId,
+            ChangeReason = await _msgService.GetMessageAsync(reasonCode),
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = rescuerId
+        });
+
+        // NotificationLog for Victim
+        if (newStatus == IncidentStatus.Arrived || newStatus == IncidentStatus.Closed)
+        {
+            var notifyMsg = newStatus == IncidentStatus.Arrived
+                ? await _msgService.GetMessageAsync(ResultCodeConst.Incident_Notify0004)
+                : await _msgService.GetMessageAsync(ResultCodeConst.Incident_Notify0001);
+
+            await _unitOfWork.Repository<NotificationLog, Guid>().AddAsync(new NotificationLog
+            {
+                Id = Guid.NewGuid(),
+                UserId = incident.VictimId,
+                Title = newStatus == IncidentStatus.Arrived ? "Rescuer đã tới nơi" : "Ca cấp cứu đã đóng",
+                Message = notifyMsg,
+                Type = NotificationType.Mission,
+                IsRead = false,
+                SentAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = rescuerId
+            });
+        }
 
         await _unitOfWork.SaveChangesAsync();
 

@@ -558,6 +558,48 @@
     "Vi": "Nạn nhân huỷ trong thời gian cho phép"
   },
   {
+    "MsgId": "Incident.Reason0003",
+    "MsgContent": "Rescuer accepted the mission",
+    "En": "Rescuer accepted the mission",
+    "Vi": "Nhân viên cứu hộ đã nhận nhiệm vụ"
+  },
+  {
+    "MsgId": "Incident.Reason0004",
+    "MsgContent": "Rescuer arrived at the scene",
+    "En": "Rescuer arrived at the scene",
+    "Vi": "Nhân viên cứu hộ đã tới hiện trường"
+  },
+  {
+    "MsgId": "Incident.Reason0005",
+    "MsgContent": "Incident closed by rescuer",
+    "En": "Incident closed by rescuer",
+    "Vi": "Ca cấp cứu được đóng bởi nhân viên cứu hộ"
+  },
+  {
+    "MsgId": "Incident.Reason0006",
+    "MsgContent": "Rescuer did not respond within the allowed time. Mission reverted.",
+    "En": "Rescuer did not respond within the allowed time. Mission reverted.",
+    "Vi": "Nhân viên cứu hộ không phản hồi trong thời gian cho phép. Nhiệm vụ đã được hoàn tác."
+  },
+  {
+    "MsgId": "Incident.Reason0007",
+    "MsgContent": "All dispatch tiers exhausted. No rescuer accepted the mission.",
+    "En": "All dispatch tiers exhausted. No rescuer accepted the mission.",
+    "Vi": "Đã hết tất cả vòng tìm kiếm. Không có nhân viên cứu hộ nào nhận ca."
+  },
+  {
+    "MsgId": "Incident.Notify0003",
+    "MsgContent": "Rescuer is on the way!",
+    "En": "Rescuer is on the way!",
+    "Vi": "Nhân viên cứu hộ đang trên đường đến!"
+  },
+  {
+    "MsgId": "Incident.Notify0004",
+    "MsgContent": "Rescuer has arrived at your location.",
+    "En": "Rescuer has arrived at your location.",
+    "Vi": "Nhân viên cứu hộ đã tới vị trí của bạn."
+  },
+  {
     "MsgId": "Incident.Success0005",
     "MsgContent": "SOS cancelled successfully.",
     "En": "SOS cancelled successfully.",
@@ -712,5 +754,41 @@
     "MsgContent": "Incident is closed or cancelled, cannot update status.",
     "En": "Incident is closed or cancelled, cannot update status.",
     "Vi": "Sự cố đã đóng hoặc đã huỷ, không thể cập nhật trạng thái."
+  },
+  {
+    "MsgId": "Incident.Success0006",
+    "MsgContent": "Incident resolved successfully via external emergency services.",
+    "En": "Incident resolved successfully via external emergency services.",
+    "Vi": "Đã đóng ca cấp cứu thành công do bạn đã gọi dịch vụ khẩn cấp phụ trợ."
+  },
+  {
+    "MsgId": "Incident.Warning0009",
+    "MsgContent": "Incident can only be resolved by user when it is in unassigned status.",
+    "En": "Incident can only be resolved by user when it is in unassigned status.",
+    "Vi": "Ca cấp cứu chỉ có thể tự đóng khi ở trạng thái chờ (Không tìm thấy nguời cứu hộ)."
+  },
+  {
+    "MsgId": "Incident.Notify0005",
+    "MsgContent": "The current rescuer has lost connection. The system is scanning for a new rescuer...",
+    "En": "The current rescuer has lost connection. The system is scanning for a new rescuer...",
+    "Vi": "Người cứu hộ hiện tại đã mất kết nối. Hệ thống đang tự động tìm lại người mới..."
+  },
+  {
+    "MsgId": "Mission.Notify0002",
+    "MsgContent": "Your mission was cancelled because the system could not detect your location for a long time.",
+    "En": "Your mission was cancelled because the system could not detect your location for a long time.",
+    "Vi": "Ca cấp cứu của bạn đã bị huỷ do hệ thống không tìm thấy vị trí của bạn trong thời gian dài."
+  },
+  {
+    "MsgId": "Dispatch.Notify0003",
+    "MsgContent": "Unfortunately, no rescuer is nearby. The system is falling back to standby mode...",
+    "En": "Unfortunately, no rescuer is nearby. The system is falling back to standby mode...",
+    "Vi": "Rất tiếc, hiện tại không có nhân viên cứu hộ nào ở gần. Hệ thống đang chuyển về chế độ chờ..."
+  },
+  {
+    "MsgId": "Incident.Reason0008",
+    "MsgContent": "Victim resolved the incident via external emergency services.",
+    "En": "Victim resolved the incident via external emergency services.",
+    "Vi": "Nạn nhân tự giải quyết ca cấp cứu (gọi 115 hoặc cơ sở y tế)."
   }
 ]

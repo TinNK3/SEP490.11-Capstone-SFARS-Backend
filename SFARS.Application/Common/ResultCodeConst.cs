@@ -98,6 +98,7 @@ namespace SFARS.Application.Common
         public const string Incident_Success0003 = "Incident.Success0003";
         public const string Incident_Success0004 = "Incident.Success0004";
         public const string Incident_Success0005 = "Incident.Success0005"; // SOS cancelled during grace period
+        public const string Incident_Success0006 = "Incident.Success0006"; // SOS resolved via Fallback (115)
 
         public const string Incident_Warning0001 = "Incident.Warning0001";
         public const string Incident_Warning0002 = "Incident.Warning0002";
@@ -107,14 +108,26 @@ namespace SFARS.Application.Common
         public const string Incident_Warning0006 = "Incident.Warning0006"; // Grace period expired / SOS dispatched
         public const string Incident_Warning0007 = "Incident.Warning0007"; // Incident already claimed by another rescuer
         public const string Incident_Warning0008 = "Incident.Warning0008"; // Rescuer is too far from incident
+        public const string Incident_Warning0009 = "Incident.Warning0009"; // Cannot resolve incident unless Unassigned
 
         public const string Incident_Fail0001 = "Incident.Fail0001";
 
         // Notification / audit messages
         public const string Incident_Notify0001 = "Incident.Notify0001";
         public const string Incident_Notify0002 = "Incident.Notify0002";
+        public const string Incident_Notify0003 = "Incident.Notify0003"; // Rescuer accepted — notify victim
+        public const string Incident_Notify0004 = "Incident.Notify0004"; // Rescuer arrived — notify victim
+        public const string Incident_Notify0005 = "Incident.Notify0005"; // System timeout fallback to victim
+        public const string Mission_Notify0002 = "Mission.Notify0002"; // System timeout fallback to rescuer
+        public const string Dispatch_Notify0003 = "Dispatch.Notify0003"; // System fallback to victim
         public const string Incident_Reason0001 = "Incident.Reason0001";  // Incident created by user
         public const string Incident_Reason0002 = "Incident.Reason0002";  // Victim cancelled during grace period
+        public const string Incident_Reason0003 = "Incident.Reason0003";  // Rescuer accepted mission
+        public const string Incident_Reason0004 = "Incident.Reason0004";  // Rescuer arrived at scene
+        public const string Incident_Reason0005 = "Incident.Reason0005";  // Incident closed by rescuer
+        public const string Incident_Reason0006 = "Incident.Reason0006";  // Claim timeout — rescuer ghosted
+        public const string Incident_Reason0007 = "Incident.Reason0007";  // Dispatch fallback — no rescuer found
+        public const string Incident_Reason0008 = "Incident.Reason0008";  // Victim resolved external (115)
         #endregion
 
         #region AI

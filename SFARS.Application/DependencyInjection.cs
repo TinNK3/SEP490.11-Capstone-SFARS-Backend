@@ -33,6 +33,9 @@ public static class DependencyInjection
         services.AddMemoryCache();
         services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
 
+        // HttpContextAccessor — used by AuthService for login audit (IP, UserAgent)
+        services.AddHttpContextAccessor();
+
         // Register application services
         services.AddScoped<ISystemMessageService, SystemMessageService>();
         services.AddScoped(typeof(IGenericService<,,>), typeof(GenericService<,,>));

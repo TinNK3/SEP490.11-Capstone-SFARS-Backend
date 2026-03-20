@@ -11,8 +11,8 @@ using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Specifications;
-using SFARS.Infrastructure.Hubs;
 using SFARS.Infrastructure.Helpers;
+using SFARS.Infrastructure.Hubs;
 using StackExchange.Redis;
 using System.Text.Json;
 
@@ -138,11 +138,45 @@ public class DispatchService : IDispatchService
             return;
         }
 
+        var oldStatus = incident.CurrentStatus;
         incident.CurrentStatus = IncidentStatus.Unassigned;
         incident.UpdatedAt = DateTime.UtcNow;
+
+        // Audit Trail for Fallback
+        await _unitOfWork.Repository<IncidentStatusHistory, Guid>().AddAsync(new IncidentStatusHistory
+        {
+            Id = Guid.NewGuid(),
+            IncidentId = incidentId,
+            StatusFrom = oldStatus,
+            StatusTo = IncidentStatus.Unassigned,
+            ChangedBy = Guid.Empty, // System-initiated
+            ChangeReason = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Reason0007),
+            CreatedAt = DateTime.UtcNow
+        });
+
+        // FCM Notification & NotificationLog for Victim 
+        var message = await _msgService.GetMessageAsync(ResultCodeConst.Dispatch_Notify0002);
+        var fcmMessage = await _msgService.GetMessageAsync(ResultCodeConst.Dispatch_Notify0003);
+        
+        await _fcmService.SendToUserAsync(
+            incident.VictimId,
+            "SOS System Alert",
+            fcmMessage);
+
+        await _unitOfWork.Repository<NotificationLog, Guid>().AddAsync(new NotificationLog
+        {
+            Id = Guid.NewGuid(),
+            UserId = incident.VictimId,
+            Title = "SOS System Alert",
+            Message = fcmMessage,
+            Type = NotificationType.System,
+            IsRead = false,
+            SentAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _unitOfWork.SaveChangesAsync();
 
-        var message = await _msgService.GetMessageAsync(ResultCodeConst.Dispatch_Notify0002);
         var fallbackDto = new SosFallbackDto
         {
             IncidentId = incidentId,
@@ -294,7 +328,23 @@ public class DispatchService : IDispatchService
                 };
 
                 await _fcmService.SendToUserAsync(rescuer.Id, baseTitleMsg, bodyMsg, data);
+
+                // Store FCM notification in DB
+                await _unitOfWork.Repository<NotificationLog, Guid>().AddAsync(new NotificationLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = rescuer.Id,
+                    Title = baseTitleMsg,
+                    Message = bodyMsg,
+                    Type = NotificationType.Mission,
+                    IsRead = false,
+                    SentAt = now,
+                    CreatedAt = now
+                });
             }
+
+            // Batch save all NotificationLog entries for this tier
+            await _unitOfWork.SaveChangesAsync();
         }
 
         _logger.LogInformation("Tier{T} ({CH}) dispatched to {Count} rescuers. IncidentId={Id}",

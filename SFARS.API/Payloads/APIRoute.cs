@@ -99,6 +99,7 @@ namespace SFARS.API.Payloads
             public const string Analyze = Base + "/incidents/{id}/analyze";
             public const string AiReview = Base + "/incidents/{id}/ai-review";
             public const string RegenerateTrackingCode = Base + "/incidents/{id}/tracking-code/regenerate";
+            public const string ResolveFallback = Base + "/incidents/{id}/resolve-fallback";
             // [PATCH]
             public const string Cancel = Base + "/incidents/{id}/cancel";
         }
