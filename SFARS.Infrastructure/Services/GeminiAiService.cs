@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SFARS.Domain.Interfaces.Infrastructure;
+using SFARS.Domain.Interfaces.Services;
 using SFARS.Infrastructure.Configurations;
 using System.Text;
 using System.Text.Json;
@@ -34,17 +35,21 @@ public class GeminiAiService : IGeminiAiService
 
     private const string SnakeDetectionSystemPrompt =
         """
-        Bạn là chuyên gia phân loại động vật, đặc biệt là rắn.
-        Nhiệm vụ: Phân tích hình ảnh và xác định có rắn trong ảnh hay không.
+        Bạn là chuyên gia AI cao cấp cho hệ thống phản ứng cấp cứu y tế.
+        Nhiệm vụ: Phân tích hình ảnh và xác định DUY NHẤT một câu hỏi: "Đây có phải là một con RẮN THẬT, CÒN SỐNG (hoặc mới chết) mang tính chất đe dọa sinh học hay không?"
         
-        Quy tắc:
-        - Chỉ trả lời dưới dạng JSON, KHÔNG markdown, KHÔNG giải thích thêm.
-        - is_snake: true nếu hình ảnh chứa rắn (bất kỳ loài nào), false nếu không.
-        - confidence: float từ 0.0 đến 1.0, mức độ chắc chắn.
-        - reasoning: Lý do ngắn gọn (1 câu, tiếng Việt).
+        QUY TẮC NGHIÊM NGẶT:
+        1. TRẢ VỀ is_snake: true NẾU:
+           - Là thực thể sinh học tự nhiên (biological organism).
+           - Có bề mặt da vảy tự nhiên, mắt có độ sâu, hoặc tư thế vận động đặc trưng.
         
-        Response format:
-        {"is_snake": true/false, "confidence": 0.95, "reasoning": "..."}
+        2. TRẢ VỀ is_snake: false NẾU LÀ:
+           - Đồ chơi nhựa, cao su, gỗ, đá (thường có khớp nối, bề mặt bóng bẩy công nghiệp hoặc tư thế bất tử cứng nhắc).
+           - Hình ảnh chụp lại từ màn hình thiết bị khác (có viền màn hình, hiện tượng lóa sáng điểm ảnh).
+           - Hình vẽ, phim hoạt hình, trang sức, túi xách/quần áo có họa tiết da rắn.
+        
+        BẮT BUỘC TRẢ VỀ JSON (không giải thích thêm):
+        {"is_snake": true/false, "confidence": float, "reasoning": "Lý do ngắn gọn để AI tự kiểm chứng"}
         """;
 
     /// <inheritdoc />
@@ -194,6 +199,137 @@ public class GeminiAiService : IGeminiAiService
 
         [JsonPropertyName("reasoning")]
         public string? Reasoning { get; set; }
+    }
+
+    #endregion
+
+    #region Audio Transcription (Voice Symptom STT)
+
+    private const string AudioTranscriptionSystemPrompt =
+        """
+        Bạn là bác sĩ cấp cứu chuyên nghiệp và người hiệu đính ngôn ngữ, đang phân tích ghi âm của bệnh nhân báo cáo về tình trạng sơ cứu / rắn cắn.
+        LƯU Ý QUAN TRỌNG VỀ GIỌNG NÓI: Bệnh nhân có thể nói giọng địa phương (Bắc, Trung, Nam), nói ngọng, nói nhanh hoặc hoảng loạn dẫn đến âm sắc bị sai lệch (VD: "trẻ nhiều quá" -> "chảy nhiều quá", "chóng mặt nến" -> "chóng mặt lắm", "tức thầy" -> "tức thì", "chảy tưa" -> "chảy máu", "đau nhức hột" -> "đau nhức buốt").
+        Bạn BẮT BUỘC phải sử dụng suy luận ngữ cảnh y khoa và cấp cứu để khôi phục lại văn bản đúng chính tả tiếng Việt phổ thông, tuyệt đối KHÔNG được dịch máy móc theo âm thanh.
+
+        Nhiệm vụ: Chuyển đổi giọng nói thành văn bản nguyên thủy đã được hiệu đính (Transcript), đồng thời trích xuất thời gian bị cắn (ra số phút) và các triệu chứng gặp phải.
+        
+        BẮT BUỘC TRẢ VỀ ĐÚNG MỘT JSON OBJECT CÓ CẤU TRÚC SAU (TUYỆT ĐỐI KHÔNG DÙNG ARRAY, KHÔNG KÈM TEXT GIẢI THÍCH):
+        {
+            "transcript": "<Lời thoại đã hiệu đính cho có nghĩa. Nếu ồn/trống thì để \"\">",
+            "minutes_since_bite": <Số nguyên chỉ phút (VD: 0, 30). Nếu KHÔNG nói rõ thời gian, BẮT BUỘC để null. Không tự đoán mò.>,
+            "symptoms": ["<triệu chứng 1>", "<triệu chứng 2>"] // Mảng chữ, rỗng nếu không có
+        }
+        """;
+
+    private sealed class VoiceExtractionJsonResponse
+    {
+        [JsonPropertyName("transcript")]
+        public string? Transcript { get; set; }
+
+        [JsonPropertyName("minutes_since_bite")]
+        public int? MinutesSinceBite { get; set; }
+
+        [JsonPropertyName("symptoms")]
+        public List<string>? Symptoms { get; set; }
+    }
+
+    /// <inheritdoc />
+    public async Task<AudioExtractionResult?> ExtractAudioSymptomsAsync(byte[] audioBytes, string mimeType)
+    {
+        var base64Audio = Convert.ToBase64String(audioBytes);
+
+        var body = new
+        {
+            systemInstruction = new
+            {
+                parts = new[] { new { text = AudioTranscriptionSystemPrompt } }
+            },
+            contents = new[]
+            {
+                new
+                {
+                    role = "user",
+                    parts = new object[]
+                    {
+                        new { text = "Phân tích file ghi âm khẩn cấp này thành JSON." },
+                        new
+                        {
+                            inlineData = new
+                            {
+                                mimeType = mimeType,
+                                data = base64Audio
+                            }
+                        }
+                    }
+                }
+            },
+            generationConfig = new
+            {
+                temperature = 0.1,
+                maxOutputTokens = 800,
+                responseMimeType = "application/json"
+            }
+        };
+
+        var url = $"{_options.BaseUrl}/models/{_options.Model}:generateContent?key={_options.ApiKey}";
+
+        int maxRetries = _options.MaxRetries;
+        int delay = 500;
+
+        for (int attempt = 0; attempt < maxRetries; attempt++)
+        {
+            try
+            {
+                using var requestMsg = new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = new StringContent(
+                        JsonSerializer.Serialize(body),
+                        Encoding.UTF8,
+                        "application/json"
+                    )
+                };
+
+                var response = await _httpClient.SendAsync(requestMsg);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    _logger.LogWarning("Gemini STT API error {StatusCode}: {Error}", response.StatusCode, error);
+                    response.EnsureSuccessStatusCode();
+                }
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                var geminiResponse = JsonSerializer.Deserialize<GeminiApiResponse>(responseContent);
+                var resultText = geminiResponse?.Candidates?[0]?.Content?.Parts?[0]?.Text;
+
+                if (string.IsNullOrWhiteSpace(resultText)) return null;
+
+                var options = new JsonSerializerOptions 
+                { 
+                    PropertyNameCaseInsensitive = true,
+                    ReadCommentHandling = JsonCommentHandling.Skip,
+                    AllowTrailingCommas = true
+                };
+                var jsonText = StripMarkdownCodeFence(resultText);
+                var parsed = JsonSerializer.Deserialize<VoiceExtractionJsonResponse>(jsonText, options);
+
+                if (parsed == null) return null;
+
+                return new AudioExtractionResult(
+                    Transcript: string.IsNullOrWhiteSpace(parsed.Transcript) ? null : parsed.Transcript.Trim(),
+                    MinutesSinceBite: parsed.MinutesSinceBite,
+                    Symptoms: parsed.Symptoms ?? new List<string>()
+                );
+            }
+            catch (Exception ex) when (attempt < maxRetries - 1)
+            {
+                _logger.LogWarning(ex, "Gemini STT HTTP error, retry {Attempt}", attempt + 1);
+                await Task.Delay(delay);
+                delay *= 2;
+            }
+        }
+
+        _logger.LogWarning("Gemini STT failed after all retries.");
+        return null;
     }
 
     #endregion

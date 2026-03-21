@@ -1,4 +1,4 @@
-﻿using Hangfire;
+using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -70,6 +70,7 @@ public static class DependencyInjection
             // AI Services
             services.AddSingleton<IYoloInferenceService, YoloInferenceService>();
             services.AddHttpClient<IGeminiAiService, GeminiAiService>();
+            services.AddScoped<ISpeechToTextService, GeminiSpeechToTextService>();
             
             // Register repositories
             services.AddScoped(typeof(IGenericRepository<,>), typeof(GenericRepository<,>));

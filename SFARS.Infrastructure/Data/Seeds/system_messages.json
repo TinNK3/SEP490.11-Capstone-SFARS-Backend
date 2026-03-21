@@ -790,5 +790,11 @@
     "MsgContent": "Victim resolved the incident via external emergency services.",
     "En": "Victim resolved the incident via external emergency services.",
     "Vi": "Nạn nhân tự giải quyết ca cấp cứu (gọi 115 hoặc cơ sở y tế)."
+  },
+  {
+    "MsgId": "Incident.Success0007",
+    "MsgContent": "Voice symptom uploaded successfully.",
+    "En": "Voice symptom uploaded successfully.",
+    "Vi": "Tải lên đoạn âm thanh triệu chứng thành công."
   }
 ]

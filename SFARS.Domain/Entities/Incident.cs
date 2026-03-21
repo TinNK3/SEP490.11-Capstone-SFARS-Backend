@@ -13,6 +13,12 @@ public class Incident : BaseEntity
     public string? AddressString { get; set; }
     public string? Description { get; set; }
     
+    // Voice Symptom
+    public string? SymptomAudioUrl { get; set; }
+    public string? SymptomText { get; set; } // Raw transcript
+    public int? MinutesSinceBite { get; set; } // Extracted time
+    public string? ExtractedSymptoms { get; set; } // JSON or CSV string of extracted symptoms
+    
     // Status
     public IncidentStatus CurrentStatus { get; set; } = IncidentStatus.Pending;
     public SeverityLevel PriorityLevel { get; set; } = SeverityLevel.Low;

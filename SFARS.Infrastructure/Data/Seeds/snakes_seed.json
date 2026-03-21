@@ -1,326 +1,326 @@
 [
-    {
-        "ScientificName": "Bungarus candidus",
-        "CommonName": "Rắn cạp nia",
-        "ToxicityLevel": "Deadly",
-        "ToxinGroup": "Neurotoxin",
-        "Description": "Rắn cạp nia miền Nam, cực độc, hoạt động về đêm",
-        "KeyIdentifiers": "Thân khoang trắng-đen rõ rệt; tiết diện thân hình tam giác; sống lưng gờ cao",
-        "TypicalSymptoms": "Liệt cơ; sụp mí; khó thở/ngưng thở; thường ít/không sưng đau tại vết cắn",
-        "Habitat": "Cánh đồng; gần nước; có thể bò vào nhà ban đêm",
-        "DistributionNote": "Miền Nam Việt Nam; vùng nông thôn",
-        "Note": "Cần thở máy sớm",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Bungar_candi_120608-0343_krw.jpg/330px-Bungar_candi_120608-0343_krw.jpg",
-                "IsPrimary": true
-            }
-        ]
-    },
-    {
-        "ScientificName": "Bungarus fasciatus",
-        "CommonName": "Rắn cạp nong",
-        "ToxicityLevel": "Deadly",
-        "ToxinGroup": "Neurotoxin",
-        "Description": "Rắn cạp nong khoang vàng-đen, cực độc",
-        "KeyIdentifiers": "Thân khoang vàng-đen rõ rệt; đuôi tù; sống lưng nhô cao hình tam giác",
-        "TypicalSymptoms": "Buồn ngủ; yếu cơ tiến triển; khó nuốt; suy hô hấp",
-        "Habitat": "Vùng rừng núi; ven sông suối; nương rẫy",
-        "DistributionNote": "Toàn Việt Nam",
-        "Note": "Di chuyển chậm chạp nhưng cắn rất đau",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/The_Banded_Krait.jpg/330px-The_Banded_Krait.jpg",
-                "IsPrimary": true
-            }
-        ]
-    },
-    {
-        "ScientificName": "Calloselasma rhodostoma",
-        "CommonName": "Rắn chàm quạp",
-        "ToxicityLevel": "HighlyVenomous",
-        "ToxinGroup": "Hemotoxin",
-        "Description": "Rắn lục nấm - sát thủ rừng cao su",
-        "KeyIdentifiers": "Thân màu nâu/hồng nhạt; hoa văn tam giác đối xứng (giống lá khô); đầu hình tam giác",
-        "TypicalSymptoms": "Chảy máu vết cắn khó cầm; sưng nề; hoại tử; rối loạn đông máu nặng",
-        "Habitat": "Rẫy cao su; vùng đất đỏ; dưới lớp lá khô mục",
-        "DistributionNote": "Tây Nguyên; Đông Nam Bộ",
-        "Note": "Ngụy trang rất giỏi trên lá khô",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Callos_rhodos_120610-0642_krw.jpg/330px-Callos_rhodos_120610-0642_krw.jpg",
-                "IsPrimary": true
-            }
-        ]
-    },
-    {
-        "ScientificName": "Rhabdophis subminiatus",
-        "CommonName": "Rắn hoa cỏ cổ đỏ",
-        "ToxicityLevel": "HighlyVenomous",
-        "ToxinGroup": "Hemotoxin",
-        "Description": "Rắn răng sau có nọc nguy hiểm, thường bị nhầm là vô hại",
-        "KeyIdentifiers": "Cổ có màu đỏ rực rỡ (khi đe dọa); thân xanh lục/xám; đầu phân biệt rõ với cổ",
-        "TypicalSymptoms": "Xuất huyết dưới da; chảy máu chân răng; suy thận cấp; nước tiểu đỏ",
-        "Habitat": "Cạnh ao hồ; suối; đồng ruộng; nơi ẩm ướt",
-        "DistributionNote": "Toàn Việt Nam (gần nguồn nước)",
-        "Note": "Tuyệt đối không chủ quan dù vết cắn nhỏ",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Rhabdop_submin_080217-4693_ipb.jpg/330px-Rhabdop_submin_080217-4693_ipb.jpg",
-                "IsPrimary": true
-            }
-        ]
-    },
-    {
-        "ScientificName": "Ophiophagus hannah",
-        "CommonName": "Rắn hổ mang chúa",
-        "ToxicityLevel": "Deadly",
-        "ToxinGroup": "Mixed",
-        "Description": "Rắn độc dài nhất thế giới, vua của các loài rắn",
-        "KeyIdentifiers": "Kích thước rất lớn (>3m); vảy chẩm (trên đỉnh đầu) rất lớn; mang hẹp dọc",
-        "TypicalSymptoms": "Đau dữ dội; sưng lan nhanh; hoại tử; suy hô hấp diễn tiến nhanh",
-        "Habitat": "Rừng sâu; bụi rậm; hang hốc tự nhiên; ít khi vào nhà",
-        "DistributionNote": "Rừng núi khắp Việt Nam",
-        "Note": "Lượng nọc phóng ra rất lớn",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/12_-_The_Mystical_King_Cobra_and_Coffee_Forests.jpg/330px-12_-_The_Mystical_King_Cobra_and_Coffee_Forests.jpg",
-                "IsPrimary": true
-            }
-        ]
-    },
-    {
-        "ScientificName": "Naja kaouthia",
-        "CommonName": "Rắn hổ mang đất",
-        "ToxicityLevel": "Deadly",
-        "ToxinGroup": "Mixed",
-        "Description": "Rắn hổ mang phổ biến nhất, hay gặp ở khu dân cư",
-        "KeyIdentifiers": "Phình mang có hình mắt kính đơn (chữ O) hoặc hình móng ngựa sau cổ",
-        "TypicalSymptoms": "Vết cắn sưng nề; phồng rộp; hoại tử mô đen; đau nhức; suy hô hấp",
-        "Habitat": "Vườn rẫy; dưới đống củi; chuồng trại; khu dân cư",
-        "DistributionNote": "Toàn Việt Nam",
-        "Note": "Hay hoạt động chiều tối",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Monocled_cobra_%28cropped%29.jpg/330px-Monocled_cobra_%28cropped%29.jpg",
-                "IsPrimary": true
-            }
-        ]
-    },
-    {
-        "ScientificName": "Naja siamensis",
-        "CommonName": "Rắn hổ mèo",
-        "ToxicityLevel": "Deadly",
-        "ToxinGroup": "Mixed",
-        "Description": "Rắn hổ mang phun nọc, nguy hiểm cho mắt",
-        "KeyIdentifiers": "Có khả năng phun độc; mang hình chữ V/U hoặc không rõ hình thù",
-        "TypicalSymptoms": "Nếu vào mắt: viêm kết mạc/mù lòa. Cắn: hoại tử nặng; ít gây liệt hơn hổ đất",
-        "Habitat": "Vùng đất khô ráo; lùm bụi; kho bãi; đống gạch",
-        "DistributionNote": "Miền Đông Nam Bộ; miền Trung",
-        "Note": "Cần rửa mắt ngay nếu bị phun",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Naja_siamensis_by_Danny_S..jpg/330px-Naja_siamensis_by_Danny_S..jpg",
-                "IsPrimary": true
-            }
-        ]
-    },
-    {
-        "ScientificName": "Azemiops feae",
-        "CommonName": "Rắn lục đầu bạc",
-        "ToxicityLevel": "HighlyVenomous",
-        "ToxinGroup": "Hemotoxin",
-        "Description": "Loài rắn lục nguyên thủy quý hiếm vùng núi cao",
-        "KeyIdentifiers": "Đầu dẹp rộng màu trắng/kem có 2 sọc đen; thân đen bóng có sọc đỏ/cam",
-        "TypicalSymptoms": "Sưng nề; bầm tím; đau nhức cơ; ít gây rối loạn đông máu hơn lục đuôi đỏ",
-        "Habitat": "Vùng núi cao >800m; khí hậu lạnh; rừng tre nứa",
-        "DistributionNote": "Miền Bắc Việt Nam (Cao Bằng; Lạng Sơn)",
-        "Note": "Rất hiếm gặp",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Azemiops_feae.jpg/330px-Azemiops_feae.jpg",
-                "IsPrimary": true
-            }
-        ]
-    },
-    {
-        "ScientificName": "Trimeresurus albolabris",
-        "CommonName": "Rắn lục đuôi đỏ",
-        "ToxicityLevel": "HighlyVenomous",
-        "ToxinGroup": "Hemotoxin",
-        "Description": "Rắn lục phổ biến nhất gây tai nạn ở VN",
-        "KeyIdentifiers": "Toàn thân xanh lá cây; mút đuôi màu đỏ gạch/cam; mắt vàng",
-        "TypicalSymptoms": "Rối loạn đông máu; sưng phù nề lan rộng; xuất huyết dưới da",
-        "Habitat": "Bụi cây thấp; bờ rào; vườn cây ăn trái; cây cảnh",
-        "DistributionNote": "Toàn Việt Nam",
-        "Note": "Thường cắn vào tay/chân khi làm vườn",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Trimeresurus_albolabris%2C_White-lipped_pit_viper_%28female%29_-_Kaeng_Krachan_National_Park_%2827493423545%29.jpg/330px-Trimeresurus_albolabris%2C_White-lipped_pit_viper_%28female%29_-_Kaeng_Krachan_National_Park_%2827493423545%29.jpg",
-                "IsPrimary": true
-            }
-        ]
-    },
-    {
-        "ScientificName": "Trimeresurus vogeli",
-        "CommonName": "Rắn lục Von-gen",
-        "ToxicityLevel": "HighlyVenomous",
-        "ToxinGroup": "Hemotoxin",
-        "Description": "Dễ nhầm với lục đuôi đỏ nhưng sống ở đất/bụi thấp",
-        "KeyIdentifiers": "Thân xanh sẫm/đen; bụng màu nhạt; KHÔNG có đuôi đỏ rực như T.albolabris",
-        "TypicalSymptoms": "Sưng đau; xuất huyết cục bộ; nguy cơ hoại tử",
-        "Habitat": "Rừng rậm; khu vực gần suối; thảm thực vật ẩm",
-        "DistributionNote": "Miền Trung (Gia Lai; Đồng Nai)",
-        "Note": "Ít gặp hơn lục đuôi đỏ",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Vogel%27s_Pit_Viper%2C_Trimeresurus_vogeli.jpg/330px-Vogel%27s_Pit_Viper%2C_Trimeresurus_vogeli.jpg",
-                "IsPrimary": true
-            }
-        ]
-    },
-    {
-        "ScientificName": "Enhydris enhydris",
-        "CommonName": "Rắn bông súng",
-        "ToxicityLevel": "MildlyVenomous",
-        "ToxinGroup": "NonVenomous",
-        "Description": "Rắn nước hiền lành, phổ biến nhất vùng sông nước",
-        "KeyIdentifiers": "Thân nâu xám/vàng nhạt; dải sọc mờ dọc sống lưng; bụng trắng/vàng",
-        "TypicalSymptoms": "Đau nhẹ tại chỗ; trầy xước; hiếm khi sưng tấy (Nọc yếu với người)",
-        "Habitat": "Ao; hồ; mương rãnh; ruộng lúa ngập nước",
-        "DistributionNote": "Vùng nước ngọt toàn Việt Nam",
-        "Note": "Thường bị nhầm là rắn độc",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Rainbow_Water_Snake_%28Enhydris_enhydris%29_%287845020860%29.jpg/330px-Rainbow_Water_Snake_%28Enhydris_enhydris%29_%287845020860%29.jpg",
-                "IsPrimary": true
-            }
-        ]
-    },
-    {
-        "ScientificName": "Chrysopelea ornata",
-        "CommonName": "Rắn cườm",
-        "ToxicityLevel": "MildlyVenomous",
-        "ToxinGroup": "NonVenomous",
-        "Description": "Rắn bay, màu sắc sặc sỡ và leo trèo giỏi",
-        "KeyIdentifiers": "Thân xanh lục nhạt có vảy viền đen (như cườm); đầu thon dài",
-        "TypicalSymptoms": "Vết cắn chỉ gây ngứa/đau nhẹ; không gây triệu chứng toàn thân",
-        "Habitat": "Bụi cây; mái nhà; khe cửa; vườn tược (leo trèo)",
-        "DistributionNote": "Toàn Việt Nam",
-        "Note": "Có thể lượn từ cây này sang cây khác",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Chrysopelea_ornata.jpg/330px-Chrysopelea_ornata.jpg",
-                "IsPrimary": true
-            }
-        ]
-    },
-    {
-        "ScientificName": "Xenopeltis unicolor",
-        "CommonName": "Rắn hổ hành",
-        "ToxicityLevel": "NonVenomous",
-        "ToxinGroup": "NonVenomous",
-        "Description": "Rắn mống, vảy phản chiếu ngũ sắc",
-        "KeyIdentifiers": "Vảy trơn bóng phản chiếu cầu vồng dưới nắng; đầu dẹp mỏ tù",
-        "TypicalSymptoms": "Vết răng li ti như kim châm; không độc",
-        "Habitat": "Dưới lớp đất ẩm; đống lá mục; vườn tược",
-        "DistributionNote": "Toàn Việt Nam",
-        "Note": "Thường bị giết nhầm do vẻ ngoài kỳ lạ",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Sunbeam_Snake_%28Xenopeltis_unicolor%29_%287121228691%29.jpg/330px-Sunbeam_Snake_%28Xenopeltis_unicolor%29_%287121228691%29.jpg",
-                "IsPrimary": true
-            }
-        ]
-    },
-    {
-        "ScientificName": "Ptyas mucosa",
-        "CommonName": "Rắn hổ trâu",
-        "ToxicityLevel": "NonVenomous",
-        "ToxinGroup": "NonVenomous",
-        "Description": "Rắn ráo trâu, kích thước lớn và rất nhanh",
-        "KeyIdentifiers": "Dài >2m; thân màu nâu/đen; có các vạch đen ở phần đuôi; mắt to",
-        "TypicalSymptoms": "Vết cắn đau và chảy máu nhiều do răng sắc (cơ học); không nhiễm độc",
-        "Habitat": "Đồng ruộng; bụi rậm; kho bãi (săn chuột)",
-        "DistributionNote": "Vùng nông thôn toàn Việt Nam",
-        "Note": "Rất hung dữ khi bị dồn ép",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Indian_Rat_Snake_%28Grey_and_Yellow%29.jpg/330px-Indian_Rat_Snake_%28Grey_and_Yellow%29.jpg",
-                "IsPrimary": true
-            }
-        ]
-    },
-    {
-        "ScientificName": "Ptyas korros",
-        "CommonName": "Rắn ráo thường",
-        "ToxicityLevel": "NonVenomous",
-        "ToxinGroup": "NonVenomous",
-        "Description": "Rắn ráo nhỏ, mắt to hiền lành",
-        "KeyIdentifiers": "Thân thon dài màu nâu đất/xám; mắt rất to; bụng màu vàng chanh",
-        "TypicalSymptoms": "Vết cắn nông; chảy máu nhẹ; không sưng tấy",
-        "Habitat": "Bụi cỏ; vườn nhà; bờ ao",
-        "DistributionNote": "Toàn Việt Nam",
-        "Note": "Hoàn toàn vô hại",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Ptyas_korros-_Indochinese_rat_snake.jpg/330px-Ptyas_korros-_Indochinese_rat_snake.jpg",
-                "IsPrimary": true
-            }
-        ]
-    },
-    {
-        "ScientificName": "Homalopsis buccata",
-        "CommonName": "Rắn ri cá",
-        "ToxicityLevel": "MildlyVenomous",
-        "ToxinGroup": "NonVenomous",
-        "Description": "Rắn nước có hoa văn như trăn",
-        "KeyIdentifiers": "Thân to có khoang nâu sẫm/nhạt xen kẽ; trên đầu có hình mặt nạ chữ V",
-        "TypicalSymptoms": "Đau sưng nhẹ tại chỗ (do vi khuẩn hoặc nọc yếu); không nguy hiểm",
-        "Habitat": "Sông suối; ao hồ; đầm lầy",
-        "DistributionNote": "Vùng nước ngọt toàn Việt Nam",
-        "Note": "Thường giả chết khi bị bắt",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Homalopsis_buccata.png/330px-Homalopsis_buccata.png",
-                "IsPrimary": true
-            }
-        ]
-    },
-    {
-        "ScientificName": "Subsessor bocourti",
-        "CommonName": "Rắn ri voi",
-        "ToxicityLevel": "MildlyVenomous",
-        "ToxinGroup": "NonVenomous",
-        "Description": "Rắn nước thương phẩm, thân to lớn",
-        "KeyIdentifiers": "Thân rất mập/dày; màu nâu đen; sống hoàn toàn trong nước",
-        "TypicalSymptoms": "Chảy máu nhiều do răng hàm sắc; nguy cơ nhiễm trùng uốn ván cao hơn là nhiễm độc",
-        "Habitat": "Vùng đất ngập nước; đầm lầy; rừng ngập mặn",
-        "DistributionNote": "Miền Nam (ĐBSCL)",
-        "Note": "Bơi giỏi nhưng chậm chạp trên cạn",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Subsessor_bocourti_448210413.jpg/330px-Subsessor_bocourti_448210413.jpg",
-                "IsPrimary": true
-            }
-        ]
-    },
-    {
-        "ScientificName": "Coelognathus radiatus",
-        "CommonName": "Rắn sọc dưa",
-        "ToxicityLevel": "NonVenomous",
-        "ToxinGroup": "NonVenomous",
-        "Description": "Rắn rồng, hay dựng cổ dọa nạt",
-        "KeyIdentifiers": "Có 4 đường sọc đen chạy dọc nửa thân trước; hay phình cổ giả làm rắn hổ",
-        "TypicalSymptoms": "Nhiều dấu răng nhỏ hình vòng cung; không sưng/không đau lan rộng",
-        "Habitat": "Quanh nhà; chuồng gà; bụi rậm",
-        "DistributionNote": "Toàn Việt Nam",
-        "Note": "Vô hại nhưng rất hay cắn khi bị bắt",
-        "SnakeImages": [
-            {
-                "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Coelognathus_radiatus.jpg/330px-Coelognathus_radiatus.jpg",
-                "IsPrimary": true
-            }
-        ]
-    }
+  {
+    "ScientificName": "Bungarus candidus",
+    "CommonName": "Rắn cạp nia",
+    "ToxicityLevel": "Deadly",
+    "ToxinGroup": "Neurotoxin",
+    "Description": "Bò sát thuộc họ Rắn hổ (Elapidae). Hoạt động chủ yếu về đêm, ăn thịt đồng loại và các loài rắn/thằn lằn khác. Nọc độc chứa hỗn hợp độc tố thần kinh tiền synapse (beta-bungarotoxin) và hậu synapse (alpha-bungarotoxin) cực mạnh.",
+    "KeyIdentifiers": "Cơ thể có từ 19 – 30 khoang đen và trắng xen kẽ; ở cá thể trưởng thành, các khoang trắng thường có lấm tấm đen. Hàng vảy dọc sống lưng hình lục giác, lớn hơn rõ rệt so với các hàng vảy bên. Tiết diện thân hình tam giác. Vảy dưới đuôi là vảy đơn.",
+    "TypicalSymptoms": "Vết cắn thường chỉ có 2 dấu răng nhỏ như kim châm, không sưng, không đau hoặc đau rất nhẹ. Hội chứng thần kinh xuất hiện sau 1-6 giờ: sụp mi mắt (ptosis), đồng tử giãn, há miệng khó, liệt cơ hầu họng (ứ đọng đờm dãi), liệt cơ hô hấp dẫn đến ngừng thở. Hạ natri máu nặng là biến chứng thường gặp ở Việt Nam.",
+    "Habitat": "Khu vực sinh thái nông nghiệp (ruộng lúa, bờ kênh mương), trảng cỏ, rừng thứ sinh. Thường bò vào nhà dân ở vùng nông thôn vào ban đêm (đặc biệt là mùa mưa hoặc khi trời oi bức) để tìm nơi khô ráo hoặc săn mồi.",
+    "DistributionNote": "Ghi nhận chủ yếu từ khu vực miền Trung trở vào Nam. Các tỉnh có mật độ cao và ghi nhận nhiều ca tai nạn: Nghệ An, Hà Tĩnh, Quảng Bình, Thừa Thiên Huế, Đắk Lắk, Lâm Đồng, Khánh Hòa, Ninh Thuận, Tây Ninh, Đồng Nai, An Giang.",
+    "Note": "Cần thở máy sớm",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Bungar_candi_120608-0343_krw.jpg/330px-Bungar_candi_120608-0343_krw.jpg",
+        "IsPrimary": true
+      }
+    ]
+  },
+  {
+    "ScientificName": "Bungarus fasciatus",
+    "CommonName": "Rắn cạp nong",
+    "ToxicityLevel": "Deadly",
+    "ToxinGroup": "Neurotoxin",
+    "Description": "Loài có kích thước lớn nhất trong chi Bungarus tại Việt Nam (chiều dài có thể đạt >2m). Di chuyển chậm chạp, lờ đờ vào ban ngày nhưng rất nhạy bén vào ban đêm. Nọc độc chủ yếu là độc tố thần kinh, nhưng hàm lượng alpha-bungarotoxin thấp hơn cạp nia.",
+    "KeyIdentifiers": "Khoang màu đen và vàng (hoặc vàng cam) xen kẽ nhau với chiều rộng các khoang tương đương nhau. Gờ sống lưng nổi rất cao tạo thành tiết diện tam giác sắc nét. Đuôi tù, cụt ở chóp (không nhọn như các loài rắn khác).",
+    "TypicalSymptoms": "Đau tại chỗ cắn nhưng không hoại tử. Biểu hiện toàn thân: buồn ngủ, yếu cơ tiến triển chậm hơn cạp nia, khó nuốt, liệt cơ hô hấp. Tỷ lệ suy hô hấp chậm nhưng kéo dài.",
+    "Habitat": "Rừng thường xanh, rừng tre nứa, vùng đồi núi thấp, ranh giới giữa rừng và đất nông nghiệp. Thường trú ẩn trong hang gặm nhấm, dưới khe đá hoặc gốc cây mục.",
+    "DistributionNote": "Phân bố rộng khắp toàn quốc, từ các tỉnh miền núi phía Bắc (Lạng Sơn, Cao Bằng) dọc theo dãy Trường Sơn đến tận khu vực Đồng bằng sông Cửu Long.",
+    "Note": "Di chuyển chậm chạp nhưng cắn rất đau.",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/The_Banded_Krait.jpg/330px-The_Banded_Krait.jpg",
+        "IsPrimary": true
+      }
+    ]
+  },
+  {
+    "ScientificName": "Calloselasma rhodostoma",
+    "CommonName": "Rắn chàm quạp",
+    "ToxicityLevel": "HighlyVenomous",
+    "ToxinGroup": "Hemotoxin",
+    "Description": "Thuộc phân họ Rắn lục hố (Crotalinae). Là loài săn mồi kiểu phục kích (ambush predator). Nọc độc là sự kết hợp phức tạp của các enzyme gây hoại tử và các protein phá vỡ cơ chế đông máu (hội chứng tiêu sợi huyết).",
+    "KeyIdentifiers": "Đầu hình tam giác phân biệt rõ với cổ. Mõm nhọn, hơi vểnh. Có hố má (loreal pit) cảm nhiệt nằm giữa mắt và mũi. Đồng tử dọc. Thân màu nâu nhạt/đỏ son, dọc lưng có các họa tiết hình tam giác màu nâu sẫm viền nhạt xếp đối xứng hoặc xen kẽ.",
+    "TypicalSymptoms": "Đau dữ dội, sưng nề nhanh chóng tại chỗ cắn, hình thành bóng nước và hoại tử mô sâu. Rối loạn đông máu hệ thống: chảy máu không cầm tại vết cắn, xuất huyết tiêu hóa, đái máu, giảm tiểu cầu và fibrinogen nghiêm trọng.",
+    "Habitat": "Rừng khộp khô rụng lá, rừng thứ sinh thưa, đặc biệt tập trung mật độ cực cao tại các đồn điền cao su, rẫy điều. Sống hoàn toàn trên mặt đất, lẩn trốn dưới lớp lá khô.",
+    "DistributionNote": "Phân bố giới hạn từ vĩ tuyến 14 trở vào Nam. Các điểm nóng ghi nhận tai nạn: Ninh Thuận, Bình Thuận, Bà Rịa - Vũng Tàu, Tây Ninh, Bình Phước, Đồng Nai.",
+    "Note": "Ngụy trang rất giỏi trên lá khô",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Callos_rhodos_120610-0642_krw.jpg/330px-Callos_rhodos_120610-0642_krw.jpg",
+        "IsPrimary": true
+      }
+    ]
+  },
+  {
+    "ScientificName": "Rhabdophis subminiatus",
+    "CommonName": "Rắn hoa cỏ cổ đỏ",
+    "ToxicityLevel": "HighlyVenomous",
+    "ToxinGroup": "Hemotoxin",
+    "Description": "Rắn thuộc họ Nước (Natricidae), sở hữu răng nọc mọc sâu phía sau hàm trên (opisthoglyphous). Tuyến nọc (Duvernoy's gland) sản sinh prothrombin activator, trực tiếp kích hoạt quá trình đông máu dẫn đến cạn kiệt yếu tố đông máu.",
+    "KeyIdentifiers": "Đầu có màu xanh olive, sau gáy và cổ có mảng màu đỏ, cam hoặc vàng (mảng đỏ có thể nhạt dần ở con cái hoặc cá thể già). Thân màu xanh lục hoặc xám xanh. Đồng tử tròn. Vảy có gờ. Phản xạ bạnh cổ hẹp khi bị đe dọa.",
+    "TypicalSymptoms": "Ít sưng đau tại chỗ. Biểu hiện ngộ độc muộn (sau vài giờ đến vài ngày): hội chứng đông máu nội mạch rải rác (DIC), chảy máu cam, chảy máu chân răng, xuất huyết não, xuất huyết tiêu hóa, suy thận cấp do tắc nghẽn vi mạch.",
+    "Habitat": "Sinh thái bán thủy sinh. Bờ ao, hồ, ruộng lúa ngập nước, khe suối ven rừng. Hoạt động kiếm ăn (bắt ếch nhái, cá) chủ yếu vào ban ngày.",
+    "DistributionNote": "Có mặt tại mọi tỉnh thành trên cả nước, tại các vùng sinh thái có nước ngọt.",
+    "Note": "Tuyệt đối không chủ quan dù vết cắn nhỏ",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Rhabdop_submin_080217-4693_ipb.jpg/330px-Rhabdop_submin_080217-4693_ipb.jpg",
+        "IsPrimary": true
+      }
+    ]
+  },
+  {
+    "ScientificName": "Ophiophagus hannah",
+    "CommonName": "Rắn hổ mang chúa",
+    "ToxicityLevel": "Deadly",
+    "ToxinGroup": "Mixed",
+    "Description": "Loài rắn độc dài nhất thế giới. Độc tính nọc (LD50) không cao bằng cạp nia nhưng thể tích nọc tiêm vào (có thể >7ml) tạo ra độc tính bùng phát dữ dội. Chứa hỗn hợp độc tố thần kinh, độc tố tế bào và độc tố tim.",
+    "KeyIdentifiers": "Kích thước khổng lồ (2.5m - 4m). Đỉnh đầu có cặp vảy chẩm (occipital scales) rất lớn phía sau vảy đỉnh. Cổ bạnh ra thuôn dài (không tròn như hổ mang thường), không có họa tiết mắt kính, thay vào đó là màu vàng/cam ở mặt trước bạnh mang. Lưng thường có các vạch mờ hình chữ V ngược vắt ngang.",
+    "TypicalSymptoms": "Đau buốt tại chỗ cắn, sưng nề lan nhanh toàn bộ chi. Chóng mặt, mờ mắt. Liệt hô hấp tiến triển cực nhanh (có thể ngừng thở trong vòng 30 - 60 phút). Trụy tim mạch và nhịp tim nhanh.",
+    "Habitat": "Rừng nguyên sinh, rừng rậm thứ sinh, hang hốc đá, lùm tre nứa ven suối. Hiếm khi chủ động sống gần khu vực đông dân cư.",
+    "DistributionNote": "Phân bố rải rác toàn quốc ở các vùng rừng núi. Tuy nhiên, quần thể ngoài tự nhiên đang suy giảm mạnh do bị săn bắt.",
+    "Note": "Lượng nọc phóng ra rất lớn",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/12_-_The_Mystical_King_Cobra_and_Coffee_Forests.jpg/330px-12_-_The_Mystical_King_Cobra_and_Coffee_Forests.jpg",
+        "IsPrimary": true
+      }
+    ]
+  },
+  {
+    "ScientificName": "Naja kaouthia",
+    "CommonName": "Rắn hổ mang đất",
+    "ToxicityLevel": "Deadly",
+    "ToxinGroup": "Mixed",
+    "Description": "Loài hổ mang châu Á điển hình. Là nguyên nhân hàng đầu gây hoại tử chi và tàn phế tại Việt Nam. Nọc độc chứa alpha-cobratoxin (gây liệt) và cytotoxin (gây hoại tử tế bào).",
+    "KeyIdentifiers": "Khi bạnh mang, mặt lưng của cổ có họa tiết một vòng tròn sáng hình mắt kính đơn (chữ O), đôi khi không khép kín hoàn toàn giống hình móng ngựa. Thân màu đen sẫm, nâu đen hoặc xám đen.",
+    "TypicalSymptoms": "Đau nhức dữ dội, vùng da quanh vết cắn đỏ tấy, sưng nề nhanh. Phồng rộp các bọng nước chứa dịch huyết thanh, sau vài ngày vùng mô bị cắn sẽ đen lại và hoại tử rụng lõi. Kèm theo sụp mi và liệt cơ hô hấp.",
+    "Habitat": "Sinh thái rất đa dạng, thích nghi cực tốt với môi trường nông nghiệp và nhân tạo: ruộng lúa, gò đống, vườn tược, chuồng bò/gà, đống củi gạch quanh nhà.",
+    "DistributionNote": "Phân bố rộng khắp từ Bắc vào Nam, đặc biệt phổ biến ở đồng bằng Bắc Bộ, đồng bằng sông Hồng và các vùng nông thôn phía Nam.",
+    "Note": "Hay hoạt động chiều tối",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Monocled_cobra_%28cropped%29.jpg/330px-Monocled_cobra_%28cropped%29.jpg",
+        "IsPrimary": true
+      }
+    ]
+  },
+  {
+    "ScientificName": "Naja siamensis",
+    "CommonName": "Rắn hổ mèo",
+    "ToxicityLevel": "Deadly",
+    "ToxinGroup": "Mixed",
+    "Description": "Rắn hổ mang phun nọc (Spitting cobra). Nọc có chứa tỷ lệ cytotoxin (độc tố hoại tử tế bào) rất cao. Có khả năng tạo áp lực bơm nọc qua rãnh răng và phun ra xa trên 1.5 mét để tự vệ.",
+    "KeyIdentifiers": "Họa tiết trên bạnh mang không phải chữ O, mà thường là hình chữ U, chữ V, mặt nạ quỷ, hoặc mờ nhạt không rõ nét. Thân có màu nâu xám, lốm đốm trắng đen loang lổ. Thường phát ra tiếng rít lớn (khè) khi bị đe dọa.",
+    "TypicalSymptoms": "Nếu bị cắn: Hoại tử mô tại chỗ cực kỳ nghiêm trọng, sưng lan rộng toàn chi; triệu chứng liệt thần kinh thường nhẹ hơn Naja kaouthia hoặc không xuất hiện. Nếu bị phun nọc vào mắt: Đau rát mắt dữ dội, viêm kết mạc, sung huyết, loét giác mạc, có thể mù lòa.",
+    "Habitat": "Khu vực đất khô ráo, trảng bụi rậm, rừng thưa, khu công nghiệp bỏ hoang, đống phế liệu, bãi rác.",
+    "DistributionNote": "Chỉ phân bố ở khu vực phía Nam (từ Phú Yên, Đắk Lắk trở vào Đồng bằng sông Cửu Long). Không có ở miền Bắc.",
+    "Note": "Cần rửa mắt ngay nếu bị phun",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Naja_siamensis_by_Danny_S..jpg/330px-Naja_siamensis_by_Danny_S..jpg",
+        "IsPrimary": true
+      }
+    ]
+  },
+  {
+    "ScientificName": "Azemiops feae",
+    "CommonName": "Rắn lục đầu bạc",
+    "ToxicityLevel": "HighlyVenomous",
+    "ToxinGroup": "Hemotoxin",
+    "Description": "Loài rắn lục không có hố má, mang nhiều đặc điểm hình thái nguyên thủy. Khác với các loài rắn lục thông thường, chúng đẻ trứng thay vì đẻ con. Nọc độc thuộc nhóm hemotoxin nhưng cơ chế tác động lên yếu tố đông máu chưa được giải mã hoàn toàn trong y khoa do thiếu mẫu lâm sàng.",
+    "KeyIdentifiers": "Đầu ngắn, dẹp, màu trắng/kem nhạt, đỉnh đầu có hai dải sọc màu đen mập. Thân hình màu đen bóng, có các vạch vắt ngang thân màu đỏ son, cam hoặc trắng hồng. Không có hố má.",
+    "TypicalSymptoms": "(Dữ liệu lâm sàng rất hạn chế). Gây sưng nề tại chỗ, đau nhức cơ bắp sâu, bầm tím quanh vết cắn. Ít ghi nhận rối loạn đông máu hệ thống lan rộng.",
+    "Habitat": "Sinh thái hẹp: Rừng trên núi đá vôi, độ cao thường trên 800m. Môi trường lạnh, độ ẩm cao, thảm thực vật tre nứa hoặc rừng rêu mù sương.",
+    "DistributionNote": "Chỉ ghi nhận ở vùng núi cao phía Bắc: Cao Bằng, Lạng Sơn, Hà Giang, Vĩnh Phúc (khu vực đỉnh Tam Đảo).",
+    "Note": "Rất hiếm gặp",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Azemiops_feae.jpg/330px-Azemiops_feae.jpg",
+        "IsPrimary": true
+      }
+    ]
+  },
+  {
+    "ScientificName": "Trimeresurus albolabris",
+    "CommonName": "Rắn lục đuôi đỏ",
+    "ToxicityLevel": "HighlyVenomous",
+    "ToxinGroup": "Hemotoxin",
+    "Description": "Loài rắn lục phổ biến nhất, gây ra số lượng ca cấp cứu rắn cắn nhiều nhất tại VN. Nọc độc chứa các men tiêu protein phá hủy thành mạch và yếu tố đông máu.",
+    "KeyIdentifiers": "Toàn thân màu xanh lá cây tươi. Chóp đuôi (khoảng 3-5cm cuối) có màu đỏ gạch, cam hoặc nâu đỏ. Đầu có dạng tam giác rộng. Có hố má giữa mắt và mũi. Con đực có vệt dọc hai bên sườn màu trắng/vàng.",
+    "TypicalSymptoms": "Đau buốt rát ngay lập tức tại vị trí cắn. Sưng nề lan rộng toàn bộ chi bị cắn trong vòng 24h. Xuất huyết dưới da (bầm tím đỏ), phồng rộp máu. Triệu chứng toàn thân: chảy máu chân răng, đái máu, máu khó đông kéo dài nhiều ngày.",
+    "Habitat": "Sống bám trên cây (arboreal). Cực kỳ phổ biến tại các bụi cây rậm rạp, hàng rào, giàn mướp/bầu, vườn cây ăn quả (chôm chôm, nhãn), cây cảnh quanh nhà.",
+    "DistributionNote": "Có mặt tại 63 tỉnh thành trên toàn quốc, cả ở nông thôn và các khu vực có nhiều cây xanh trong thành thị.",
+    "Note": "Thường cắn vào tay/chân khi làm vườn",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Trimeresurus_albolabris%2C_White-lipped_pit_viper_%28female%29_-_Kaeng_Krachan_National_Park_%2827493423545%29.jpg/330px-Trimeresurus_albolabris%2C_White-lipped_pit_viper_%28female%29_-_Kaeng_Krachan_National_Park_%2827493423545%29.jpg",
+        "IsPrimary": true
+      }
+    ]
+  },
+  {
+    "ScientificName": "Trimeresurus vogeli",
+    "CommonName": "Rắn lục Von-gen",
+    "ToxicityLevel": "HighlyVenomous",
+    "ToxinGroup": "Hemotoxin",
+    "Description": "Cùng chi với lục đuôi đỏ nhưng ít phổ biến hơn. Sinh lý nọc độc tương tự T. albolabris nhưng nồng độ các enzyme gây rối loạn đông máu có phần khác biệt.",
+    "KeyIdentifiers": "Thân màu xanh lục sẫm, xanh ô-liu hoặc xanh đen. Đôi khi có các dải mờ vắt ngang thân. Điểm phân biệt mấu chốt: Hoàn toàn không có mút đuôi màu đỏ rực. Mặt bụng thường có màu nhạt (vàng/trắng).",
+    "TypicalSymptoms": "Sưng tấy, đau nhức cục bộ, nổi bọng nước tại chỗ cắn. Có thể gây xuất huyết tại chỗ nhưng tỷ lệ gây rối loạn đông máu nội mạch hệ thống ít nghiêm trọng hơn T. albolabris.",
+    "Habitat": "Khu vực đồi núi, thảm thực vật tầng thấp, ven khe suối, rừng thường xanh rậm rạp. Ít khi xuất hiện ở khu dân cư đông đúc.",
+    "DistributionNote": "Phân bố dọc theo dãy Trường Sơn, Tây Nguyên (Gia Lai, Kon Tum, Lâm Đồng) và một số tỉnh miền Nam (Đồng Nai).",
+    "Note": "Ít gặp hơn lục đuôi đỏ",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Vogel%27s_Pit_Viper%2C_Trimeresurus_vogeli.jpg/330px-Vogel%27s_Pit_Viper%2C_Trimeresurus_vogeli.jpg",
+        "IsPrimary": true
+      }
+    ]
+  },
+  {
+    "ScientificName": "Enhydris enhydris",
+    "CommonName": "Rắn bông súng",
+    "ToxicityLevel": "MildlyVenomous",
+    "ToxinGroup": "NonVenomous",
+    "Description": "Thuộc họ Rắn bùn (Homalopsidae). Loài rắn bán thủy sinh, cấu tạo răng nọc nằm sâu sau hàm (rear-fanged) để làm tê liệt cá, ếch. Độc tính không có tác dụng với hệ sinh lý của người.",
+    "KeyIdentifiers": "Lỗ mũi nằm hướng lên trên ở đỉnh mõm (đặc điểm thích nghi với nước). Thân thon, nền thân màu nâu xám/vàng nhạt. Dọc sống lưng và hai bên hông có dải màu mờ chạy dài. Bụng màu vàng nhạt hoặc trắng có vạch viền.",
+    "TypicalSymptoms": "Không có triệu chứng ngộ độc. Vết cắn gây đau nhẹ như gai quẹt, rớm máu nhỏ giọt do tác động cơ học của răng. Có thể đỏ nhẹ do nhiễm khuẩn vi sinh vật có trong nước/bùn.",
+    "Habitat": "Ruộng lúa nước ngập sâu, ao sen/súng, hồ đầm lầy, mương rãnh kênh rạch.",
+    "DistributionNote": "Các khu vực đồng bằng có hệ sinh thái nước ngọt trên toàn quốc.",
+    "Note": "Thường bị nhầm là rắn độc",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Rainbow_Water_Snake_%28Enhydris_enhydris%29_%287845020860%29.jpg/330px-Rainbow_Water_Snake_%28Enhydris_enhydris%29_%287845020860%29.jpg",
+        "IsPrimary": true
+      }
+    ]
+  },
+  {
+    "ScientificName": "Chrysopelea ornata",
+    "CommonName": "Rắn cườm",
+    "ToxicityLevel": "MildlyVenomous",
+    "ToxinGroup": "NonVenomous",
+    "Description": "Thuộc chi Rắn bay. Có khả năng cơ động đặc biệt: ép dẹt xương sườn, tạo cơ thể thành dạng máng chữ U lộn ngược để lượn trong không khí. Răng nọc sau hàm, không gây hại cho người.",
+    "KeyIdentifiers": "Màu sắc rực rỡ, nền xanh lục nhạt pha vàng lục. Mỗi chiếc vảy trên lưng đều có viền đen ở mép, tạo hiệu ứng thị giác như những hạt cườm đính vào nhau. Đầu thon dài, mắt to tròn.",
+    "TypicalSymptoms": "Không độc. Vết cắn chỉ để lại vết xước nông, đau cơ học nhẹ trong thời gian ngắn.",
+    "Habitat": "Sống trên tầng tán cây, bụi rậm. Khả năng leo trèo xuất sắc trên các bề mặt thẳng đứng. Hay bò vào mái nhà, khe gỗ, giàn hoa để săn thằn lằn chạch.",
+    "DistributionNote": "Phân bố rộng khắp toàn quốc",
+    "Note": "Có thể lượn từ cây này sang cây khác",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Chrysopelea_ornata.jpg/330px-Chrysopelea_ornata.jpg",
+        "IsPrimary": true
+      }
+    ]
+  },
+  {
+    "ScientificName": "Xenopeltis unicolor",
+    "CommonName": "Rắn hổ hành",
+    "ToxicityLevel": "NonVenomous",
+    "ToxinGroup": "NonVenomous",
+    "Description": "Loài duy nhất thuộc họ Xenopeltidae tại Việt Nam. Săn mồi bằng cách siết nghẹt (chuột, ếch, rắn khác). Không có nọc độc.",
+    "KeyIdentifiers": "Vảy cực kỳ nhẵn bóng. Dưới ánh sáng mặt trời, lớp vảy tạo ra hiện tượng khúc xạ ánh sáng ngũ sắc (cầu vồng) rực rỡ. Nền thân màu xám đen, xám chì sẫm, bụng màu trắng ngà. Đầu mỏ bằng (tù) thon liền với cổ để luồn lách dưới đất.",
+    "TypicalSymptoms": "Hoàn toàn vô hại. Vết cắn chỉ để lại các lỗ nhỏ li ti rớm máu nhẹ.",
+    "Habitat": "Môi trường đất ẩm. Thường lẩn trốn dưới lớp lá mục, củi khô, các bãi bồi ven sông, rãnh đất trong vườn tược.",
+    "DistributionNote": "Khắp Việt Nam.",
+    "Note": "Thường bị giết nhầm do vẻ ngoài kỳ lạ",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Sunbeam_Snake_%28Xenopeltis_unicolor%29_%287121228691%29.jpg/330px-Sunbeam_Snake_%28Xenopeltis_unicolor%29_%287121228691%29.jpg",
+        "IsPrimary": true
+      }
+    ]
+  },
+  {
+    "ScientificName": "Ptyas mucosa",
+    "CommonName": "Rắn hổ trâu",
+    "ToxicityLevel": "NonVenomous",
+    "ToxinGroup": "NonVenomous",
+    "Description": "Loài rắn không độc có kích thước lớn và di chuyển tốc độ cực cao. Tập tính rất hung dữ khi bị dồn ép, đóng vai trò quan trọng trong việc kiểm soát quần thể gặm nhấm (chuột).",
+    "KeyIdentifiers": "Kích thước >2m. Mắt rất to. Ở nửa thân sau và đặc biệt là đuôi, vảy có viền đen tạo thành các vạch đan chéo/mắt lưới. Các vảy môi (mép cằm) có các vạch đen dọc sắc nét.",
+    "TypicalSymptoms": "Không có độc nọc. Tuy nhiên, hàm răng sắc và lực cắn mạnh gây rách da, chảy máu nhiều cục bộ, đau rát.",
+    "Habitat": "Đồng bằng trống trải, ruộng lúa khô, bụi rậm ven đường, kho bãi phế liệu, chuồng trại gia súc gia cầm.",
+    "DistributionNote": "Rất phổ biến trên toàn quốc, đặc biệt tại các vùng nông thôn.",
+    "Note": "Rất hung dữ khi bị dồn ép",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Indian_Rat_Snake_%28Grey_and_Yellow%29.jpg/330px-Indian_Rat_Snake_%28Grey_and_Yellow%29.jpg",
+        "IsPrimary": true
+      }
+    ]
+  },
+  {
+    "ScientificName": "Ptyas korros",
+    "CommonName": "Rắn ráo thường",
+    "ToxicityLevel": "NonVenomous",
+    "ToxinGroup": "NonVenomous",
+    "Description": "Kích thước nhỏ, mảnh dẻ hơn rắn hổ trâu. Tập tính nhút nhát, thường bỏ chạy với tốc độ cao khi phát hiện có tiếng động hoặc con người. Không độc.",
+    "KeyIdentifiers": "Thân hình thon mảnh. Mặt lưng đồng nhất màu ô-liu nhạt, xám xịt hoặc nâu đất. Mặt bụng màu vàng chanh nhạt hoặc trắng. Mắt rất to, tròn so với tỷ lệ đầu nhỏ. Không có các vạch đen dọc ở mép như rắn hổ trâu.",
+    "TypicalSymptoms": "Vô hại. Vết răng rất nông, chỉ gây rước da nhẹ.",
+    "Habitat": "Sinh cảnh mở, bãi cỏ cao, ranh giới nương rẫy, bờ ao, bụi tre nứa.",
+    "DistributionNote": "Khắp Việt Nam.",
+    "Note": "Hoàn toàn vô hại",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Ptyas_korros-_Indochinese_rat_snake.jpg/330px-Ptyas_korros-_Indochinese_rat_snake.jpg",
+        "IsPrimary": true
+      }
+    ]
+  },
+  {
+    "ScientificName": "Homalopsis buccata",
+    "CommonName": "Rắn ri cá",
+    "ToxicityLevel": "MildlyVenomous",
+    "ToxinGroup": "NonVenomous",
+    "Description": "Rắn thủy sinh thuộc họ Rắn bùn. Răng nọc sau hàm yếu, không ảnh hưởng đến sinh lý người. Có tập tính giả chết (ngửa bụng, há miệng) khi bị đe dọa mạnh.",
+    "KeyIdentifiers": "Thân trục to, màu nâu xám có các khoang tối màu và nhạt màu xen kẽ dọc cơ thể (dễ nhầm với trăn). Đặc điểm nhận diện đỉnh đầu: Có các dải màu sáng tạo thành hình chữ V ngược (như mặt nạ) kéo dài qua mắt. Mắt lồi nằm phía trên đỉnh đầu.",
+    "TypicalSymptoms": "Không có biểu hiện ngộ độc nọc. Chỉ gây đau nhẹ, xước xát cơ học tại chỗ.",
+    "Habitat": "Các thủy vực nước ngọt chảy chậm: đầm lầy, kênh rạch lớn, sông suối bình nguyên.",
+    "DistributionNote": "Các khu vực sông nước ngập ngọt trên toàn quốc.",
+    "Note": "Thường giả chết khi bị bắt",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Homalopsis_buccata.png/330px-Homalopsis_buccata.png",
+        "IsPrimary": true
+      }
+    ]
+  },
+  {
+    "ScientificName": "Subsessor bocourti",
+    "CommonName": "Rắn ri voi",
+    "ToxicityLevel": "MildlyVenomous",
+    "ToxinGroup": "NonVenomous",
+    "Description": "Loài rắn nước có kích thước vòng đo thân (chu vi) cực lớn so với chiều dài. Đóng vai trò là loài thủy sản thương phẩm có giá trị kinh tế. Không có độc với con người.",
+    "KeyIdentifiers": "Thân hình mập mạp, phình to ở giữa thân. Đầu tù, nhỏ so với tỷ lệ cơ thể. Nền thân màu nâu đen hoặc xám đen thẫm, hai bên lườn có các đốm/vệt màu vàng nhạt vắt dọc lườn. Vảy cực nhẵn bóng.",
+    "TypicalSymptoms": "Răng hàm rất khỏe và sắc. Nhát cắn gây rách mô sâu, chảy máu nhiều. Rủi ro y tế chính là nhiễm trùng do vi khuẩn tụ cầu hoặc trực khuẩn uốn ván từ bùn lầy bám ở răng rắn.",
+    "Habitat": "Vùng đất than bùn ngập nước, đầm lầy, đồng bằng ngập lũ, có thể chịu đựng môi trường nước lợ nhẹ (rừng ngập mặn).",
+    "DistributionNote": "Tập trung sinh sống tự nhiên và được nuôi nhốt nhân tạo mật độ cao tại các tỉnh Đồng bằng sông Cửu Long (An Giang, Đồng Tháp, Cà Mau, Sóc Trăng).",
+    "Note": "Bơi giỏi nhưng chậm chạp trên cạn",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Subsessor_bocourti_448210413.jpg/330px-Subsessor_bocourti_448210413.jpg",
+        "IsPrimary": true
+      }
+    ]
+  },
+  {
+    "ScientificName": "Coelognathus radiatus",
+    "CommonName": "Rắn sọc dưa",
+    "ToxicityLevel": "NonVenomous",
+    "ToxinGroup": "NonVenomous",
+    "Description": "Còn gọi là rắn rồng. Không có nọc độc nhưng có cơ chế phòng vệ bằng cách mô phỏng hình dáng (mimicry) và hành vi hung hăng của rắn độc để đe dọa thiên địch.",
+    "KeyIdentifiers": "Màu nền thường là nâu đất/vàng đồng. Nửa thân trước có 4 dải sọc màu đen kéo dài dọc trục cơ thể (2 sọc lớn bên trên, 2 sọc mảnh bên dưới). Có các tia đen tỏa ra từ dưới mắt xuống mép hàm dưới. Khi đe dọa, ép dẹp phần cổ và uốn thân hình chữ S.",
+    "TypicalSymptoms": "Để lại vết cắn hình vòng cung (nhiều lỗ nhỏ li ti). Gây đau nhẹ tại chỗ, hoàn toàn không có triệu chứng nhiễm độc hệ thống hay sưng hoại tử.",
+    "Habitat": "Quanh khu vực dân cư nông thôn, chuồng trại, đống rơm rạ, khe gạch ngói vỡ. Săn mồi chủ yếu là chuột đồng non và ếch nhái.",
+    "DistributionNote": "Phân bố rộng rãi trên toàn Việt Nam.",
+    "Note": "Vô hại nhưng rất hay cắn khi bị bắt",
+    "SnakeImages": [
+      {
+        "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Coelognathus_radiatus.jpg/330px-Coelognathus_radiatus.jpg",
+        "IsPrimary": true
+      }
+    ]
+  }
 ]

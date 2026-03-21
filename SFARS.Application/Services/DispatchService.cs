@@ -138,7 +138,6 @@ public class DispatchService : IDispatchService
             return;
         }
 
-        var oldStatus = incident.CurrentStatus;
         incident.CurrentStatus = IncidentStatus.Unassigned;
         incident.UpdatedAt = DateTime.UtcNow;
 
@@ -147,36 +146,16 @@ public class DispatchService : IDispatchService
         {
             Id = Guid.NewGuid(),
             IncidentId = incidentId,
-            StatusFrom = oldStatus,
+            StatusFrom = incident.CurrentStatus,
             StatusTo = IncidentStatus.Unassigned,
             ChangedBy = Guid.Empty, // System-initiated
             ChangeReason = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Reason0007),
             CreatedAt = DateTime.UtcNow
         });
 
-        // FCM Notification & NotificationLog for Victim 
-        var message = await _msgService.GetMessageAsync(ResultCodeConst.Dispatch_Notify0002);
-        var fcmMessage = await _msgService.GetMessageAsync(ResultCodeConst.Dispatch_Notify0003);
-        
-        await _fcmService.SendToUserAsync(
-            incident.VictimId,
-            "SOS System Alert",
-            fcmMessage);
-
-        await _unitOfWork.Repository<NotificationLog, Guid>().AddAsync(new NotificationLog
-        {
-            Id = Guid.NewGuid(),
-            UserId = incident.VictimId,
-            Title = "SOS System Alert",
-            Message = fcmMessage,
-            Type = NotificationType.System,
-            IsRead = false,
-            SentAt = DateTime.UtcNow,
-            CreatedAt = DateTime.UtcNow
-        });
-
         await _unitOfWork.SaveChangesAsync();
 
+        var message = await _msgService.GetMessageAsync(ResultCodeConst.Dispatch_Notify0002);
         var fallbackDto = new SosFallbackDto
         {
             IncidentId = incidentId,
@@ -288,7 +267,10 @@ public class DispatchService : IDispatchService
                     IsAiSkipped = isAiSkipped,
                     AiPrimarySnakeName = aiName,
                     AiConfidence = aiConfidence,
-                    ToxinGroup = toxin
+                    ToxinGroup = toxin,
+                    SymptomAudioUrl = incident.SymptomAudioUrl,
+                    MinutesSinceBite = incident.MinutesSinceBite,
+                    ExtractedSymptoms = incident.ExtractedSymptoms
                 };
 
                 await _rescueHub.Clients
@@ -324,7 +306,9 @@ public class DispatchService : IDispatchService
                     { "imageUrl", imageUrl ?? "" },
                     { "isAiSkipped", isAiSkipped.ToString() },
                     { "aiPrimarySnakeName", aiName ?? "" },
-                    { "toxinGroup", toxin ?? "" }
+                    { "toxinGroup", toxin ?? "" },
+                    { "minutesSinceBite", incident.MinutesSinceBite?.ToString() ?? "" },
+                    { "extractedSymptoms", incident.ExtractedSymptoms ?? "" }
                 };
 
                 await _fcmService.SendToUserAsync(rescuer.Id, baseTitleMsg, bodyMsg, data);
