@@ -91,17 +91,14 @@ namespace SFARS.Domain.Specifications.AdminAuditLogs
 
             ApplySearchFilter(spec, p.Search);
 
-            if (p.DateRange != null && p.DateRange.Length > 1)
+            if (p.CreatedFrom.HasValue)
+                spec.AddFilter(a => a.CreatedAt >= p.CreatedFrom.Value);
+
+            if (p.CreatedTo.HasValue)
             {
-                var from = p.DateRange[0];
-                var to = p.DateRange[1];
-                if (from is null && to.HasValue)
-                    spec.AddFilter(a => a.CreatedAt <= to.Value);
-                else if (from.HasValue && to is null)
-                    spec.AddFilter(a => a.CreatedAt >= from.Value);
-                else if (from.HasValue && to.HasValue)
-                    spec.AddFilter(a => a.CreatedAt.Date >= from.Value.Date
-                                     && a.CreatedAt.Date <= to.Value.Date);
+                // Ensure inclusive filter by taking the end of the day
+                var toDate = p.CreatedTo.Value.Date.AddDays(1).AddTicks(-1);
+                spec.AddFilter(a => a.CreatedAt <= toDate);
             }
         }
 

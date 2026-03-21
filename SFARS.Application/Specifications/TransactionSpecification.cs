@@ -168,17 +168,14 @@ public class TransactionSpecification : BaseSpecification<Transaction>
                 (t.PaymentLinkId != null && t.PaymentLinkId.Contains(s)));
         }
 
-        if (p.CreateDateRange != null && p.CreateDateRange.Length > 1)
-        {
-            var from = p.CreateDateRange[0];
-            var to = p.CreateDateRange[1];
+        if (p.CreatedFrom.HasValue)
+            spec.AddFilter(t => t.CreatedAt >= p.CreatedFrom.Value);
 
-            if (from is null && to.HasValue)
-                spec.AddFilter(t => t.CreatedAt <= to.Value);
-            else if (from.HasValue && to is null)
-                spec.AddFilter(t => t.CreatedAt >= from.Value);
-            else if (from.HasValue && to.HasValue)
-                spec.AddFilter(t => t.CreatedAt.Date >= from.Value.Date && t.CreatedAt.Date <= to.Value.Date);
+        if (p.CreatedTo.HasValue)
+        {
+            // Ensure inclusive filter by taking the end of the day
+            var toDate = p.CreatedTo.Value.Date.AddDays(1).AddTicks(-1);
+            spec.AddFilter(t => t.CreatedAt <= toDate);
         }
     }
 

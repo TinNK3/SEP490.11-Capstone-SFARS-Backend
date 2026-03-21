@@ -1,4 +1,4 @@
-﻿using SFARS.Domain.Common.Enum;
+using SFARS.Domain.Common.Enum;
 
 namespace SFARS.Domain.Specifications.Params
 {
@@ -9,8 +9,9 @@ namespace SFARS.Domain.Specifications.Params
         public Gender? Gender { get; set; }
         public UserStatus? Status { get; set; }
         public string? Role { get; set; }
-        public DateTime?[]? DobRange { get; set; }
-        public DateTime?[]? CreateDateRange { get; set; }
-        public DateTime?[]? ModifiedDateRange { get; set; }
+        public DateTime? DobFrom { get; set; }
+        public DateTime? DobTo { get; set; }
+        public DateTime? ModifiedFrom { get; set; }
+        public DateTime? ModifiedTo { get; set; }
     }
 }

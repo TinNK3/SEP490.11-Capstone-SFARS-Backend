@@ -19,7 +19,6 @@ namespace SFARS.Domain.Specifications.Params
         /// <summary>Filter by target entity ID.</summary>
         public Guid? EntityId { get; set; }
 
-        /// <summary>Date range filter [from, to] on CreatedAt.</summary>
-        public DateTime?[]? DateRange { get; set; }
+        /// <summary>Filter by date range on CreatedAt.</summary>
     }
 }

@@ -8,7 +8,7 @@ namespace SFARS.Domain.Interfaces.Services
         where TDto : class
     {
         Task<IServiceResult> CreateIncidentAsync(Guid userId, TDto dto);
-        Task<IServiceResult> GetMyIncidentsAsync(Guid userId, int pageIndex = 0, int pageSize = 10);
+        Task<IServiceResult> GetMyIncidentsAsync(Guid userId, int page = 0, int pageSize = 10);
         Task<IServiceResult> GetIncidentByIdAsync(Guid userId, Guid incidentId);
         
         /// <summary>

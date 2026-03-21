@@ -51,7 +51,7 @@ namespace SFARS.Domain.Specifications
             }
 
             // Pagination
-            if (specParams.Limit.HasValue)
+            if (specParams.PageSize.HasValue)
             {
                 spec.ApplyPaging(specParams.GetTake(), specParams.GetSkip());
             }

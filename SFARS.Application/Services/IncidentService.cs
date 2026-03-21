@@ -189,7 +189,7 @@ namespace SFARS.Application.Services
         /// <summary>
         /// Get incidents reported by the current user
         /// </summary>
-        public async Task<IServiceResult> GetMyIncidentsAsync(Guid userId, int pageIndex = 0, int pageSize = 10)
+        public async Task<IServiceResult> GetMyIncidentsAsync(Guid userId, int page = 0, int pageSize = 10)
         {
             if (userId == Guid.Empty)
             {
@@ -201,7 +201,7 @@ namespace SFARS.Application.Services
 
             var spec = new BaseSpecification<Incident>(i => i.VictimId == userId);
             spec.AddOrderByDescending(i => i.CreatedAt);
-            spec.ApplyPaging(pageSize, pageIndex * pageSize);
+            spec.ApplyPaging(pageSize, page * pageSize);
 
             var dtos = await _unitOfWork.Repository<Incident, Guid>()
                 .GetAllWithSpecAndSelectorAsync(spec, i => new IncidentDto

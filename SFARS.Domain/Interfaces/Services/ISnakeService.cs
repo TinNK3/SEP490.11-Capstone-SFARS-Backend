@@ -9,8 +9,8 @@ namespace SFARS.Domain.Interfaces.Services
         Task<IServiceResult> GetSnakeById(Guid id);
         Task<IServiceResult> CreateSnake(TDto dto);
         Task<IServiceResult> DeleteSnake(Guid id);
-        Task<IServiceResult> SearchSnakes(string? searchTerm, int pageIndex = 0, int pageSize = 10);
-        Task<IServiceResult> GetAllSnakesPaginated(int pageIndex = 0, int pageSize = 10);
+        Task<IServiceResult> SearchSnakes(string? searchTerm, int page = 0, int pageSize = 10);
+        Task<IServiceResult> GetAllSnakesPaginated(int page = 0, int pageSize = 10);
 
         /// <summary>
         /// Update snake with field-level change detection and audit logging.
@@ -30,7 +30,7 @@ namespace SFARS.Domain.Interfaces.Services
         /// <summary>
         /// Get change history for a specific snake with pagination.
         /// </summary>
-        Task<IServiceResult> GetSnakeChangeHistory(Guid snakeId, int pageIndex = 0, int pageSize = 20);
+        Task<IServiceResult> GetSnakeChangeHistory(Guid snakeId, int page = 0, int pageSize = 20);
 
         /// <summary>
         /// Revert a specific field change using its ChangeLog entry ID.

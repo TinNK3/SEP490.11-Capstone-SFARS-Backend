@@ -131,8 +131,8 @@ public class TransactionServiceTests
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
         result.Data.Should().NotBeNull();
         var paginatedData = result.Data as PaginatedResultDto<TransactionDto>;
-        paginatedData!.Sources.Should().BeEmpty();
-        paginatedData.TotalActualItem.Should().Be(0);
+        paginatedData!.Items.Should().BeEmpty();
+        paginatedData.Pagination.TotalItems.Should().Be(0);
     }
 
     /// <summary>
@@ -185,16 +185,16 @@ public class TransactionServiceTests
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
         var paginatedData = result.Data as PaginatedResultDto<TransactionDto>;
-        paginatedData!.Sources.Should().HaveCount(1);
-        paginatedData.TotalActualItem.Should().Be(1);
-        paginatedData.Sources.First().TransactionCode.Should().Be("123456789");
+        paginatedData!.Items.Should().HaveCount(1);
+        paginatedData.Pagination.TotalItems.Should().Be(1);
+        paginatedData.Items.First().TransactionCode.Should().Be("123456789");
     }
 
     /// <summary>
     /// Test Type: EDGE CASE
     /// Tests: GetMyTransactionsAsync with invalid page parameters
-    /// Precondition: Negative pageIndex or zero/negative pageSize
-    /// Expected Result: Parameters are normalized (pageIndex >= 0, pageSize = 20)
+    /// Precondition: Negative page or zero/negative pageSize
+    /// Expected Result: Parameters are normalized (page >= 0, pageSize = 20)
     /// </summary>
     [Fact]
     public async Task GetMyTransactionsAsync_InvalidPageParams_NormalizesParams()
@@ -207,9 +207,9 @@ public class TransactionServiceTests
             .Setup(r => r.CountAsync(It.IsAny<ISpecification<Domain.Entities.Transaction>>()))
             .ReturnsAsync(0);
 
-        // Act - negative pageIndex, zero pageSize
+        // Act - negative page, zero pageSize
         specParams.Page = -5;
-        specParams.Limit = 0;
+        specParams.PageSize = 0;
         var result = await _sut.GetMyTransactionsAsync(userId, specParams);
 
         // Assert

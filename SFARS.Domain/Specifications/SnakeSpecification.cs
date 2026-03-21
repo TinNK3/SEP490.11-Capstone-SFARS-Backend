@@ -1,4 +1,4 @@
-﻿using SFARS.Domain.Entities;
+using SFARS.Domain.Entities;
 using System.Linq.Expressions;
 
 namespace SFARS.Domain.Specifications
@@ -26,7 +26,7 @@ namespace SFARS.Domain.Specifications
         /// <summary>
         /// Search snakes by name (contains CommonName or ScientificName)
         /// </summary>
-        public static SnakeSpecification ByNameContains(string searchTerm)
+        public static SnakeSpecification ByNameContains(string? searchTerm)
         {
             var spec = new SnakeSpecification();
             ApplySearchFilter(spec, searchTerm);
@@ -37,10 +37,10 @@ namespace SFARS.Domain.Specifications
         /// <summary>
         /// Get snakes with pagination
         /// </summary>
-        public static SnakeSpecification WithPagination(int pageIndex, int pageSize)
+        public static SnakeSpecification WithPagination(int page, int pageSize)
         {
             var spec = new SnakeSpecification();
-            spec.ApplyPaging(pageSize, pageIndex * pageSize);
+            spec.ApplyPaging(pageSize, page * pageSize);
             spec.AddOrderBy(s => s.CommonName);
             return spec;
         }
@@ -48,13 +48,13 @@ namespace SFARS.Domain.Specifications
         /// <summary>
         /// Search with pagination
         /// </summary>
-        public static SnakeSpecification SearchWithPagination(string? searchTerm, int pageIndex, int pageSize)
+        public static SnakeSpecification SearchWithPagination(string? searchTerm, int page, int pageSize)
         {
             var spec = new SnakeSpecification();
 
             ApplySearchFilter(spec, searchTerm);
             
-            spec.ApplyPaging(pageSize, pageIndex * pageSize);
+            spec.ApplyPaging(pageSize, page * pageSize);
             spec.AddOrderBy(s => s.CommonName);
             
             return spec;

@@ -219,16 +219,49 @@ namespace SFARS.Application.Services
 
         #region Search
 
-        public async Task<IServiceResult> SearchSnakes(string? searchTerm, int pageIndex = 0, int pageSize = 10)
+        public async Task<IServiceResult> SearchSnakes(string? searchTerm, int page = 0, int pageSize = 10)
         {
-            var spec = SnakeSpecification.SearchWithPagination(searchTerm, pageIndex, pageSize);
-            return await GetAllWithSpecAsync(spec);
+            var spec = SnakeSpecification.SearchWithPagination(searchTerm, page, pageSize);
+            var result = await GetAllWithSpecAsync(spec);
+            
+            var countSpec = SnakeSpecification.ByNameContains(searchTerm);
+            var totalCount = await _unitOfWork.Repository<Snake, Guid>().CountAsync(countSpec);
+            var totalPages = pageSize > 0 ? (int)Math.Ceiling(totalCount / (double)pageSize) : 0;
+            
+            var dtos = result.Data as IEnumerable<SnakeDto> ?? Enumerable.Empty<SnakeDto>();
+            
+            var pagedResult = new PaginatedResultDto<SnakeDto>(
+                dtos,
+                page + 1,
+                pageSize,
+                totalPages,
+                totalCount
+            );
+            
+            result.Data = pagedResult;
+            return result;
         }
 
-        public async Task<IServiceResult> GetAllSnakesPaginated(int pageIndex = 0, int pageSize = 10)
+        public async Task<IServiceResult> GetAllSnakesPaginated(int page = 0, int pageSize = 10)
         {
-            var spec = SnakeSpecification.WithPagination(pageIndex, pageSize);
-            return await GetAllWithSpecAsync(spec);
+            var spec = SnakeSpecification.WithPagination(page, pageSize);
+            var result = await GetAllWithSpecAsync(spec);
+            
+            var totalCount = await _unitOfWork.Repository<Snake, Guid>().CountAsync(new SnakeSpecification());
+            var totalPages = pageSize > 0 ? (int)Math.Ceiling(totalCount / (double)pageSize) : 0;
+            
+            var dtos = result.Data as IEnumerable<SnakeDto> ?? Enumerable.Empty<SnakeDto>();
+            
+            var pagedResult = new PaginatedResultDto<SnakeDto>(
+                dtos,
+                page + 1,
+                pageSize,
+                totalPages,
+                totalCount
+            );
+            
+            result.Data = pagedResult;
+            return result;
         }
 
         #endregion
@@ -379,7 +412,7 @@ namespace SFARS.Application.Services
         /// <summary>
         /// Get change history for a specific snake with pagination.
         /// </summary>
-        public async Task<IServiceResult> GetSnakeChangeHistory(Guid snakeId, int pageIndex = 0, int pageSize = 20)
+        public async Task<IServiceResult> GetSnakeChangeHistory(Guid snakeId, int page = 0, int pageSize = 20)
         {
             var snake = await _unitOfWork.Repository<Snake, Guid>().GetByIdAsync(snakeId);
             if (snake == null)
@@ -393,18 +426,21 @@ namespace SFARS.Application.Services
                 .ToList();
 
             var total = allLogs.Count;
-            var paged = allLogs.Skip(pageIndex * pageSize).Take(pageSize).ToList();
+            var paged = allLogs.Skip(page * pageSize).Take(pageSize).ToList();
             var dtos = _mapper.Map<List<SnakeChangeLogDto>>(paged);
+
+            var totalPages = pageSize > 0 ? (int)Math.Ceiling(total / (double)pageSize) : 0;
+            var pagedResult = new PaginatedResultDto<SnakeChangeLogDto>(
+                dtos, 
+                page + 1, 
+                pageSize, 
+                totalPages, 
+                total
+            );
 
             return new ServiceResult(ResultCodeConst.SYS_Success0001, "Change history retrieved")
             {
-                Data = new
-                {
-                    Items = dtos,
-                    TotalCount = total,
-                    Page = pageIndex + 1,
-                    Limit = pageSize
-                }
+                Data = pagedResult
             };
         }
 
