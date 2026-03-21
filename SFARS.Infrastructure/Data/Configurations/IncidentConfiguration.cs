@@ -110,6 +110,21 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
             .HasDatabaseName("IX_Incident_TrackingCode")
             .HasFilter("[tracking_code] IS NOT NULL");
 
+        // Voice Symptom
+        builder.Property(e => e.SymptomAudioUrl)
+            .HasMaxLength(500)
+            .HasColumnName("symptom_audio_url");
+
+        builder.Property(e => e.SymptomText)
+            .HasColumnName("symptom_text");
+
+        builder.Property(e => e.MinutesSinceBite)
+            .HasColumnName("minutes_since_bite");
+
+        builder.Property(e => e.ExtractedSymptoms)
+            .HasMaxLength(1000)
+            .HasColumnName("extracted_symptoms");
+
         // SOS grace period (set by AnalyzeAsync; null until AI analysis completes)
         builder.Property(e => e.GraceExpiresAt)
             .HasColumnName("grace_expires_at");

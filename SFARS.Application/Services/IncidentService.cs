@@ -30,6 +30,7 @@ namespace SFARS.Application.Services
         private readonly IOptions<StorageOptions> _storageOptions;
         private readonly ISosSpamGuardService _spamGuard;
         private readonly IAiReviewService<SubmitAiReviewRequestDto, FirstAidStepDto> _aiReviewService;
+        private readonly ISpeechToTextService _speechToTextService;
 
         public IncidentService(
             ISystemMessageService msgService,
@@ -39,13 +40,15 @@ namespace SFARS.Application.Services
             IFileStorageService fileStorageService,
             IOptions<StorageOptions> storageOptions,
             ISosSpamGuardService spamGuard,
-            IAiReviewService<SubmitAiReviewRequestDto, FirstAidStepDto> aiReviewService)
+            IAiReviewService<SubmitAiReviewRequestDto, FirstAidStepDto> aiReviewService,
+            ISpeechToTextService speechToTextService)
             : base(msgService, unitOfWork, mapper, logger)
         {
             _fileStorageService = fileStorageService;
             _storageOptions = storageOptions;
             _spamGuard = spamGuard;
             _aiReviewService = aiReviewService;
+            _speechToTextService = speechToTextService;
         }
 
 
@@ -98,19 +101,16 @@ namespace SFARS.Application.Services
             var successMsg = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Success0001);
             var failMsg = await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001);
 
-            // Generate incident code using SQL SEQUENCE
             var now = DateTime.UtcNow;
-            var sequenceValue = await _unitOfWork.GetNextSequenceValueAsync(SequenceNames.IncidentCode);
-            var incidentCode = $"SOS-{now.Year}-{sequenceValue:D5}";
 
             // Create Point from lat/lng
             var location = new Point(dto.Longitude, dto.Latitude) { SRID = 4326 };
 
-            // Create incident entity
+            // Create incident entity (with temporary code, required by validation/DB)
             var incident = new Incident
             {
                 Id = Guid.NewGuid(),
-                Code = incidentCode,
+                Code = "TEMP",
                 VictimId = userId,
                 Location = location,
                 AddressString = dto.AddressString,
@@ -142,7 +142,7 @@ namespace SFARS.Application.Services
             {
                 Id = Guid.NewGuid(),
                 IncidentId = incident.Id,
-                Title = $"Chat - {incidentCode}",
+                Title = string.Empty,
                 CreatedAt = now,
                 CreatedBy = userId
             };
@@ -153,13 +153,20 @@ namespace SFARS.Application.Services
                 Id = Guid.NewGuid(),
                 UserId = userId,
                 Title = notifyTitle,
-                Message = string.Format(notifyTemplate, incidentCode),
+                Message = string.Empty,
                 Type = NotificationType.Mission,
                 IsRead = false,
                 SentAt = now,
                 CreatedAt = now,
                 CreatedBy = userId
             };
+
+            var sequenceValue = await _unitOfWork.GetNextSequenceValueAsync(SequenceNames.IncidentCode);
+            var incidentCode = $"SOS-{now.Year}-{sequenceValue:D5}";
+
+            incident.Code = incidentCode;
+            chat.Title = $"Chat - {incidentCode}";
+            notification.Message = string.Format(notifyTemplate, incidentCode);
 
             // Add all entities to repositories
             await _unitOfWork.Repository<Incident, Guid>().AddAsync(incident);
@@ -219,7 +226,11 @@ namespace SFARS.Application.Services
                     SnakeId = i.SnakeId,
                     VictimId = i.VictimId,
                     VictimName = i.Victim.FullName,
-                    CreatedAt = i.CreatedAt
+                    CreatedAt = i.CreatedAt,
+                    SymptomAudioUrl = i.SymptomAudioUrl,
+                    SymptomText = i.SymptomText,
+                    MinutesSinceBite = i.MinutesSinceBite,
+                    ExtractedSymptoms = i.ExtractedSymptoms
                 }, tracked: false);
 
             return new ServiceResult(
@@ -276,7 +287,11 @@ namespace SFARS.Application.Services
                 SnakeId = incident.SnakeId,
                 VictimId = incident.VictimId,
                 VictimName = incident.Victim?.FullName,
-                CreatedAt = incident.CreatedAt
+                CreatedAt = incident.CreatedAt,
+                SymptomAudioUrl = incident.SymptomAudioUrl,
+                SymptomText = incident.SymptomText,
+                MinutesSinceBite = incident.MinutesSinceBite,
+                ExtractedSymptoms = incident.ExtractedSymptoms
             };
 
             // Get FirstAid/Prohibitions from Source-of-Truth
@@ -819,6 +834,93 @@ namespace SFARS.Application.Services
             return new ServiceResult(
                 ResultCodeConst.Incident_Success0006,
                 await _msgService.GetMessageAsync(ResultCodeConst.Incident_Success0006)
+            );
+        }
+
+        /// <inheritdoc />
+        public async Task<IServiceResult> UpdateVoiceSymptomAsync(
+            Guid userId, 
+            Guid incidentId, 
+            Stream audioStream, 
+            string fileName, 
+            string contentType)
+        {
+            if (audioStream == null || audioStream.Length == 0)
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0008,
+                    string.Format(await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0008), "Audio file")
+                );
+
+            var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
+
+            if (incident == null)
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0002,
+                    string.Format(await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002), "Incident")
+                );
+
+            if (incident.VictimId != userId)
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0013,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0013)
+                );
+
+            using var readStream = new MemoryStream();
+            await audioStream.CopyToAsync(readStream);
+            var audioBytes = readStream.ToArray();
+
+            // Storage Upload (takes ownership of its stream wrapper and disposes it)
+            using var storageStream = new MemoryStream(audioBytes);
+            var uploadResult = await _fileStorageService.UploadAsync(
+                storageStream,
+                fileName,
+                $"incidents/{incidentId}/symptoms",
+                contentType
+            );
+
+            if (uploadResult == null || string.IsNullOrEmpty(uploadResult.Url))
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Fail0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001)
+                );
+            }
+
+            // AI STT Extraction (takes ownership of its stream wrapper)
+            using var sttStream = new MemoryStream(audioBytes);
+            var extractionResult = await _speechToTextService.TranscribeAndExtractAsync(sttStream, fileName, contentType);
+
+            incident.SymptomAudioUrl = uploadResult.Url;
+            if (extractionResult != null)
+            {
+                incident.SymptomText = extractionResult.Transcript;
+                incident.MinutesSinceBite = extractionResult.MinutesSinceBite;
+                
+                if (extractionResult.Symptoms != null && extractionResult.Symptoms.Any())
+                {
+                    // Convert JSON array logic or CSV, letting us use string join for simple DB mapping:
+                    incident.ExtractedSymptoms = string.Join(", ", extractionResult.Symptoms);
+                }
+            }
+            incident.UpdatedAt = DateTime.UtcNow;
+
+            await _unitOfWork.Repository<Incident, Guid>().UpdateAsync(incident);
+            var saved = await _unitOfWork.SaveChangesAsync();
+
+            if (saved <= 0)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Fail0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001)
+                );
+            }
+
+            _logger.LogInformation("Voice symptom added to Incident {IncidentId} by Victim {UserId}", incidentId, userId);
+
+            return new ServiceResult(
+                ResultCodeConst.Incident_Success0007,
+                await _msgService.GetMessageAsync(ResultCodeConst.Incident_Success0007),
+                new { url = uploadResult.Url }
             );
         }
 

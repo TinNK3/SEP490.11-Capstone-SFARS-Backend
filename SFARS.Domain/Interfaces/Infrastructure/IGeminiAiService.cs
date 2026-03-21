@@ -1,3 +1,5 @@
+using SFARS.Domain.Interfaces.Services;
+
 namespace SFARS.Domain.Interfaces.Infrastructure;
 
 /// <summary>
@@ -18,6 +20,11 @@ public interface IGeminiAiService
     /// <param name="mimeType">MIME type of the image (e.g. "image/jpeg").</param>
     /// <returns>Detection result with confidence and optional reasoning.</returns>
     Task<GeminiSnakeDetectionResult> DetectSnakeInImageAsync(byte[] imageBytes, string mimeType);
+
+    /// <summary>
+    /// Extract structured symptoms and bite time from voice note via multi-modal AI.
+    /// </summary>
+    Task<AudioExtractionResult?> ExtractAudioSymptomsAsync(byte[] audioBytes, string mimeType);
 
     /// <summary>
     /// Get enriched snake information and first aid recommendations from Gemini.

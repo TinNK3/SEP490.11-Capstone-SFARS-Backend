@@ -8,6 +8,7 @@ using SFARS.Application.Dtos.AiInference;
 using SFARS.Application.Dtos.AiReview;
 using SFARS.Application.Dtos.Incident;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Domain.Common.Constants;
 
 namespace SFARS.API.Controller
 {
@@ -220,6 +221,32 @@ namespace SFARS.API.Controller
         {
             var userId = User.GetUserId();
             var result = await _incidentService.ResolveFallbackAsync(userId, id);
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
+        /// Upload a voice symptom (audio note) for the incident.
+        /// </summary>
+        /// <param name="id">Incident ID</param>
+        /// <param name="audioFile">Audio file recording</param>
+        [Authorize]
+        [HttpPatch(APIRoute.Incident.VoiceSymptom, Name = nameof(UpdateVoiceSymptomAsync))]
+        [Consumes("multipart/form-data")]
+        [RequestSizeLimit(1 * 1024 * 1024)] // 1MB limit for short audio (e.g. 15s)
+        public async Task<IActionResult> UpdateVoiceSymptomAsync(
+            [FromRoute] Guid id,
+            IFormFile audioFile)
+        {
+            var userId = User.GetUserId();
+
+            using var stream = audioFile?.OpenReadStream() ?? Stream.Null;
+            var result = await _incidentService.UpdateVoiceSymptomAsync(
+                userId, 
+                id, 
+                stream, 
+                audioFile?.FileName ?? string.Empty, 
+                audioFile?.ContentType ?? string.Empty);
+
             return this.ToIActionResult(result);
         }
 

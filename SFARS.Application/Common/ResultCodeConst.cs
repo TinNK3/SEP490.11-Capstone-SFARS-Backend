@@ -99,6 +99,7 @@ namespace SFARS.Application.Common
         public const string Incident_Success0004 = "Incident.Success0004";
         public const string Incident_Success0005 = "Incident.Success0005"; // SOS cancelled during grace period
         public const string Incident_Success0006 = "Incident.Success0006"; // SOS resolved via Fallback (115)
+        public const string Incident_Success0007 = "Incident.Success0007"; // Voice symptom uploaded
 
         public const string Incident_Warning0001 = "Incident.Warning0001";
         public const string Incident_Warning0002 = "Incident.Warning0002";

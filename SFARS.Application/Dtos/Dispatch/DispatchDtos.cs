@@ -24,6 +24,11 @@ public class SosDispatchNotificationDto
     public double? AiConfidence { get; set; }       // e.g. 0.92
     public string? ToxinGroup { get; set; }         // Neurotoxic / unknown...
     
+    // --- Voice Extraction ---
+    public string? SymptomAudioUrl { get; set; }
+    public int? MinutesSinceBite { get; set; }
+    public string? ExtractedSymptoms { get; set; }
+
     public DateTime DispatchedAt { get; set; }
 }
 

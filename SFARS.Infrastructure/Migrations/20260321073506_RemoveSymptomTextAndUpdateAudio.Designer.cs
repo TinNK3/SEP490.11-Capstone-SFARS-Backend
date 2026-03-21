@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SFARS.Infrastructure.Data.Context;
@@ -12,9 +13,11 @@ using SFARS.Infrastructure.Data.Context;
 namespace SFARS.Infrastructure.Migrations
 {
     [DbContext(typeof(SFARSDbContext))]
-    partial class SFARSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260321073506_RemoveSymptomTextAndUpdateAudio")]
+    partial class RemoveSymptomTextAndUpdateAudio
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -706,11 +709,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("dispatch_job_ids");
 
-                    b.Property<string>("ExtractedSymptoms")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)")
-                        .HasColumnName("extracted_symptoms");
-
                     b.Property<DateTime?>("GraceExpiresAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("grace_expires_at");
@@ -729,10 +727,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("geography")
                         .HasColumnName("location");
 
-                    b.Property<int?>("MinutesSinceBite")
-                        .HasColumnType("int")
-                        .HasColumnName("minutes_since_bite");
-
                     b.Property<string>("PriorityLevel")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -747,10 +741,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)")
                         .HasColumnName("symptom_audio_url");
-
-                    b.Property<string>("SymptomText")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("symptom_text");
 
                     b.Property<string>("TrackingCode")
                         .HasMaxLength(32)

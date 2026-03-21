@@ -40,14 +40,35 @@ public class CloudinaryStorageService : IFileStorageService
             stream.Position = 0;
         }
 
-        var uploadParams = new ImageUploadParams
+        RawUploadParams uploadParams;
+
+        if (contentType.StartsWith("image/"))
         {
-            File = new FileDescription(fileName, stream),
-            Folder = folder,
-            Transformation = new Transformation()
-                .Quality("auto")
-                .FetchFormat("auto")
-        };
+            uploadParams = new ImageUploadParams
+            {
+                File = new FileDescription(fileName, stream),
+                Folder = folder,
+                Transformation = new Transformation()
+                    .Quality("auto")
+                    .FetchFormat("auto")
+            };
+        }
+        else if (contentType.StartsWith("video/") || contentType.StartsWith("audio/"))
+        {
+            uploadParams = new VideoUploadParams
+            {
+                File = new FileDescription(fileName, stream),
+                Folder = folder
+            };
+        }
+        else
+        {
+            uploadParams = new RawUploadParams
+            {
+                File = new FileDescription(fileName, stream),
+                Folder = folder
+            };
+        }
 
         try
         {

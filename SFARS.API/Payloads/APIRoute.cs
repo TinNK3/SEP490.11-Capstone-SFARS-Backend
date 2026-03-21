@@ -101,6 +101,7 @@ namespace SFARS.API.Payloads
             public const string RegenerateTrackingCode = Base + "/incidents/{id}/tracking-code/regenerate";
             public const string ResolveFallback = Base + "/incidents/{id}/resolve-fallback";
             // [PATCH]
+            public const string VoiceSymptom = Base + "/incidents/{id}/voice-symptom";
             public const string Cancel = Base + "/incidents/{id}/cancel";
         }
 
