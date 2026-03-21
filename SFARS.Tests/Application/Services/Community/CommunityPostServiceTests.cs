@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -8,6 +8,8 @@ using SFARS.Application.Services;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
+using SFARS.Domain.Interfaces.Infrastructure;
+using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Repositories.Base;
 using SFARS.Domain.Specifications;
 using SFARS.Domain.Specifications.Interfaces;
@@ -23,6 +25,7 @@ public class CommunityPostServiceTests
     private readonly Mock<ILogger<CommunityPostService>> _loggerMock;
     private readonly Mock<IGenericRepository<ContentPost, Guid>> _postRepoMock;
     private readonly Mock<IGenericRepository<PostComment, Guid>> _commentRepoMock;
+    private readonly Mock<IFileStorageService> _fileStorageMock;
 
     private readonly CommunityPostService _sut; // System Under Test
 
@@ -31,6 +34,7 @@ public class CommunityPostServiceTests
         _uowMock = new Mock<IUnitOfWork>();
         _hubMock = new Mock<IHubContext<CommunityHub>>();
         _loggerMock = new Mock<ILogger<CommunityPostService>>();
+        _fileStorageMock = new Mock<IFileStorageService>();
 
         _postRepoMock = new Mock<IGenericRepository<ContentPost, Guid>>();
         _commentRepoMock = new Mock<IGenericRepository<PostComment, Guid>>();
@@ -49,7 +53,8 @@ public class CommunityPostServiceTests
         _sut = new CommunityPostService(
             _uowMock.Object,
             _hubMock.Object,
-            _loggerMock.Object
+            _loggerMock.Object,
+            _fileStorageMock.Object
         );
     }
 
@@ -58,7 +63,7 @@ public class CommunityPostServiceTests
     public async Task CreatePostAsync_TruyenThieuNoiDung_TraVeCanhBao()
     {
         // Act: Gửi nội dung rỗng và list media rỗng
-        var result = await _sut.CreatePostAsync(Guid.NewGuid(), "", new List<string>());
+        var result = await _sut.CreatePostAsync(Guid.NewGuid(), "", new List<MediaUploadInfo>());
 
         // Assert: Kỳ vọng trả về mã lỗi validate (Warning0001)
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0001);

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SFARS.API.Extension;
 using SFARS.API.Extensions;
 using SFARS.API.Payloads;
+using SFARS.API.Payloads.Request.Community;
 using SFARS.Application.Dtos.Community;
 using SFARS.Domain.Interfaces.Services;
 
@@ -30,8 +31,11 @@ public class CommunityController : ControllerBase
 
     /// <summary>Tạo bài đăng mới (hiển thị ngay, không cần duyệt)</summary>
     [HttpPost(APIRoute.Community.CreatePost, Name = nameof(CreatePostAsync))]
-    public async Task<IActionResult> CreatePostAsync([FromBody] CreatePostRequest req)
-        => this.ToIActionResult(await _svc.CreatePostAsync(User.GetUserId(), req.Content, req.MediaUrls));
+    public async Task<IActionResult> CreatePostAsync([FromForm] CreateCommunityPostRequest req)
+    {
+        var dtos = req.MediaFiles?.Select(f => new MediaUploadInfo(f.OpenReadStream(), f.FileName, f.ContentType)).ToList();
+        return this.ToIActionResult(await _svc.CreatePostAsync(User.GetUserId(), req.Content, dtos));
+    }
 
     /// <summary>Xóa bài đăng (chỉ tác giả)</summary>
     [HttpDelete(APIRoute.Community.DeletePost, Name = nameof(DeletePostAsync))]

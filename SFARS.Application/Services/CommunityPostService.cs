@@ -6,6 +6,7 @@ using SFARS.Application.Dtos.Community;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
+using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
@@ -19,15 +20,18 @@ public class CommunityPostService : ICommunityPostService
     private readonly IUnitOfWork _uow;
     private readonly IHubContext<CommunityHub> _hub;
     private readonly ILogger<CommunityPostService> _logger;
+    private readonly IFileStorageService _fileStorage;
 
     public CommunityPostService(
         IUnitOfWork uow,
         IHubContext<CommunityHub> hub,
-        ILogger<CommunityPostService> logger)
+        ILogger<CommunityPostService> logger,
+        IFileStorageService fileStorage)
     {
         _uow = uow;
         _hub = hub;
         _logger = logger;
+        _fileStorage = fileStorage;
     }
 
     public async Task<IServiceResult> GetPostsAsync(int page, int pageSize, Guid currentUserId)
@@ -60,9 +64,9 @@ public class CommunityPostService : ICommunityPostService
         return new ServiceResult(ResultCodeConst.SYS_Success0002, "Lấy bài đăng thành công", MapToDto(post, currentUserId));
     }
 
-    public async Task<IServiceResult> CreatePostAsync(Guid authorId, string? content, List<string>? mediaUrls)
+    public async Task<IServiceResult> CreatePostAsync(Guid authorId, string? content, List<MediaUploadInfo>? mediaFiles)
     {
-        if (string.IsNullOrWhiteSpace(content) && (mediaUrls is null || mediaUrls.Count == 0))
+        if (string.IsNullOrWhiteSpace(content) && (mediaFiles is null || mediaFiles.Count == 0))
             return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Bài đăng phải có nội dung hoặc ít nhất 1 ảnh.");
 
         var post = new ContentPost
@@ -76,14 +80,22 @@ public class CommunityPostService : ICommunityPostService
             CreatedBy = authorId
         };
 
-        if (mediaUrls?.Count > 0)
+        if (mediaFiles?.Count > 0)
         {
-            for (int i = 0; i < mediaUrls.Count; i++)
+            for (int i = 0; i < mediaFiles.Count; i++)
             {
+                var file = mediaFiles[i];
+
+                var uploadResult = await _fileStorage.UploadAsync(
+                    file.Stream,
+                    file.FileName,
+                    "community_posts",
+                    file.ContentType);
+
                 post.Medias.Add(new PostMedia
                 {
-                    Url = mediaUrls[i],
-                    ContentType = GuessContentType(mediaUrls[i]),
+                    Url = uploadResult.Url,
+                    ContentType = file.ContentType,
                     Order = i,
                     CreatedBy = authorId
                 });

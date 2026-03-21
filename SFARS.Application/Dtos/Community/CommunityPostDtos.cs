@@ -2,10 +2,7 @@ namespace SFARS.Application.Dtos.Community;
 
 // ── REQUEST ─────────────────────────────────────────────────────────────
 
-public record CreatePostRequest(
-    string? Content,
-    List<string>? MediaUrls
-);
+public record PostMediaUploadDto(System.IO.Stream Stream, string FileName, string ContentType);
 
 public record CreateCommentRequest(
     string Content,
