@@ -41,15 +41,15 @@ namespace SFARS.API.Controller
         /// <summary>
         /// Get current user's incidents
         /// </summary>
-        /// <param name="pageIndex">Page index (0-based)</param>
+        /// <param name="page">Page index (0-based)</param>
         /// <param name="pageSize">Page size</param>
         /// <returns>List of incidents</returns>
         [Authorize]
         [HttpGet(APIRoute.Incident.GetMyIncidents, Name = nameof(GetMyIncidentsAsync))]
-        public async Task<IActionResult> GetMyIncidentsAsync([FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetMyIncidentsAsync([FromQuery] int page = 0, [FromQuery] int pageSize = 10)
         {
             var userId = User.GetUserId();
-            var result = await _incidentService.GetMyIncidentsAsync(userId, pageIndex, pageSize);
+            var result = await _incidentService.GetMyIncidentsAsync(userId, page, pageSize);
             return this.ToIActionResult(result);
         }
 

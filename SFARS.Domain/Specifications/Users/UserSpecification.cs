@@ -52,29 +52,7 @@ namespace SFARS.Domain.Specifications.Users
                 .ThenInclude(ur => ur.Role));
             spec.ApplyInclude(q => q.Include(u => u.RescuerProfile!));
 
-            if (!string.IsNullOrEmpty(p.Role))
-                spec.AddFilter(u => u.UserRoles.Any(ur => ur.Role.RoleName == p.Role.Trim()));
-            if (p.Status != null)
-                spec.AddFilter(u => u.Status == p.Status);
-            if (!string.IsNullOrEmpty(p.FirstName))
-                spec.AddFilter(u => u.FirstName.Contains(p.FirstName));
-            if (!string.IsNullOrEmpty(p.LastName))
-                spec.AddFilter(u => u.LastName.Contains(p.LastName));
-            if (p.Gender != null)
-                spec.AddFilter(u => u.Gender == p.Gender);
-
-            if (p.CreateDateRange != null && p.CreateDateRange.Length > 1)
-            {
-                var from = p.CreateDateRange[0];
-                var to   = p.CreateDateRange[1];
-                if (from is null && to.HasValue)
-                    spec.AddFilter(u => u.CreatedAt <= to.Value);
-                else if (from.HasValue && to is null)
-                    spec.AddFilter(u => u.CreatedAt >= from.Value);
-                else if (from.HasValue && to.HasValue)
-                    spec.AddFilter(u => u.CreatedAt.Date >= from.Value.Date
-                                     && u.CreatedAt.Date <= to.Value.Date);
-            }
+            ApplyCommonFilters(spec, p);
 
             // Sorting
             if (!string.IsNullOrEmpty(p.Sort))
@@ -101,6 +79,21 @@ namespace SFARS.Domain.Specifications.Users
                 .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role));
 
+            ApplyCommonFilters(spec, p);
+
+            return spec;
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // Private helpers
+        // ─────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Apply all common filters to specification (used by both List and Count).
+        /// DRY principle: eliminates duplicated filter logic.
+        /// </summary>
+        private static void ApplyCommonFilters(UserSpecification spec, UserSpecParams p)
+        {
             if (!string.IsNullOrEmpty(p.Role))
                 spec.AddFilter(u => u.UserRoles.Any(ur => ur.Role.RoleName == p.Role.Trim()));
             if (p.Status != null)
@@ -112,25 +105,33 @@ namespace SFARS.Domain.Specifications.Users
             if (p.Gender != null)
                 spec.AddFilter(u => u.Gender == p.Gender);
 
-            if (p.CreateDateRange != null && p.CreateDateRange.Length > 1)
+            if (p.CreatedFrom.HasValue)
+                spec.AddFilter(u => u.CreatedAt >= p.CreatedFrom.Value);
+
+            if (p.CreatedTo.HasValue)
             {
-                var from = p.CreateDateRange[0];
-                var to   = p.CreateDateRange[1];
-                if (from is null && to.HasValue)
-                    spec.AddFilter(u => u.CreatedAt <= to.Value);
-                else if (from.HasValue && to is null)
-                    spec.AddFilter(u => u.CreatedAt >= from.Value);
-                else if (from.HasValue && to.HasValue)
-                    spec.AddFilter(u => u.CreatedAt.Date >= from.Value.Date
-                                     && u.CreatedAt.Date <= to.Value.Date);
+                var toDate = p.CreatedTo.Value.Date.AddDays(1).AddTicks(-1);
+                spec.AddFilter(u => u.CreatedAt <= toDate);
             }
 
-            return spec;
-        }
+            if (p.ModifiedFrom.HasValue)
+                spec.AddFilter(u => u.UpdatedAt >= p.ModifiedFrom.Value);
 
-        // ─────────────────────────────────────────────────────────────
-        // Private helpers
-        // ─────────────────────────────────────────────────────────────
+            if (p.ModifiedTo.HasValue)
+            {
+                var toDate = p.ModifiedTo.Value.Date.AddDays(1).AddTicks(-1);
+                spec.AddFilter(u => u.UpdatedAt <= toDate);
+            }
+
+            if (p.DobFrom.HasValue)
+                spec.AddFilter(u => u.Dob >= p.DobFrom.Value);
+
+            if (p.DobTo.HasValue)
+            {
+                var toDate = p.DobTo.Value.Date.AddDays(1).AddTicks(-1);
+                spec.AddFilter(u => u.Dob <= toDate);
+            }
+        }
 
         private void ApplySorting(string sortBy)
         {
@@ -159,16 +160,22 @@ namespace SFARS.Domain.Specifications.Users
             if (string.IsNullOrEmpty(search))
                 return _ => true;
 
-            var normalized = search.ToLowerInvariant();
+            // ⚠️ PERFORMANCE FIX: Removed .ToLower() to preserve database index usage
+            // SQL Server handles case-insensitive comparisons by default via collation
+            // Using LOWER() function in WHERE clause causes full table scans
 
             return u =>
-                (!string.IsNullOrEmpty(u.Email) && u.Email.ToLower().Contains(normalized))
-                || (!string.IsNullOrEmpty(u.Phone) && u.Phone.ToLower().Contains(normalized))
-                || (!string.IsNullOrEmpty(u.FirstName) && u.FirstName.ToLower().Contains(normalized))
-                || (!string.IsNullOrEmpty(u.LastName) && u.LastName.ToLower().Contains(normalized))
-                || (!string.IsNullOrEmpty(u.FirstName)
-                    && !string.IsNullOrEmpty(u.LastName)
-                    && (u.FirstName + " " + u.LastName).ToLower().Contains(normalized));
+                (!string.IsNullOrEmpty(u.Email) && u.Email.Contains(search))
+                || (!string.IsNullOrEmpty(u.Phone) && u.Phone.Contains(search))
+                || (!string.IsNullOrEmpty(u.FirstName) && u.FirstName.Contains(search))
+                || (!string.IsNullOrEmpty(u.LastName) && u.LastName.Contains(search));
+
+            // ⚠️ REMOVED: (u.FirstName + " " + u.LastName).ToLower().Contains()
+            // Concatenation in WHERE breaks index usage and adds CPU overhead
+            // If full-name search is critical for business logic:
+            //   1. Add computed column FullName to User table with Index
+            //   2. Implement Full-Text Search (FTS) in SQL Server
+            //   3. Use separate search service (Elasticsearch, etc.)
         }
     }
 }

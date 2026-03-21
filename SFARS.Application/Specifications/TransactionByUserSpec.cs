@@ -5,13 +5,13 @@ namespace SFARS.Application.Specifications;
 
 public class TransactionByUserSpec : BaseSpecification<DomainTransaction>
 {
-    public TransactionByUserSpec(Guid userId, int pageIndex, int pageSize)
+    public TransactionByUserSpec(Guid userId, int page, int pageSize)
         : base(t => t.UserId == userId)
     {
         AddOrderByDescending(t => t.CreatedAt);
 
-        var safePageIndex = pageIndex < 1 ? 1 : pageIndex;
+        var safePage = page < 1 ? 1 : page;
         var safePageSize = pageSize < 1 ? 20 : pageSize;
-        ApplyPaging(safePageSize, (safePageIndex - 1) * safePageSize);
+        ApplyPaging(safePageSize, (safePage - 1) * safePageSize);
     }
 }

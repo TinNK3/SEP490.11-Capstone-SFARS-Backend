@@ -274,7 +274,7 @@ public class IncidentServiceTests
     {
         // Arrange
         var userId = Guid.NewGuid();
-        var pageIndex = 2;
+        var page = 2;
         var pageSize = 5;
 
         BaseSpecification<Incident>? capturedSpec = null;
@@ -287,11 +287,11 @@ public class IncidentServiceTests
             .ReturnsAsync(new List<IncidentDto>());
 
         // Act
-        await _sut.GetMyIncidentsAsync(userId, pageIndex, pageSize);
+        await _sut.GetMyIncidentsAsync(userId, page, pageSize);
 
         // Assert
         capturedSpec.Should().NotBeNull();
-        capturedSpec!.Skip.Should().Be(pageIndex * pageSize);
+        capturedSpec!.Skip.Should().Be(page * pageSize);
         capturedSpec.Take.Should().Be(pageSize);
     }
 

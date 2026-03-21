@@ -384,9 +384,9 @@ namespace SFARS.Tests.Application.Services.Users
             result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
             result.Data.Should().NotBeNull();
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.TotalActualItem.Should().Be(0);
-            paged.TotalPage.Should().Be(0);
-            paged.Sources.Should().BeEmpty();
+            paged.Pagination.TotalItems.Should().Be(0);
+            paged.Pagination.TotalPages.Should().Be(0);
+            paged.Items.Should().BeEmpty();
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -421,8 +421,8 @@ namespace SFARS.Tests.Application.Services.Users
 
             result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.TotalActualItem.Should().Be(3);
-            paged.Sources.Should().HaveCount(3);
+            paged.Pagination.TotalItems.Should().Be(3);
+            paged.Items.Should().HaveCount(3);
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -453,11 +453,11 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
                 .Returns(FakeDtos(pageSize));
 
-            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Limit = pageSize });
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { PageSize = pageSize });
 
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.TotalPage.Should().Be(5);
-            paged.TotalActualItem.Should().Be(total);
+            paged.Pagination.TotalPages.Should().Be(5);
+            paged.Pagination.TotalItems.Should().Be(total);
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -488,10 +488,10 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
                 .Returns(FakeDtos(pageSize));
 
-            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Limit = pageSize });
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { PageSize = pageSize });
 
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.TotalPage.Should().Be(3); // ceil(11/5) = 3
+            paged.Pagination.TotalPages.Should().Be(3); // ceil(11/5) = 3
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -519,25 +519,25 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
                 .Returns(FakeDtos(3));
 
-            var act = () => _sut.GetAllUsersAsync(new UserSpecParams { Limit = 0 });
+            var act = () => _sut.GetAllUsersAsync(new UserSpecParams { PageSize = 0 });
             await act.Should().NotThrowAsync();
 
-            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Limit = 0 });
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { PageSize = 0 });
             result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.Limit.Should().Be(10);   // corrected from 0 → 10
-            paged.TotalPage.Should().Be(1);   // ceil(3/10)
+            paged.Pagination.PageSize.Should().Be(10);   // corrected from 0 → 10
+            paged.Pagination.TotalPages.Should().Be(1);   // ceil(3/10)
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // 6. Guard: pageIndex = -1 → defaults to 0, no negative Skip
+        // 6. Guard: page = -1 → defaults to 0, no negative Skip
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
         /// Test Type: BOUNDARY
-        /// Tests: GetAllUsersAsync handles negative pageIndex gracefully
-        /// Precondition: pageIndex parameter is -1
-        /// Expected Result: Defaults to pageIndex = 0, no exception thrown
+        /// Tests: GetAllUsersAsync handles negative page gracefully
+        /// Precondition: page parameter is -1
+        /// Expected Result: Defaults to page = 0, no exception thrown
         /// </summary>
         [Fact]
         public async Task GetAllUsersAsync_NegativePageIndex_DefaultsToZero_NoException()
@@ -559,7 +559,7 @@ namespace SFARS.Tests.Application.Services.Users
 
             var result = await _sut.GetAllUsersAsync(new UserSpecParams { Page = 0 });
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.Page.Should().Be(1);   // 1-based indexing
+            paged.Pagination.Page.Should().Be(1);   // 1-based indexing
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -655,7 +655,7 @@ namespace SFARS.Tests.Application.Services.Users
 
             result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.TotalActualItem.Should().Be(2);
+            paged.Pagination.TotalItems.Should().Be(2);
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -691,7 +691,7 @@ namespace SFARS.Tests.Application.Services.Users
 
             result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.TotalActualItem.Should().Be(1);
+            paged.Pagination.TotalItems.Should().Be(1);
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -730,21 +730,22 @@ namespace SFARS.Tests.Application.Services.Users
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // 12. CreateDateRange filter — both bounds provided
+        // 12. DobRange filter — both bounds provided
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
         /// Test Type: NORMAL
-        /// Tests: GetAllUsersAsync with CreateDateRange filter
+        /// Tests: GetAllUsersAsync with DobRange filter
         /// Precondition: Date range with start and end dates provided
-        /// Expected Result: Success with users created within date range
+        /// Expected Result: Success with users within date of birth range
         /// </summary>
         [Fact]
-        public async Task GetAllUsersAsync_WithCreateDateRange_BothBounds_ReturnsSuccess()
+        public async Task GetAllUsersAsync_WithDobRange_BothBounds_ReturnsSuccess()
         {
             var specParams = new UserSpecParams
             {
-                CreateDateRange = new DateTime?[] { new DateTime(2025, 1, 1), new DateTime(2025, 12, 31) }
+                DobFrom = new DateTime(2025, 1, 1),
+                DobTo = new DateTime(2025, 12, 31)
             };
             var users = FakeUsers(4);
             var dtos  = FakeDtos(4);
@@ -765,7 +766,7 @@ namespace SFARS.Tests.Application.Services.Users
 
             result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.TotalActualItem.Should().Be(4);
+            paged.Pagination.TotalItems.Should().Be(4);
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -776,13 +777,13 @@ namespace SFARS.Tests.Application.Services.Users
         /// Test Type: NORMAL
         /// Tests: GetAllUsersAsync returns correctly structured PaginatedResultDto
         /// Precondition: 15 users total, requesting page 1 with size 5
-        /// Expected Result: All pagination fields correctly populated (PageIndex, PageSize, TotalActualItem, TotalPage)
+        /// Expected Result: All pagination fields correctly populated (page, PageSize, TotalActualItem, TotalPage)
         /// </summary>
         [Fact]
         public async Task GetAllUsersAsync_PaginatedResultShape_AllFieldsCorrect()
         {
             const int total     = 15;
-            const int pageIndex = 1;
+            const int page = 1;
             const int pageSize  = 5;
 
             _userRepoMock
@@ -797,14 +798,14 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(m => m.Map<IEnumerable<UserDto>>(It.IsAny<IEnumerable<User>>()))
                 .Returns(FakeDtos(pageSize));
 
-            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Page = pageIndex + 1, Limit = pageSize });
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Page = page + 1, PageSize = pageSize });
 
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.Page.Should().Be(pageIndex + 1);
-            paged.Limit.Should().Be(pageSize);
-            paged.TotalActualItem.Should().Be(total);
-            paged.TotalPage.Should().Be(3);           // ceil(15/5) = 3
-            paged.Sources.Should().HaveCount(pageSize);
+            paged.Pagination.Page.Should().Be(page + 1);
+            paged.Pagination.PageSize.Should().Be(pageSize);
+            paged.Pagination.TotalItems.Should().Be(total);
+            paged.Pagination.TotalPages.Should().Be(3);           // ceil(15/5) = 3
+            paged.Items.Should().HaveCount(pageSize);
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -814,7 +815,7 @@ namespace SFARS.Tests.Application.Services.Users
         /// <summary>
         /// Test Type: BOUNDARY
         /// Tests: GetAllUsersAsync requesting page beyond last available page
-        /// Precondition: Total 10 users, pageSize=10, requesting pageIndex=1 (2nd page)
+        /// Precondition: Total 10 users, pageSize=10, requesting page=1 (2nd page)
         /// Expected Result: Returns empty results but no error
         /// </summary>
         [Fact]
@@ -839,9 +840,9 @@ namespace SFARS.Tests.Application.Services.Users
             // Assert
             result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002); // Should still be success
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.Sources.Should().BeEmpty();
-            paged.TotalPage.Should().Be(1); // Only 1 page exists
-            paged.Page.Should().Be(2); // Requested page
+            paged.Items.Should().BeEmpty();
+            paged.Pagination.TotalPages.Should().Be(1); // Only 1 page exists
+            paged.Pagination.Page.Should().Be(2); // Requested page
         }
 
         /// <summary>
@@ -868,13 +869,13 @@ namespace SFARS.Tests.Application.Services.Users
                 .Returns(FakeDtos(total));
 
             // Act - pageSize equals total
-            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Limit = total });
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { PageSize = total });
 
             // Assert
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.TotalPage.Should().Be(1); // BOUNDARY: Exactly 1 page
-            paged.Sources.Should().HaveCount(total);
-            paged.TotalActualItem.Should().Be(total);
+            paged.Pagination.TotalPages.Should().Be(1); // BOUNDARY: Exactly 1 page
+            paged.Items.Should().HaveCount(total);
+            paged.Pagination.TotalItems.Should().Be(total);
         }
 
         /// <summary>
@@ -902,12 +903,12 @@ namespace SFARS.Tests.Application.Services.Users
                 .Returns(FakeDtos(pageSize));
 
             // Act
-            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Limit = pageSize });
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { PageSize = pageSize });
 
             // Assert - ceil(20/19) = 2
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.TotalPage.Should().Be(2); // BOUNDARY: Forces pagination
-            paged.Sources.Should().HaveCount(pageSize);
+            paged.Pagination.TotalPages.Should().Be(2); // BOUNDARY: Forces pagination
+            paged.Items.Should().HaveCount(pageSize);
         }
 
         /// <summary>
@@ -937,13 +938,13 @@ namespace SFARS.Tests.Application.Services.Users
                 .Returns(FakeDtos(lastPageItems));
 
             // Act - Request page 2 (3rd page, last page)
-            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Page = 3, Limit = pageSize });
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Page = 3, PageSize = pageSize });
 
             // Assert
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.TotalPage.Should().Be(3); // ceil(25/10) = 3 pages
-            paged.Page.Should().Be(3); // Requested page
-            paged.Sources.Should().HaveCount(lastPageItems); // BOUNDARY: Partial page
+            paged.Pagination.TotalPages.Should().Be(3); // ceil(25/10) = 3 pages
+            paged.Pagination.Page.Should().Be(3); // Requested page
+            paged.Items.Should().HaveCount(lastPageItems); // BOUNDARY: Partial page
         }
 
         /// <summary>
@@ -972,12 +973,12 @@ namespace SFARS.Tests.Application.Services.Users
                 .Returns(FakeDtos(total));
 
             // Act
-            var result = await _sut.GetAllUsersAsync(new UserSpecParams { Limit = excessivePageSize });
+            var result = await _sut.GetAllUsersAsync(new UserSpecParams { PageSize = excessivePageSize });
 
             // Assert
             var paged = result.Data.Should().BeOfType<PaginatedResultDto<UserDto>>().Subject;
-            paged.TotalPage.Should().Be(1); // Only 1 page needed
-            paged.Sources.Should().HaveCount(total); // All items returned
+            paged.Pagination.TotalPages.Should().Be(1); // Only 1 page needed
+            paged.Items.Should().HaveCount(total); // All items returned
         }
 
         #endregion

@@ -697,29 +697,25 @@ public class FaqServiceTests
             .Returns(pageDtos);
 
         // Act
-        var result = await _sut.GetAllFaqsPaginatedAsync(new SFARS.Domain.Specifications.Params.BaseSpecParams { Page = 2, Limit = 10 });
+        var result = await _sut.GetAllFaqsPaginatedAsync(new SFARS.Domain.Specifications.Params.BaseSpecParams { Page = 2, PageSize = 10 });
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
         result.Data.Should().NotBeNull();
 
-        var dataType = result.Data!.GetType();
-        var itemsProperty = dataType.GetProperty("Items");
-        var totalCountProperty = dataType.GetProperty("TotalCount");
-        var pageIndexProperty = dataType.GetProperty("Page");
-        var pageSizeProperty = dataType.GetProperty("Limit");
-        var totalPagesProperty = dataType.GetProperty("TotalPages");
+        var paginatedData = result.Data as SFARS.Application.Dtos.PaginatedResultDto<FaqDto>;
+        paginatedData.Should().NotBeNull();
 
-        var items = itemsProperty!.GetValue(result.Data) as List<FaqDto>;
-        var totalCount = (int)totalCountProperty!.GetValue(result.Data)!;
-        var page = (int)pageIndexProperty!.GetValue(result.Data)!;
-        var limit = (int)pageSizeProperty!.GetValue(result.Data)!;
-        var totalPages = (int)totalPagesProperty!.GetValue(result.Data)!;
+        var items = paginatedData!.Items.ToList();
+        var totalCount = paginatedData.Pagination.TotalItems;
+        var page = paginatedData.Pagination.Page;
+        var pageSize = paginatedData.Pagination.PageSize;
+        var totalPages = paginatedData.Pagination.TotalPages;
 
         items.Should().HaveCount(5); // Remaining items on page 1
         totalCount.Should().Be(15);
-        page.Should().Be(2); // pageIndex + 1
-        limit.Should().Be(10);
+        page.Should().Be(2); // page + 1
+        pageSize.Should().Be(10);
         totalPages.Should().Be(2);
     }
 
@@ -762,16 +758,13 @@ public class FaqServiceTests
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
 
-        var dataType = result.Data!.GetType();
-        var itemsProperty = dataType.GetProperty("Items");
-        var totalCountProperty = dataType.GetProperty("TotalCount");
-        var pageIndexProperty = dataType.GetProperty("Page");
-        var totalPagesProperty = dataType.GetProperty("TotalPages");
+        var paginatedData = result.Data as SFARS.Application.Dtos.PaginatedResultDto<FaqDto>;
+        paginatedData.Should().NotBeNull();
 
-        var items = itemsProperty!.GetValue(result.Data) as List<FaqDto>;
-        var totalCount = (int)totalCountProperty!.GetValue(result.Data)!;
-        var page = (int)pageIndexProperty!.GetValue(result.Data)!;
-        var totalPages = (int)totalPagesProperty!.GetValue(result.Data)!;
+        var items = paginatedData!.Items.ToList();
+        var totalCount = paginatedData.Pagination.TotalItems;
+        var page = paginatedData.Pagination.Page;
+        var totalPages = paginatedData.Pagination.TotalPages;
 
         items.Should().HaveCount(10);
         totalCount.Should().Be(25);

@@ -1,6 +1,7 @@
 using MapsterMapper;
 using Microsoft.Extensions.Logging;
 using SFARS.Application.Common;
+using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Faq;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
@@ -280,20 +281,12 @@ namespace SFARS.Application.Services.Faq
                     .ToList();
 
                 var dtos = _mapper.Map<List<FaqDto>>(faqs);
-
-                var result = new
-                {
-                    Items = dtos,
-                    TotalCount = totalCount,
-                    Page = page,
-                    Limit = limit,
-                    TotalPages = (int)Math.Ceiling(totalCount / (double)limit)
-                };
+                var totalPages = (int)Math.Ceiling(totalCount / (double)limit);
 
                 return new ServiceResult(
                     ResultCodeConst.SYS_Success0002,
-                    string.Empty,
-                    result);
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                    new PaginatedResultDto<FaqDto>(dtos, page, limit, totalPages, totalCount));
             }
             catch (Exception ex)
             {

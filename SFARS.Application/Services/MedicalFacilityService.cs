@@ -3,6 +3,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using NetTopologySuite.Geometries;
 using SFARS.Application.Common;
+using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Facility;
 using SFARS.Application.Validations;
 using SFARS.Application.Exceptions;
@@ -133,13 +134,16 @@ public class MedicalFacilityService : GenericService<MedicalFacility, FacilityDt
 
         var dtos = facilities.Select(MapToDto).ToList();
 
-        var pagedResult = new
-        {
-            Items = dtos,
-            TotalCount = totalCount,
-            Page = specParams.GetPage(),
-            Limit = specParams.Limit ?? dtos.Count
-        };
+        var limit = specParams.PageSize ?? dtos.Count;
+        var totalPages = limit > 0 ? (int)Math.Ceiling(totalCount / (double)limit) : 0;
+
+        var pagedResult = new PaginatedResultDto<FacilityDto>(
+            dtos, 
+            specParams.GetPage(), 
+            limit, 
+            totalPages, 
+            totalCount
+        );
 
         return new ServiceResult(
             ResultCodeConst.SYS_Success0002,

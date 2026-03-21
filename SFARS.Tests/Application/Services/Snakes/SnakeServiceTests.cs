@@ -583,7 +583,7 @@ public class SnakeServiceTests
     public async Task SearchSnakes_Pagination_ReturnsCorrectPage()
     {
         // Arrange
-        var pageIndex = 1;
+        var page = 1;
         var pageSize = 10;
 
         _snakeRepoMock
@@ -594,7 +594,7 @@ public class SnakeServiceTests
             .Returns(new List<SnakeDto>());
 
         // Act
-        var result = await _sut.SearchSnakes("test", pageIndex, pageSize);
+        var result = await _sut.SearchSnakes("test", page, pageSize);
 
         // Assert
         result.Data.Should().NotBeNull();
