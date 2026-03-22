@@ -23,8 +23,17 @@ namespace SFARS.Domain.Interfaces.Services
         // Admin — update user status (Active / Inactive / Banned / Deleted)
         Task<IServiceResult> UpdateUserStatusAsync(Guid adminId, Guid targetUserId, UserStatus newStatus, string? reason);
 
+        // Admin — update user role
+        Task<IServiceResult> UpdateUserRoleAsync(Guid adminId, Guid targetUserId, string roleName);
+
+        // Admin — update user profile information
+        Task<IServiceResult> UpdateUserProfileAsync(Guid adminId, Guid targetUserId, TDto dto);
+
         // Admin — create a new user account and assign a role
         Task<IServiceResult> CreateUserAsync(Guid adminId, TDto dto);
+
+        // Admin — hard delete user and related records
+        Task<IServiceResult> DeleteUserAsync(Guid adminId, Guid targetUserId, string? reason);
 
         // Location
         Task<IServiceResult> GetUserLocationAsync(Guid userId);

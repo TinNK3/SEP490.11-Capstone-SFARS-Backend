@@ -207,6 +207,25 @@ namespace SFARS.API.Extensions
                 Role = req.Role.ToString()
             };
         }
+
+        // Mapping from typeof(UpdateUserRequest) to typeof(UserDto)
+        public static UserDto ToUserForUpdate(this UpdateUserRequest req)
+        {
+            return new UserDto
+            {
+                FirstName = req.FirstName,
+                LastName = req.LastName,
+                Phone = req.Phone,
+                Avatar = req.Avatar,
+                Address = req.Address,
+                Gender = req.Gender,
+                Dob = req.Dob,
+                Status = req.Status ?? default,
+                Role = req.Role?.ToString(),
+                HasStatusUpdate = req.Status.HasValue,
+                HasRoleUpdate = req.Role.HasValue
+            };
+        }
         #endregion
 
         #region FAQ

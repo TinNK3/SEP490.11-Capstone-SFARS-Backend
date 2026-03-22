@@ -16,6 +16,7 @@ using SFARS.Domain.Specifications;
 using SFARS.Domain.Specifications.Interfaces;
 using SFARS.Domain.Specifications.Params;
 using SFARS.Domain.Specifications.Users;
+using SFARS.Infrastructure.Data;
 
 namespace SFARS.Tests.Application.Services.Users
 {
@@ -41,6 +42,8 @@ namespace SFARS.Tests.Application.Services.Users
 
         public UserServiceTests()
         {
+            LanguageContext.CurrentLanguage = "en";
+
             _unitOfWorkMock = new Mock<IUnitOfWork>();
             _userRepoMock   = new Mock<IGenericRepository<User, Guid>>();
             _msgServiceMock = new Mock<ISystemMessageService>();
@@ -1282,6 +1285,662 @@ namespace SFARS.Tests.Application.Services.Users
             var dto = (UserDto)result.Data!;
             dto.Id.Should().Be(userId);
             dto.Role.Should().Be("Rescuer");
+        }
+
+        #endregion
+
+        #region PATCH /admin/users/{id}/role - UpdateUserRoleAsync Tests
+
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: UpdateUserRoleAsync with empty target user ID
+        /// Precondition: Target userId is Guid.Empty
+        /// Expected Result: Returns Auth_Warning0007
+        /// </summary>
+        [Fact]
+        public async Task UpdateUserRoleAsync_TargetIdEmpty_ReturnsAuthWarning()
+        {
+            var result = await _sut.UpdateUserRoleAsync(Guid.NewGuid(), Guid.Empty, "User");
+
+            result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0007);
+            result.Data.Should().BeNull();
+        }
+
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: UpdateUserRoleAsync when target user does not exist
+        /// Precondition: Valid target ID but no matching user in database
+        /// Expected Result: Returns Admin_Warning0001 (user not found)
+        /// </summary>
+        [Fact]
+        public async Task UpdateUserRoleAsync_UserNotFound_ReturnsAdminWarning0001()
+        {
+            var adminId  = Guid.NewGuid();
+            var targetId = Guid.NewGuid();
+
+            _userRepoMock
+                .Setup(r => r.GetByIdAsync(targetId))
+                .ReturnsAsync((User?)null);
+
+            var result = await _sut.UpdateUserRoleAsync(adminId, targetId, "User");
+
+            result.ResultCode.Should().Be(ResultCodeConst.Admin_Warning0001);
+        }
+
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: UpdateUserRoleAsync prevents admin from modifying own role
+        /// Precondition: Admin ID equals target user ID (self-modification)
+        /// Expected Result: Returns Admin_Warning0002 (cannot modify self)
+        /// </summary>
+        [Fact]
+        public async Task UpdateUserRoleAsync_SelfModify_ReturnsAdminWarning0002()
+        {
+            var adminId = Guid.NewGuid();
+
+            _userRepoMock
+                .Setup(r => r.GetByIdAsync(adminId))
+                .ReturnsAsync(new User { Id = adminId });
+
+            var result = await _sut.UpdateUserRoleAsync(adminId, adminId, "Rescuer");
+
+            result.ResultCode.Should().Be(ResultCodeConst.Admin_Warning0002);
+        }
+
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: UpdateUserRoleAsync when specified role does not exist in database
+        /// Precondition: Valid user but role not found
+        /// Expected Result: Returns SYS_Warning0004 (role not found)
+        /// </summary>
+        [Fact]
+        public async Task UpdateUserRoleAsync_RoleNotFound_ReturnsWarning0004()
+        {
+            var adminId  = Guid.NewGuid();
+            var targetId = Guid.NewGuid();
+
+            var user = new User { Id = targetId };
+
+            _userRepoMock
+                .Setup(r => r.GetByIdAsync(targetId))
+                .ReturnsAsync(user);
+
+            var roleRepoMock = new Mock<IGenericRepository<Role, Guid>>();
+            roleRepoMock
+                .Setup(r => r.GetWithSpecAsync(It.IsAny<ISpecification<Role>>(), It.IsAny<bool>()))
+                .ReturnsAsync((Role?)null);
+
+            _unitOfWorkMock
+                .Setup(u => u.Repository<Role, Guid>())
+                .Returns(roleRepoMock.Object);
+
+            var result = await _sut.UpdateUserRoleAsync(adminId, targetId, "InvalidRole");
+
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
+        }
+
+        /// <summary>
+        /// Test Type: NORMAL
+        /// Tests: UpdateUserRoleAsync successfully updates user role
+        /// Precondition: Valid admin, valid target user, valid role exists
+        /// Expected Result: Role updated, audit logged, returns Admin_Success0002
+        /// </summary>
+        [Theory]
+        [InlineData("User")]
+        [InlineData("Rescuer")]
+        [InlineData("Admin")]
+        public async Task UpdateUserRoleAsync_HappyPath_UpdatesRole_ReturnsAdminSuccess0002(string roleName)
+        {
+            var adminId  = Guid.NewGuid();
+            var targetId = Guid.NewGuid();
+
+            var user = new User { Id = targetId };
+            var role = new Role { Id = Guid.NewGuid(), RoleName = roleName };
+
+            _userRepoMock
+                .Setup(r => r.GetByIdAsync(targetId))
+                .ReturnsAsync(user);
+
+            var roleRepoMock = new Mock<IGenericRepository<Role, Guid>>();
+            roleRepoMock
+                .Setup(r => r.GetWithSpecAsync(It.IsAny<ISpecification<Role>>(), It.IsAny<bool>()))
+                .ReturnsAsync(role);
+
+            _unitOfWorkMock
+                .Setup(u => u.Repository<Role, Guid>())
+                .Returns(roleRepoMock.Object);
+
+            var userRoleRepoMock = new Mock<IGenericRepository<UserRole, Guid>>();
+            userRoleRepoMock
+                .Setup(r => r.GetWithSpecAsync(It.IsAny<ISpecification<UserRole>>(), It.IsAny<bool>()))
+                .ReturnsAsync((UserRole?)null);
+
+            userRoleRepoMock
+                .Setup(r => r.DeleteWithSpecAsync(It.IsAny<ISpecification<UserRole>>()))
+                .ReturnsAsync(1);
+
+            userRoleRepoMock
+                .Setup(r => r.AddAsync(It.IsAny<UserRole>()))
+                .Returns(Task.CompletedTask);
+
+            _unitOfWorkMock
+                .Setup(u => u.Repository<UserRole, Guid>())
+                .Returns(userRoleRepoMock.Object);
+
+            _userRepoMock
+                .Setup(r => r.UpdateAsync(It.IsAny<User>()))
+                .Returns(Task.CompletedTask);
+
+            _unitOfWorkMock
+                .Setup(u => u.SaveChangesWithTransactionAsync())
+                .ReturnsAsync(1);
+
+            var result = await _sut.UpdateUserRoleAsync(adminId, targetId, roleName);
+
+            result.ResultCode.Should().Be(ResultCodeConst.Admin_Success0002);
+            _userRepoMock.Verify(r => r.UpdateAsync(user), Times.Once);
+            userRoleRepoMock.Verify(r => r.DeleteWithSpecAsync(It.IsAny<ISpecification<UserRole>>()), Times.Once);
+            userRoleRepoMock.Verify(r => r.AddAsync(It.IsAny<UserRole>()), Times.Once);
+            _unitOfWorkMock.Verify(u => u.SaveChangesWithTransactionAsync(), Times.Once);
+        }
+
+        #endregion
+
+        #region PUT /admin/users/{id} - UpdateUserProfileAsync Tests
+
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: UpdateUserProfileAsync with empty target user ID
+        /// Precondition: Target userId is Guid.Empty
+        /// Expected Result: Returns Auth_Warning0007
+        /// </summary>
+        [Fact]
+        public async Task UpdateUserProfileAsync_TargetIdEmpty_ReturnsAuthWarning()
+        {
+            var dto = CreateValidUserDto();
+            var result = await _sut.UpdateUserProfileAsync(Guid.NewGuid(), Guid.Empty, dto);
+
+            result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0007);
+            result.Data.Should().BeNull();
+        }
+
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: UpdateUserProfileAsync prevents admin from modifying own profile via admin endpoint
+        /// Precondition: Admin ID equals target user ID (self-modification)
+        /// Expected Result: Returns Admin_Warning0002 (cannot modify self)
+        /// </summary>
+        [Fact]
+        public async Task UpdateUserProfileAsync_SelfModify_ReturnsAdminWarning0002()
+        {
+            var adminId = Guid.NewGuid();
+            var dto = CreateValidUserDto();
+
+            _userRepoMock
+                .Setup(r => r.GetByIdAsync(adminId))
+                .ReturnsAsync(new User { Id = adminId });
+
+            var result = await _sut.UpdateUserProfileAsync(adminId, adminId, dto);
+
+            result.ResultCode.Should().Be(ResultCodeConst.Admin_Warning0002);
+        }
+
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: UpdateUserProfileAsync when target user does not exist
+        /// Precondition: Valid target ID but no matching user in database
+        /// Expected Result: Returns Admin_Warning0001 (user not found)
+        /// </summary>
+        [Fact]
+        public async Task UpdateUserProfileAsync_UserNotFound_ReturnsAdminWarning0001()
+        {
+            var adminId = Guid.NewGuid();
+            var targetId = Guid.NewGuid();
+            var dto = CreateValidUserDto();
+
+            _userRepoMock
+                .Setup(r => r.GetByIdAsync(targetId))
+                .ReturnsAsync((User?)null);
+
+            var result = await _sut.UpdateUserProfileAsync(adminId, targetId, dto);
+
+            result.ResultCode.Should().Be(ResultCodeConst.Admin_Warning0001);
+        }
+
+        /// <summary>
+        /// Test Type: NORMAL
+        /// Tests: UpdateUserProfileAsync successfully updates user profile
+        /// Precondition: Valid admin, valid target user, valid profile data provided
+        /// Expected Result: User profile updated, returns SYS_Success0003 with updated UserDto
+        /// </summary>
+        [Fact]
+        public async Task UpdateUserProfileAsync_HappyPath_UpdatesProfile_ReturnsSuccess0003()
+        {
+            var adminId = Guid.NewGuid();
+            var targetId = Guid.NewGuid();
+
+            var user = new User { Id = targetId, FirstName = "Old", LastName = "Name" };
+            var userWithRole = new User
+            {
+                Id = targetId,
+                FirstName = "New",
+                LastName = "Name",
+                Email = "test@example.com",
+                UserRoles = new List<UserRole>
+                {
+                    new UserRole { Role = new Role { RoleName = "User" } }
+                }
+            };
+
+            var updateDto = new UserDto
+            {
+                FirstName = "New",
+                LastName = "Name",
+                Phone = "0123456789",
+                Address = "HCM City"
+            };
+
+            var expectedDto = new UserDto
+            {
+                Id = targetId,
+                FirstName = "New",
+                LastName = "Name",
+                Email = "test@example.com",
+                Phone = "0123456789",
+                Address = "HCM City",
+                Role = "User"
+            };
+
+            // 1. Load user for update
+            _userRepoMock
+                .Setup(r => r.GetByIdAsync(targetId))
+                .ReturnsAsync(user);
+
+            // 2. UpdateAsync called
+            _userRepoMock
+                .Setup(r => r.UpdateAsync(It.IsAny<User>()))
+                .Returns(Task.CompletedTask);
+
+            // 3. SaveChangesAsync succeeds
+            _unitOfWorkMock
+                .Setup(u => u.SaveChangesAsync())
+                .ReturnsAsync(1);
+
+            // 4. Reload user WITH ROLE after update
+            _userRepoMock
+                .Setup(r => r.GetWithSpecAsync(
+                    It.IsAny<UserSpecification>(),
+                    It.IsAny<bool>()))
+                .ReturnsAsync(userWithRole);
+
+            // 5. Map reloaded entity → DTO
+            _mapperMock
+                .Setup(m => m.Map<UserDto>(userWithRole))
+                .Returns(expectedDto);
+
+            var result = await _sut.UpdateUserProfileAsync(adminId, targetId, updateDto);
+
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0003);
+            result.Data.Should().NotBeNull();
+
+            var returned = (UserDto)result.Data!;
+            returned.FirstName.Should().Be("New");
+            returned.LastName.Should().Be("Name");
+            returned.Phone.Should().Be("0123456789");
+            returned.Role.Should().Be("User");
+
+            // Verify pipeline
+            _userRepoMock.Verify(r => r.GetByIdAsync(targetId), Times.Once);
+            _userRepoMock.Verify(r => r.UpdateAsync(It.IsAny<User>()), Times.Once);
+            _userRepoMock.Verify(
+                r => r.GetWithSpecAsync(It.IsAny<UserSpecification>(), It.IsAny<bool>()),
+                Times.Once);
+            _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
+        }
+
+        [Fact]
+        public async Task UpdateUserProfileAsync_WithStatusAndRole_UpdatesBoth_ReturnsSuccess0003()
+        {
+            var adminId = Guid.NewGuid();
+            var targetId = Guid.NewGuid();
+
+            var user = new User
+            {
+                Id = targetId,
+                FirstName = "Old",
+                LastName = "Name",
+                Status = UserStatus.Active
+            };
+
+            var role = new Role { Id = Guid.NewGuid(), RoleName = "Admin" };
+
+            var userWithRole = new User
+            {
+                Id = targetId,
+                FirstName = "New",
+                LastName = "Name",
+                Email = "test@example.com",
+                Status = UserStatus.Banned,
+                UserRoles = new List<UserRole>
+                {
+                    new UserRole { Role = new Role { RoleName = "Admin" } }
+                }
+            };
+
+            var updateDto = new UserDto
+            {
+                FirstName = "New",
+                LastName = "Name",
+                Phone = "0123456789",
+                Address = "HCM City",
+                Status = UserStatus.Banned,
+                Role = "Admin",
+                HasStatusUpdate = true,
+                HasRoleUpdate = true
+            };
+
+            var expectedDto = new UserDto
+            {
+                Id = targetId,
+                FirstName = "New",
+                LastName = "Name",
+                Email = "test@example.com",
+                Phone = "0123456789",
+                Address = "HCM City",
+                Status = UserStatus.Banned,
+                Role = "Admin"
+            };
+
+            _userRepoMock
+                .Setup(r => r.GetByIdAsync(targetId))
+                .ReturnsAsync(user);
+
+            _userRepoMock
+                .Setup(r => r.UpdateAsync(It.IsAny<User>()))
+                .Returns(Task.CompletedTask);
+
+            var roleRepoMock = new Mock<IGenericRepository<Role, Guid>>();
+            roleRepoMock
+                .Setup(r => r.GetWithSpecAsync(It.IsAny<ISpecification<Role>>(), It.IsAny<bool>()))
+                .ReturnsAsync(role);
+            _unitOfWorkMock
+                .Setup(u => u.Repository<Role, Guid>())
+                .Returns(roleRepoMock.Object);
+
+            var userRoleRepoMock = new Mock<IGenericRepository<UserRole, Guid>>();
+            userRoleRepoMock
+                .Setup(r => r.GetWithSpecAsync(It.IsAny<ISpecification<UserRole>>(), It.IsAny<bool>()))
+                .ReturnsAsync(new UserRole { UserId = targetId, Role = new Role { RoleName = "User" } });
+            userRoleRepoMock
+                .Setup(r => r.DeleteWithSpecAsync(It.IsAny<ISpecification<UserRole>>()))
+                .ReturnsAsync(1);
+            userRoleRepoMock
+                .Setup(r => r.AddAsync(It.IsAny<UserRole>()))
+                .Returns(Task.CompletedTask);
+            _unitOfWorkMock
+                .Setup(u => u.Repository<UserRole, Guid>())
+                .Returns(userRoleRepoMock.Object);
+
+            _unitOfWorkMock
+                .Setup(u => u.SaveChangesWithTransactionAsync())
+                .ReturnsAsync(1);
+
+            _userRepoMock
+                .Setup(r => r.GetWithSpecAsync(
+                    It.IsAny<UserSpecification>(),
+                    It.IsAny<bool>()))
+                .ReturnsAsync(userWithRole);
+
+            _mapperMock
+                .Setup(m => m.Map<UserDto>(userWithRole))
+                .Returns(expectedDto);
+
+            var result = await _sut.UpdateUserProfileAsync(adminId, targetId, updateDto);
+
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0003);
+            result.Data.Should().NotBeNull();
+
+            var returned = (UserDto)result.Data!;
+            returned.Status.Should().Be(UserStatus.Banned);
+            returned.Role.Should().Be("Admin");
+
+            _userRepoMock.Verify(r => r.UpdateAsync(It.Is<User>(u => u.Status == UserStatus.Banned)), Times.Once);
+            userRoleRepoMock.Verify(r => r.DeleteWithSpecAsync(It.IsAny<ISpecification<UserRole>>()), Times.Once);
+            userRoleRepoMock.Verify(r => r.AddAsync(It.IsAny<UserRole>()), Times.Once);
+            _unitOfWorkMock.Verify(u => u.SaveChangesWithTransactionAsync(), Times.Once);
+            _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Never);
+        }
+
+        [Fact]
+        public async Task UpdateUserProfileAsync_WithInvalidRole_ReturnsWarning0004()
+        {
+            var adminId = Guid.NewGuid();
+            var targetId = Guid.NewGuid();
+
+            var user = new User
+            {
+                Id = targetId,
+                FirstName = "Old",
+                LastName = "Name",
+                Status = UserStatus.Active
+            };
+
+            var updateDto = new UserDto
+            {
+                FirstName = "New",
+                LastName = "Name",
+                Phone = "0123456789",
+                Address = "HCM City",
+                Role = "InvalidRole",
+                HasRoleUpdate = true
+            };
+
+            _userRepoMock
+                .Setup(r => r.GetByIdAsync(targetId))
+                .ReturnsAsync(user);
+
+            var roleRepoMock = new Mock<IGenericRepository<Role, Guid>>();
+            roleRepoMock
+                .Setup(r => r.GetWithSpecAsync(It.IsAny<ISpecification<Role>>(), It.IsAny<bool>()))
+                .ReturnsAsync((Role?)null);
+            _unitOfWorkMock
+                .Setup(u => u.Repository<Role, Guid>())
+                .Returns(roleRepoMock.Object);
+
+            var result = await _sut.UpdateUserProfileAsync(adminId, targetId, updateDto);
+
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
+            _userRepoMock.Verify(r => r.UpdateAsync(It.IsAny<User>()), Times.Never);
+            _unitOfWorkMock.Verify(u => u.SaveChangesWithTransactionAsync(), Times.Never);
+            _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Never);
+        }
+
+        [Fact]
+        public async Task UpdateUserProfileAsync_WithStatusOnly_UpdatesStatus_UsesSaveChangesAsync()
+        {
+            var adminId = Guid.NewGuid();
+            var targetId = Guid.NewGuid();
+
+            var user = new User
+            {
+                Id = targetId,
+                FirstName = "Old",
+                LastName = "Name",
+                Status = UserStatus.Active
+            };
+
+            var userWithRole = new User
+            {
+                Id = targetId,
+                FirstName = "New",
+                LastName = "Name",
+                Email = "test@example.com",
+                Status = UserStatus.Inactive,
+                UserRoles = new List<UserRole>
+                {
+                    new UserRole { Role = new Role { RoleName = "User" } }
+                }
+            };
+
+            var updateDto = new UserDto
+            {
+                FirstName = "New",
+                LastName = "Name",
+                Phone = "0123456789",
+                Address = "HCM City",
+                Status = UserStatus.Inactive,
+                HasStatusUpdate = true
+            };
+
+            var expectedDto = new UserDto
+            {
+                Id = targetId,
+                FirstName = "New",
+                LastName = "Name",
+                Email = "test@example.com",
+                Status = UserStatus.Inactive,
+                Role = "User"
+            };
+
+            _userRepoMock
+                .Setup(r => r.GetByIdAsync(targetId))
+                .ReturnsAsync(user);
+
+            _userRepoMock
+                .Setup(r => r.UpdateAsync(It.IsAny<User>()))
+                .Returns(Task.CompletedTask);
+
+            _unitOfWorkMock
+                .Setup(u => u.SaveChangesAsync())
+                .ReturnsAsync(1);
+
+            _userRepoMock
+                .Setup(r => r.GetWithSpecAsync(
+                    It.IsAny<UserSpecification>(),
+                    It.IsAny<bool>()))
+                .ReturnsAsync(userWithRole);
+
+            _mapperMock
+                .Setup(m => m.Map<UserDto>(userWithRole))
+                .Returns(expectedDto);
+
+            var result = await _sut.UpdateUserProfileAsync(adminId, targetId, updateDto);
+
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0003);
+            user.Status.Should().Be(UserStatus.Inactive);
+            _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
+            _unitOfWorkMock.Verify(u => u.SaveChangesWithTransactionAsync(), Times.Never);
+        }
+
+        #endregion
+
+        #region DELETE /admin/users/{id} - DeleteUserAsync Tests
+
+        [Fact]
+        public async Task DeleteUserAsync_TargetIdEmpty_ReturnsAuthWarning()
+        {
+            var result = await _sut.DeleteUserAsync(Guid.NewGuid(), Guid.Empty, null);
+            result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0007);
+        }
+
+        [Fact]
+        public async Task DeleteUserAsync_SelfDelete_ReturnsAdminWarning0002()
+        {
+            var adminId = Guid.NewGuid();
+            var result = await _sut.DeleteUserAsync(adminId, adminId, "self-delete");
+            result.ResultCode.Should().Be(ResultCodeConst.Admin_Warning0002);
+        }
+
+        [Fact]
+        public async Task DeleteUserAsync_UserNotFound_ReturnsAdminWarning0001()
+        {
+            var adminId = Guid.NewGuid();
+            var targetId = Guid.NewGuid();
+
+            _userRepoMock
+                .Setup(r => r.GetByIdAsync(targetId))
+                .ReturnsAsync((User?)null);
+
+            var result = await _sut.DeleteUserAsync(adminId, targetId, null);
+            result.ResultCode.Should().Be(ResultCodeConst.Admin_Warning0001);
+        }
+
+        [Fact]
+        public async Task DeleteUserAsync_HappyPath_SoftDeletesUser_ReturnsSuccess0004()
+        {
+            var adminId = Guid.NewGuid();
+            var targetId = Guid.NewGuid();
+
+            var user = new User
+            {
+                Id = targetId,
+                Email = "delete-me@example.com",
+                FirstName = "Delete",
+                LastName = "Me",
+                Status = UserStatus.Active
+            };
+
+            _userRepoMock
+                .Setup(r => r.GetByIdAsync(targetId))
+                .ReturnsAsync(user);
+
+            _userRepoMock
+                .Setup(r => r.UpdateAsync(It.IsAny<User>()))
+                .Returns(Task.CompletedTask);
+
+            var adminAuditRepoMock = new Mock<IGenericRepository<AdminAuditLog, Guid>>();
+            adminAuditRepoMock
+                .Setup(r => r.AddAsync(It.IsAny<AdminAuditLog>()))
+                .Returns(Task.CompletedTask);
+            _unitOfWorkMock
+                .Setup(u => u.Repository<AdminAuditLog, Guid>())
+                .Returns(adminAuditRepoMock.Object);
+
+            _unitOfWorkMock
+                .Setup(u => u.BeginTransactionAsync())
+                .Returns(Task.CompletedTask);
+            _unitOfWorkMock
+                .Setup(u => u.CommitTransactionAsync())
+                .Returns(Task.CompletedTask);
+            _unitOfWorkMock
+                .Setup(u => u.RollbackTransactionAsync())
+                .Returns(Task.CompletedTask);
+            _unitOfWorkMock
+                .Setup(u => u.SaveChangesAsync())
+                .ReturnsAsync(1);
+
+            var result = await _sut.DeleteUserAsync(adminId, targetId, "cleanup");
+
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0004);
+            result.Data.Should().Be(true);
+            user.Status.Should().Be(UserStatus.Deleted);
+            _userRepoMock.Verify(r => r.UpdateAsync(It.Is<User>(u => u.Id == targetId && u.Status == UserStatus.Deleted)), Times.Once);
+            _unitOfWorkMock.Verify(u => u.BeginTransactionAsync(), Times.Once);
+            _unitOfWorkMock.Verify(u => u.CommitTransactionAsync(), Times.Once);
+            _unitOfWorkMock.Verify(u => u.RollbackTransactionAsync(), Times.Never);
+        }
+
+        [Fact]
+        public async Task DeleteUserAsync_AlreadyDeleted_ReturnsAdminWarning0004()
+        {
+            var adminId = Guid.NewGuid();
+            var targetId = Guid.NewGuid();
+
+            _userRepoMock
+                .Setup(r => r.GetByIdAsync(targetId))
+                .ReturnsAsync(new User
+                {
+                    Id = targetId,
+                    Email = "deleted@example.com",
+                    FirstName = "Deleted",
+                    LastName = "User",
+                    Status = UserStatus.Deleted
+                });
+
+            var result = await _sut.DeleteUserAsync(adminId, targetId, null);
+
+            result.ResultCode.Should().Be(ResultCodeConst.Admin_Warning0004);
+            _unitOfWorkMock.Verify(u => u.BeginTransactionAsync(), Times.Never);
         }
 
         #endregion

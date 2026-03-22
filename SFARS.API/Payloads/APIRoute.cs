@@ -1,4 +1,4 @@
-namespace SFARS.API.Payloads
+﻿namespace SFARS.API.Payloads
 {
     public class APIRoute
     {
@@ -163,6 +163,11 @@ namespace SFARS.API.Payloads
             public const string CreateUser = Base + "/admin/users";
             // [PUT]
             public const string UpdateUserStatus = Base + "/admin/users/{id}/status";
+            public const string UpdateUser = Base + "/admin/users/{id}";
+            // [PATCH]
+            public const string UpdateUserRole = Base + "/admin/users/{id}/role";
+            // [DELETE]
+            public const string DeleteUser = Base + "/admin/users/{id}";
 
             // FAQ Management
             // [GET]
@@ -260,6 +265,21 @@ namespace SFARS.API.Payloads
             public const string GetById = Base + "/payments/{id}";
             // [PATCH]
             public const string Cancel = Base + "/payments/{id}/cancel";
+        }
+
+        /// <summary>
+        /// System Analytics endpoints
+        /// </summary>
+        public static class Analytics
+        {
+            public const string Overview = Base + "/admin/analytics/overview";
+            public const string Incidents = Base + "/admin/analytics/incidents";
+            public const string Rescuers = Base + "/admin/analytics/rescuers";
+            public const string RescuerMissionHistory = Base + "/admin/analytics/rescuers/{rescuerId}/missions";
+            public const string Ai = Base + "/admin/analytics/ai";
+            public const string Heatmap = Base + "/admin/analytics/heatmap";
+            public const string SnakeIncidentTracking = Base + "/admin/analytics/snakes/{snakeId}/incidents";
+            public const string Export = Base + "/admin/analytics/export";
         }
     }
 }

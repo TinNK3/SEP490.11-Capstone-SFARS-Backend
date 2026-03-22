@@ -756,6 +756,60 @@
     "Vi": "Sự cố đã đóng hoặc đã huỷ, không thể cập nhật trạng thái."
   },
   {
+    "MsgId": "Admin.Warning0001",
+    "MsgContent": "User not found.",
+    "En": "User not found.",
+    "Vi": "Không tìm thấy người dùng."
+  },
+  {
+    "MsgId": "Admin.Warning0002",
+    "MsgContent": "Cannot modify own account.",
+    "En": "Cannot modify own account.",
+    "Vi": "Không thể sửa đổi tài khoản của chính mình."
+  },
+  {
+    "MsgId": "Admin.Warning0003",
+    "MsgContent": "Cannot remove the last admin account.",
+    "En": "Cannot remove the last admin account.",
+    "Vi": "Không thể xóa tài khoản admin cuối cùng."
+  },
+  {
+    "MsgId": "Admin.Warning0004",
+    "MsgContent": "Invalid status transition.",
+    "En": "Invalid status transition.",
+    "Vi": "Chuyển đổi trạng thái không hợp lệ."
+  },
+  {
+    "MsgId": "Admin.Success0001",
+    "MsgContent": "User list retrieved successfully.",
+    "En": "User list retrieved successfully.",
+    "Vi": "Lấy danh sách người dùng thành công."
+  },
+  {
+    "MsgId": "Admin.Success0002",
+    "MsgContent": "User role updated successfully.",
+    "En": "User role updated successfully.",
+    "Vi": "Cập nhật vai trò người dùng thành công."
+  },
+  {
+    "MsgId": "Admin.Success0003",
+    "MsgContent": "Admin account created successfully.",
+    "En": "Admin account created successfully.",
+    "Vi": "Tạo tài khoản quản trị viên thành công."
+  },
+  {
+    "MsgId": "Admin.Success0004",
+    "MsgContent": "Rescuer account created successfully.",
+    "En": "Rescuer account created successfully.",
+    "Vi": "Tạo tài khoản nhân viên cứu hộ thành công."
+  },
+  {
+    "MsgId": "Admin.Fail0001",
+    "MsgContent": "Failed to perform admin action. Invalid status transition.",
+    "En": "Failed to perform admin action. Invalid status transition.",
+    "Vi": "Hành động quản trị thất bại. Chuyển đổi trạng thái không hợp lệ."
+  },
+  {
     "MsgId": "Incident.Success0006",
     "MsgContent": "Incident resolved successfully via external emergency services.",
     "En": "Incident resolved successfully via external emergency services.",

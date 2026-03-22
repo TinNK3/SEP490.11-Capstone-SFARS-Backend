@@ -1,4 +1,4 @@
-﻿using SFARS.Domain.Interfaces.Services.Base;
+using SFARS.Domain.Interfaces.Services.Base;
 
 namespace SFARS.Application.Services
 {
