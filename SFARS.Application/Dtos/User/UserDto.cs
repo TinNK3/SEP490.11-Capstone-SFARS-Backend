@@ -46,6 +46,13 @@ namespace SFARS.Application.Dtos.User
 
         // Role info
         public string? Role { get; set; }
+
+        // Internal flags for admin PUT /admin/users/{id} orchestration
+        [JsonIgnore]
+        public bool HasStatusUpdate { get; set; }
+
+        [JsonIgnore]
+        public bool HasRoleUpdate { get; set; }
     }
 
     public static class UserDtoExtensions

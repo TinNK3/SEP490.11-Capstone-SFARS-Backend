@@ -12,5 +12,11 @@ namespace SFARS.Domain.Common.Enum
 
         [Description("Cập nhật trạng thái")]
         UpdateUserStatus,
+
+        [Description("Cập nhật hồ sơ")]
+        UpdateUserProfile,
+
+        [Description("Xóa tài khoản")]
+        DeleteUser,
     }
 }

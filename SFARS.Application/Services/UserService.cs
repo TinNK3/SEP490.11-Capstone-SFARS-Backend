@@ -559,6 +559,85 @@ namespace SFARS.Application.Services
         }
 
         /// <summary>
+        /// [Admin] Update the role of any user account.
+        /// Removes the old role and assigns the new one.
+        /// </summary>
+        public async Task<IServiceResult> UpdateUserRoleAsync(
+            Guid adminId, Guid targetUserId, string roleName)
+        {
+            if (targetUserId == Guid.Empty)
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0007,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0007));
+
+            if (adminId == targetUserId)
+                return new ServiceResult(
+                    ResultCodeConst.Admin_Warning0002,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Admin_Warning0002));
+
+            // Load user (no-tracking — we only need it to verify existence + update UpdatedAt)
+            var user = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(targetUserId);
+            if (user == null)
+                return new ServiceResult(
+                    ResultCodeConst.Admin_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Admin_Warning0001));
+
+            // Find target role
+            var newRole = await _unitOfWork.Repository<Role, Guid>()
+                .GetWithSpecAsync(new RoleSpecification(roleName));
+            if (newRole == null)
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0004,
+                    $"Role '{roleName}' not found. Valid values: User, Rescuer, Admin.");
+
+            // Read the old role name for audit log — NO tracking, avoid polluting the change tracker.
+            // BUG-FIX: previously the entity was loaded with tracked:true, then DeleteWithSpecAsync
+            // ran a raw ExecuteDeleteAsync (commits immediately outside EF tracker). The tracked entity
+            // stayed as "Unchanged" in the context, which caused the subsequent AddAsync + SaveChanges
+            // to silently fail on the second consecutive call (same role reassignment).
+            var existingUserRole = await _unitOfWork.Repository<UserRole, Guid>()
+                .GetWithSpecAsync(
+                    new BaseSpecification<UserRole>(ur => ur.UserId == targetUserId),
+                    tracked: false); // ← no tracking
+
+            var previousRoleName = existingUserRole?.Role?.RoleName
+                                   ?? existingUserRole?.RoleId.ToString()
+                                   ?? "(none)";
+
+            // Step 1 — raw DELETE (commits immediately, no tracker involvement)
+            await _unitOfWork.Repository<UserRole, Guid>()
+                .DeleteWithSpecAsync(new BaseSpecification<UserRole>(ur => ur.UserId == targetUserId));
+
+            // Step 2 — stage new role assignment + user timestamp in change tracker
+            await _unitOfWork.Repository<UserRole, Guid>().AddAsync(new UserRole
+            {
+                UserId     = targetUserId,
+                RoleId     = newRole.Id,
+                AssignedAt = DateTime.UtcNow
+            });
+
+            user.UpdatedAt = DateTime.UtcNow;
+            await _unitOfWork.Repository<User, Guid>().UpdateAsync(user);
+
+            // Step 3 — commit both staged changes atomically
+            await _unitOfWork.SaveChangesWithTransactionAsync();
+
+            // Audit log (after successful commit)
+            await _auditLogService.LogAsync(
+                adminId,
+                AdminAction.UpdateUserStatus,
+                "User",
+                targetUserId,
+                JsonSerializer.Serialize(new { Role = previousRoleName }),
+                JsonSerializer.Serialize(new { Role = roleName }),
+                reason: null);
+
+            return new ServiceResult(
+                ResultCodeConst.Admin_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.Admin_Success0002));
+        }
+
+        /// <summary>
         /// [Admin] Create a new user account and assign the given role.
         /// Password is hashed before storage. Status defaults to Active.
         /// </summary>
@@ -642,6 +721,240 @@ namespace SFARS.Application.Services
             return new ServiceResult(
                 ResultCodeConst.SYS_Fail0001,
                 await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
+        }
+
+        /// <summary>
+        /// [Admin] Soft delete user to preserve operational history.
+        /// </summary>
+        public async Task<IServiceResult> DeleteUserAsync(Guid adminId, Guid targetUserId, string? reason)
+        {
+            if (targetUserId == Guid.Empty)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0007,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0007));
+            }
+
+            if (adminId == targetUserId)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Admin_Warning0002,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Admin_Warning0002));
+            }
+
+            var userRepo = _unitOfWork.Repository<User, Guid>();
+            var user = await userRepo.GetByIdAsync(targetUserId);
+            if (user == null)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Admin_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Admin_Warning0001));
+            }
+
+            if (user.Status == UserStatus.Deleted)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Admin_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Admin_Warning0004));
+            }
+
+            var oldValues = JsonSerializer.Serialize(new
+            {
+                user.Id,
+                user.Email,
+                user.FirstName,
+                user.LastName,
+                Status = user.Status.ToString()
+            });
+
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                user.Status = UserStatus.Deleted;
+                user.IsOnline = false;
+                user.LastActiveAt = DateTime.UtcNow;
+                user.UpdatedAt = DateTime.UtcNow;
+                await userRepo.UpdateAsync(user);
+
+                // Keep audit in same transaction scope for atomicity.
+                var log = new AdminAuditLog
+                {
+                    AdminId = adminId,
+                    Action = AdminAction.DeleteUser,
+                    EntityType = "User",
+                    EntityId = targetUserId,
+                    OldValue = oldValues,
+                    NewValue = null,
+                    Reason = reason,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = adminId
+                };
+                await _unitOfWork.Repository<AdminAuditLog, Guid>().AddAsync(log);
+
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Success0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0004),
+                    true);
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// [Admin] Update a user's profile information (name, contact, avatar, etc).
+        /// Admin cannot update own profile via this endpoint to prevent privilege escalation.
+        /// </summary>
+        public async Task<IServiceResult> UpdateUserProfileAsync(Guid adminId, Guid targetUserId, UserDto dto)
+        {
+            // 1. Validate DTO payload
+            var validationResult = await ValidatorExtensions.ValidateAsync(dto);
+            if (validationResult != null)
+            {
+                var errors = string.Join("; ", validationResult.Errors.Select(e => e.ErrorMessage));
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0002,
+                    errors);
+            }
+
+            // 2. Validate target user ID
+            if (targetUserId == Guid.Empty)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0007,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0007));
+            }
+
+            // 3. Prevent admin from modifying own profile via admin endpoint
+            if (adminId == targetUserId)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Admin_Warning0002,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Admin_Warning0002));
+            }
+
+            // 4. Load target user
+            var user = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(targetUserId);
+            if (user == null)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Admin_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Admin_Warning0001));
+            }
+
+            // 5. Update user profile fields
+            var oldValues = JsonSerializer.Serialize(new
+            {
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Phone = user.Phone,
+                Avatar = user.Avatar,
+                Address = user.Address,
+                Gender = user.Gender?.ToString() ?? "(none)",
+                Dob = user.Dob,
+                Status = user.Status.ToString(),
+                Role = user.UserRoles?.FirstOrDefault()?.Role?.RoleName
+            });
+
+            user.FirstName = dto.FirstName;
+            user.LastName = dto.LastName;
+            user.Phone = dto.Phone;
+            user.Avatar = dto.Avatar;
+            user.Address = dto.Address;
+            user.Gender = dto.Gender;
+            user.Dob = dto.Dob;
+
+            if (dto.HasStatusUpdate)
+            {
+                user.Status = dto.Status;
+            }
+            user.UpdatedAt = DateTime.UtcNow;
+
+            // Optional role change in the same PUT /admin/users/{id}
+            string? previousRoleName = null;
+            var roleUpdated = false;
+            if (dto.HasRoleUpdate)
+            {
+                var targetRoleName = dto.Role!.Trim();
+                var roleEntity = await _unitOfWork.Repository<Role, Guid>()
+                    .GetWithSpecAsync(new RoleSpecification(targetRoleName));
+                if (roleEntity == null)
+                {
+                    return new ServiceResult(
+                        ResultCodeConst.SYS_Warning0004,
+                        $"Role '{targetRoleName}' not found. Valid values: User, Rescuer, Admin.");
+                }
+
+                var existingUserRole = await _unitOfWork.Repository<UserRole, Guid>()
+                    .GetWithSpecAsync(new BaseSpecification<UserRole>(ur => ur.UserId == targetUserId), tracked: false);
+                previousRoleName = existingUserRole?.Role?.RoleName
+                                   ?? existingUserRole?.RoleId.ToString()
+                                   ?? "(none)";
+
+                await _unitOfWork.Repository<UserRole, Guid>()
+                    .DeleteWithSpecAsync(new BaseSpecification<UserRole>(ur => ur.UserId == targetUserId));
+
+                await _unitOfWork.Repository<UserRole, Guid>().AddAsync(new UserRole
+                {
+                    UserId = targetUserId,
+                    RoleId = roleEntity.Id,
+                    AssignedAt = DateTime.UtcNow
+                });
+                roleUpdated = true;
+            }
+
+            await _unitOfWork.Repository<User, Guid>().UpdateAsync(user);
+
+            if (roleUpdated)
+                await _unitOfWork.SaveChangesWithTransactionAsync();
+            else
+                await _unitOfWork.SaveChangesAsync();
+
+            // 6. Reload user with role for response
+            var userWithRole = await _unitOfWork.Repository<User, Guid>()
+                .GetWithSpecAsync(UserSpecification.ById(targetUserId), tracked: false);
+
+            if (userWithRole == null)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Fail0003,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0003));
+            }
+
+            var updatedDto = _mapper.Map<UserDto>(userWithRole);
+
+            // 7. Audit log
+            var newValues = JsonSerializer.Serialize(new
+            {
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Phone = user.Phone,
+                Avatar = user.Avatar,
+                Address = user.Address,
+                Gender = user.Gender?.ToString() ?? "(none)",
+                Dob = user.Dob,
+                Status = user.Status.ToString(),
+                Role = userWithRole.UserRoles?.FirstOrDefault()?.Role?.RoleName
+            });
+
+            await _auditLogService.LogAsync(
+                adminId,
+                AdminAction.UpdateUserProfile,
+                "User",
+                targetUserId,
+                oldValues,
+                newValues,
+                reason: null);
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0003,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0003),
+                updatedDto);
         }
 
         #endregion

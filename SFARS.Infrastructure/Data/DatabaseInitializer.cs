@@ -84,6 +84,9 @@ namespace SFARS.Infrastructure.Data
 
             // [Faqs] - Frequently asked questions (Sync Data)
             await SeedFaqsAsync();
+
+            // [Analytics Demo] - Demo incidents/missions/transactions for dashboard preview
+            await SeedAnalyticsDemoDataAsync();
         }
 
         //  Summary:
@@ -142,7 +145,7 @@ namespace SFARS.Infrastructure.Data
                 {
                     FirstName = "Admin",
                     LastName = "System",
-                    Email = "admin@sfars.com",
+                    Email = "[EMAIL_ADDRESS]",
                     Phone = "0901234567",
                     PasswordHash = passwordHash,
                     Gender = Gender.Male,
@@ -612,5 +615,241 @@ namespace SFARS.Infrastructure.Data
                 throw;
             }
         }
+
+        //  Summary:
+        //      Seeding demo analytics data for dashboard preview.
+        //      Guard: skips if any Incident seeded by this method already exists (checked via Code prefix "DEMO-").
+        private async Task SeedAnalyticsDemoDataAsync()
+        {
+            if (await _context.Incidents.AnyAsync(i => i.Code.StartsWith("DEMO-")))
+            {
+                _logger.LogInformation("[Seeding] Analytics demo data already exists, skipping.");
+                return;
+            }
+
+            _logger.LogInformation("[Seeding] Seeding analytics demo data...");
+
+            var now = DateTime.UtcNow;
+            var passwordHash = BCrypt.Net.BCrypt.EnhancedHashPassword("Test123!");
+
+            // --- 1. Ensure demo users exist (2 victims + 3 rescuers) ---
+            var demoEmails = new[]
+            {
+                "victim1@demo.sfars", "victim2@demo.sfars",
+                "rescuer1@demo.sfars", "rescuer2@demo.sfars", "rescuer3@demo.sfars"
+            };
+
+            var userRole    = await _context.Roles.FirstOrDefaultAsync(r => r.RoleName == "User");
+            var rescuerRole = await _context.Roles.FirstOrDefaultAsync(r => r.RoleName == "Rescuer");
+            if (userRole == null || rescuerRole == null)
+            {
+                _logger.LogError("[Seeding] Roles not found. Skipping analytics demo data.");
+                return;
+            }
+
+            // Demo user definitions: (firstName, lastName, email, role, lat, lng)
+            var demoUserDefs = new (string First, string Last, string Email, Role Role, double Lat, double Lng)[]
+            {
+                ("An",     "Nguyễn",  "victim1@demo.sfars",  userRole,    10.7769, 106.7009), // HCM
+                ("Bình",   "Trần",    "victim2@demo.sfars",  userRole,    16.0471, 108.2068), // Đà Nẵng
+                ("Cường",  "Lê",      "rescuer1@demo.sfars", rescuerRole, 10.7820, 106.6980), // HCM
+                ("Dũng",   "Phạm",    "rescuer2@demo.sfars", rescuerRole, 16.0600, 108.2100), // Đà Nẵng
+                ("Hải",    "Võ",      "rescuer3@demo.sfars", rescuerRole, 10.7850, 106.7050), // HCM
+            };
+
+            var demoUsers = new List<User>();
+            foreach (var def in demoUserDefs)
+            {
+                var existing = await _context.Users.FirstOrDefaultAsync(u => u.Email == def.Email);
+                if (existing != null) { demoUsers.Add(existing); continue; }
+
+                var u = new User
+                {
+                    Id           = Guid.NewGuid(),
+                    FirstName    = def.First,
+                    LastName     = def.Last,
+                    Email        = def.Email,
+                    PasswordHash = passwordHash,
+                    Status       = UserStatus.Active,
+                    CurrentLocation = new NetTopologySuite.Geometries.Point(def.Lng, def.Lat) { SRID = 4326 },
+                    LocationUpdatedAt = now,
+                    CreatedAt    = now
+                };
+                await _context.Users.AddAsync(u);
+                await _context.SaveChangesAsync();
+
+                await _context.UserRoles.AddAsync(new UserRole { UserId = u.Id, RoleId = def.Role.Id, AssignedAt = now });
+                await _context.SaveChangesAsync();
+
+                // Seed RescuerProfile for rescuers (UserId is the shared PK)
+                if (def.Role.RoleName == "Rescuer")
+                {
+                    await _context.RescuerProfiles.AddAsync(new RescuerProfile
+                    {
+                        UserId         = u.Id,
+                        IsVerified     = true,
+                        IsAvailable    = true,
+                        CoverageRadiusKM = 30,
+                        VehicleType    = VehicleType.Motorbike
+                    });
+                    await _context.SaveChangesAsync();
+                }
+
+                demoUsers.Add(u);
+            }
+
+            var victims   = demoUsers.Where(u => demoUserDefs.Any(d => d.Email == u.Email && d.Role.RoleName == "User")).ToList();
+            var rescuers  = demoUsers.Where(u => demoUserDefs.Any(d => d.Email == u.Email && d.Role.RoleName == "Rescuer")).ToList();
+
+            // --- 2. Pick snake species from DB ---
+            var snakes = await _context.Snakes.Take(3).ToListAsync();
+            if (!snakes.Any())
+            {
+                _logger.LogWarning("[Seeding] No snakes in DB — AI inference demo data will be skipped.");
+            }
+
+            // --- 3. Seed 12 Incidents spread over the last 60 days ---
+            // Locations: various sites across Vietnam
+            var incidentDefs = new[]
+            {
+                // (daysAgo, severityLevel, status, closed, lat, lng)
+                (60, SeverityLevel.High,   IncidentStatus.Closed,     true,  10.7769, 106.7009),  // HCM
+                (55, SeverityLevel.Medium, IncidentStatus.Closed,     true,  16.0471, 108.2068),  // Đà Nẵng
+                (50, SeverityLevel.Low,    IncidentStatus.Closed,     true,  21.0278, 105.8342),  // Hà Nội
+                (45, SeverityLevel.High,   IncidentStatus.Closed,     true,  10.9700, 106.8450),  // Biên Hoà
+                (40, SeverityLevel.Medium, IncidentStatus.Closed,     true,  10.3500, 107.0800),  // Bà Rịa
+                (35, SeverityLevel.High,   IncidentStatus.Closed,     true,  16.4700, 107.6000),  // Huế
+                (30, SeverityLevel.Low,    IncidentStatus.Closed,     true,  10.0452, 105.7469),  // Cần Thơ
+                (20, SeverityLevel.Medium, IncidentStatus.Closed,     true,  10.7769, 106.6950),  // HCM
+                (15, SeverityLevel.High,   IncidentStatus.Assigned,   false, 10.8000, 106.7100),  // HCM (active)
+                (10, SeverityLevel.Medium, IncidentStatus.EnRoute,    false, 16.0500, 108.2200),  // Đà Nẵng (active)
+                (5,  SeverityLevel.Low,    IncidentStatus.Pending,    false, 21.0300, 105.8400),  // Hà Nội (active)
+                (1,  SeverityLevel.High,   IncidentStatus.Arrived,    false, 10.9800, 106.8500),  // Biên Hoà (active)
+            };
+
+            var incidents = new List<Incident>();
+            for (int i = 0; i < incidentDefs.Length; i++)
+            {
+                var def    = incidentDefs[i];
+                var victim = victims[i % victims.Count];
+                var snake  = snakes.Count > 0 ? snakes[i % snakes.Count] : null;
+                var createdAt = now.AddDays(-def.Item1).AddHours(-7); // store as UTC (ICT -7h)
+
+                var incident = new Incident
+                {
+                    Id            = Guid.NewGuid(),
+                    Code          = $"DEMO-{now.Year}-{(i + 1):D3}",
+                    VictimId      = victim.Id,
+                    SnakeId       = snake?.Id,
+                    Location      = new NetTopologySuite.Geometries.Point(def.Item6, def.Item5) { SRID = 4326 },
+                    AddressString = $"Demo Address {i + 1}, Vietnam",
+                    CurrentStatus = def.Item3,
+                    PriorityLevel = def.Item2,
+                    CreatedAt     = createdAt
+                };
+                incidents.Add(incident);
+            }
+
+            await _context.Incidents.AddRangeAsync(incidents);
+            await _context.SaveChangesAsync();
+
+            // --- 4. Seed RescueMissions for closed incidents ---
+            var missionDefs = incidentDefs
+                .Select((def, idx) => (def, incident: incidents[idx]))
+                .Where(x => x.def.Item4) // only closed incidents
+                .ToList();
+
+            for (int i = 0; i < missionDefs.Count; i++)
+            {
+                var (def, incident) = missionDefs[i];
+                var rescuer   = rescuers[i % rescuers.Count];
+                var createdAt = incident.CreatedAt.AddMinutes(5);
+                var startedAt = createdAt.AddMinutes(2);
+                var arrivedAt = startedAt.AddMinutes(15 + (i * 3));
+                var completedAt = arrivedAt.AddMinutes(30);
+
+                await _context.RescueMissions.AddAsync(new RescueMission
+                {
+                    Id          = Guid.NewGuid(),
+                    IncidentId  = incident.Id,
+                    RescuerId   = rescuer.Id,
+                    Status      = RescueStatus.Completed,
+                    StartedAt   = startedAt,
+                    ArrivedAt   = arrivedAt,
+                    CompletedAt = completedAt,
+                    CreatedAt   = createdAt
+                });
+            }
+
+            // Seed active missions for open incidents
+            var activeMissions = incidentDefs
+                .Select((def, idx) => (def, incident: incidents[idx]))
+                .Where(x => !x.def.Item4)
+                .ToList();
+
+            for (int i = 0; i < activeMissions.Count; i++)
+            {
+                var (def, incident) = activeMissions[i];
+                var rescuer   = rescuers[i % rescuers.Count];
+                var createdAt = incident.CreatedAt.AddMinutes(5);
+
+                await _context.RescueMissions.AddAsync(new RescueMission
+                {
+                    Id         = Guid.NewGuid(),
+                    IncidentId = incident.Id,
+                    RescuerId  = rescuer.Id,
+                    Status     = RescueStatus.Accepted,
+                    StartedAt  = createdAt,
+                    CreatedAt  = createdAt
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            // --- 5. Seed AiInference records (one per incident that has a snake) ---
+            if (snakes.Any())
+            {
+                foreach (var incident in incidents.Where(i => i.SnakeId.HasValue))
+                {
+                    var snake = snakes.First(s => s.Id == incident.SnakeId);
+                    await _context.AiInferences.AddAsync(new AiInference
+                    {
+                        Id               = Guid.NewGuid(),
+                        IncidentId       = incident.Id,
+                        ModelName        = "snake-cls-demo",
+                        ModelVersion     = "1.0.0",
+                        SelectedSnakeId  = snake.Id,
+                        SelectedConfidence = 0.75 + (new Random().NextDouble() * 0.20), // 0.75–0.95
+                        SelectedToxinGroup = snake.ToxinGroup,
+                        TopK             = 3,
+                        CreatedAt        = incident.CreatedAt.AddMinutes(1)
+                    });
+                }
+                await _context.SaveChangesAsync();
+            }
+
+            // --- 6. Seed paid Transactions (donations) ---
+            var donationAmounts = new[] { 50000m, 100000m, 200000m, 150000m, 75000m, 500000m, 300000m, 250000m };
+            for (int i = 0; i < donationAmounts.Length; i++)
+            {
+                var payer = demoUsers[i % demoUsers.Count];
+                var txDate = now.AddDays(-(i * 7));
+                await _context.Transactions.AddAsync(new Transaction
+                {
+                    Id              = Guid.NewGuid(),
+                    UserId          = payer.Id,
+                    Amount          = donationAmounts[i],
+                    Status          = PaymentStatus.Paid,
+                    Description     = $"Ủng hộ quỹ cứu hộ rắn cắn #{i + 1}",
+                    TransactionDate = txDate,
+                    CreatedAt       = txDate
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("[Seeding] Analytics demo data seeded: {Incidents} incidents, {Missions} missions, {Txns} donations.",
+                incidents.Count, missionDefs.Count + activeMissions.Count, donationAmounts.Length);
+        }
+
     }
 }

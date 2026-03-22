@@ -14,6 +14,7 @@ using SFARS.Application.Dtos.Role;
 using SFARS.Application.Dtos.Transaction;
 using SFARS.Application.Dtos.User;
 using SFARS.Application.Services;
+using SFARS.Application.Services.Analytics;
 using SFARS.Application.Services.Auth;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Application.Utils;
@@ -79,6 +80,14 @@ public static class DependencyInjection
 
         // Transaction / Donation services
         services.AddScoped<ITransactionService<TransactionDto>, TransactionService>();
+
+        // Analytics / Monitoring services
+        services.AddScoped<IAnalyticsOverviewService, AnalyticsOverviewService>();
+        services.AddScoped<IAnalyticsIncidentService, AnalyticsIncidentService>();
+        services.AddScoped<IAnalyticsRescuerService, AnalyticsRescuerService>();
+        services.AddScoped<IAnalyticsAiService, AnalyticsAiService>();
+        services.AddScoped<IAnalyticsExportService, AnalyticsExportService>();
+        services.AddScoped<IAnalyticsService, AnalyticsService>();
 
         // Register all validators from this assembly
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());

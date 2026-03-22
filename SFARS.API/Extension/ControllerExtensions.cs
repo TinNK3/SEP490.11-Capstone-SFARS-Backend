@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using SFARS.Application.Common;
+using SFARS.Application.Dtos.Analytics;
+using SFARS.Application.Extensions;
 using SFARS.Domain.Interfaces.Services.Base;
+using System.Text;
 
 namespace SFARS.API.Extensions
 {
@@ -11,6 +14,14 @@ namespace SFARS.API.Extensions
             // Success: 200 OK
             if (IsSuccess(result.ResultCode))
             {
+                // Special handling: export download — stream file directly instead of wrapping in JSON.
+                if (result.Data is ExportResultDto export)
+                {
+                    var bytes = Encoding.UTF8.GetBytes(export.Content ?? string.Empty);
+                    var mime  = export.ContentType.GetDescription(); // resolves [Description] attribute
+                    return controller.File(bytes, mime, export.FileName);
+                }
+
                 return controller.Ok(result);
             }
 

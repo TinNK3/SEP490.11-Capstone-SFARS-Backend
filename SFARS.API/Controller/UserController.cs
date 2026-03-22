@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SFARS.API.Extension;
 using SFARS.API.Extensions;
@@ -104,7 +104,7 @@ namespace SFARS.API.Controller
         /// [Admin] Update a user's status (`active` | `inactive` | `banned` | `deleted`).
         /// </summary>
         [Authorize(Roles = UserTypeConstants.Admin)]
-        [HttpPut(APIRoute.Admin.UpdateUserStatus, Name = nameof(UpdateUserStatusAsync))]
+        [HttpPatch(APIRoute.Admin.UpdateUserStatus, Name = nameof(UpdateUserStatusAsync))]
         public async Task<IActionResult> UpdateUserStatusAsync(Guid id, [FromBody] UpdateUserStatusRequest req)
         {
             var adminId = User.GetUserId();
@@ -113,15 +113,48 @@ namespace SFARS.API.Controller
         }
 
         /// <summary>
-        /// [Admin] Create a new user account with a specific role.
-        /// Password is hashed server-side. Status defaults to Active.
+        /// [Admin] Update a user's role (User | Rescuer | Admin).
         /// </summary>
+        [Authorize(Roles = UserTypeConstants.Admin)]
+        [HttpPatch(APIRoute.Admin.UpdateUserRole, Name = nameof(UpdateUserRoleAsync))]
+        public async Task<IActionResult> UpdateUserRoleAsync(Guid id, [FromBody] UpdateUserRoleRequest req)
+        {
+            var adminId = User.GetUserId();
+            var result = await _userService.UpdateUserRoleAsync(adminId, id, req.RoleName.ToString());
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
+        /// [Admin] Update a user's profile information.
+        /// Can update profile fields and optionally status + role in one request.
+        /// </summary>
+        [Authorize(Roles = UserTypeConstants.Admin)]
+        [HttpPut(APIRoute.Admin.UpdateUser, Name = nameof(UpdateUserAsync))]
+        public async Task<IActionResult> UpdateUserAsync(Guid id, [FromBody] UpdateUserRequest req)
+        {
+            var adminId = User.GetUserId();
+            var result = await _userService.UpdateUserProfileAsync(adminId, id, req.ToUserForUpdate());
+            return this.ToIActionResult(result);
+        }
+
         [Authorize(Roles = UserTypeConstants.Admin)]
         [HttpPost(APIRoute.Admin.CreateUser, Name = nameof(CreateUserAsync))]
         public async Task<IActionResult> CreateUserAsync([FromBody] CreateUserRequest req)
         {
             var adminId = User.GetUserId();
             var result = await _userService.CreateUserAsync(adminId, req.ToUserDto());
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
+        /// [Admin] Hard delete a user and related records.
+        /// </summary>
+        [Authorize(Roles = UserTypeConstants.Admin)]
+        [HttpDelete(APIRoute.Admin.DeleteUser, Name = nameof(DeleteUserAsync))]
+        public async Task<IActionResult> DeleteUserAsync(Guid id, [FromBody] DeleteUserRequest? req = null)
+        {
+            var adminId = User.GetUserId();
+            var result = await _userService.DeleteUserAsync(adminId, id, req?.Reason);
             return this.ToIActionResult(result);
         }
 

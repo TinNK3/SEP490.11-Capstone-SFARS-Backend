@@ -5,6 +5,7 @@ using SFARS.Domain.Interfaces.Repositories.Base;
 using SFARS.Infrastructure.Data.Context;
 using SFARS.Infrastructure.Repositories;
 using System.Collections;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace SFARS.Infrastructure.Data
 {
@@ -12,6 +13,7 @@ namespace SFARS.Infrastructure.Data
     {
         private readonly SFARSDbContext _context;
         private Hashtable _repositories;
+        private IDbContextTransaction? _currentTransaction;
 
         public UnitOfWork(SFARSDbContext context)
         {
@@ -96,6 +98,28 @@ namespace SFARS.Infrastructure.Data
             return result;
         }
 
+        public async Task BeginTransactionAsync()
+        {
+            if (_currentTransaction != null) return;
+            _currentTransaction = await _context.Database.BeginTransactionAsync();
+        }
+
+        public async Task CommitTransactionAsync()
+        {
+            if (_currentTransaction == null) return;
+            await _currentTransaction.CommitAsync();
+            await _currentTransaction.DisposeAsync();
+            _currentTransaction = null;
+        }
+
+        public async Task RollbackTransactionAsync()
+        {
+            if (_currentTransaction == null) return;
+            await _currentTransaction.RollbackAsync();
+            await _currentTransaction.DisposeAsync();
+            _currentTransaction = null;
+        }
+
         /// <summary>
         /// Get next value from SQL SEQUENCE (thread-safe, atomic)
         /// </summary>
@@ -127,7 +151,11 @@ namespace SFARS.Infrastructure.Data
             return await _context.Database.ExecuteSqlRawAsync(sql, parameters);
         }
 
-        public void Dispose() => _context.Dispose();
+        public void Dispose()
+        {
+            _currentTransaction?.Dispose();
+            _context.Dispose();
+        }
 
         public void ClearTracking() => _context.ChangeTracker.Clear();
     }
