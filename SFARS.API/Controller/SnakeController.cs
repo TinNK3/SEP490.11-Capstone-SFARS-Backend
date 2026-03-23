@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SFARS.API.Extensions;
 using SFARS.API.Payloads;
 using SFARS.API.Payloads.Request.Snake;
 using SFARS.Application.Dtos;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Domain.Common.Constants;
+using SFARS.Domain.Specifications.Params;
 
 namespace SFARS.API.Controller;
 
@@ -21,12 +23,12 @@ public class SnakeController : ControllerBase
     #region Public Read Endpoints
 
     /// <summary>
-    /// Retrieves all snake entities asynchronously.
+    /// Retrieves all snake entities asynchronously with optional searching and filtering.
     /// </summary>
     [HttpGet(APIRoute.Snake.GetAll, Name = nameof(GetAllAsync))]
-    public async Task<IActionResult> GetAllAsync()
+    public async Task<IActionResult> GetAllAsync([FromQuery] SnakeSpecParams specParams)
     {
-        return Ok(await _snakeService.GetAllAsync());
+        return Ok(await _snakeService.GetAllSnakesAsync(specParams));
     }
 
     /// <summary>
@@ -38,15 +40,6 @@ public class SnakeController : ControllerBase
         return Ok(await _snakeService.GetSnakeById(id));
     }
 
-    /// <summary>
-    /// Search snakes with pagination
-    /// </summary>
-    [HttpGet(APIRoute.Snake.Search)]
-    public async Task<IActionResult> SearchAsync([FromQuery] string? term, [FromQuery] int page = 0, [FromQuery] int size = 10)
-    {
-        return Ok(await _snakeService.SearchSnakes(term, page, size));
-    }
-
     #endregion
 
     #region Admin Write Endpoints
@@ -54,7 +47,7 @@ public class SnakeController : ControllerBase
     /// <summary>
     /// Creates a new snake entity asynchronously. (Admin only)
     /// </summary>
-    [Authorize]
+    [Authorize(Roles = UserTypeConstants.Admin)]
     [HttpPost(APIRoute.Snake.Create, Name = nameof(CreateAsync))]
     public async Task<IActionResult> CreateAsync([FromBody] CreateSnakeRequest req)
     {
@@ -64,7 +57,7 @@ public class SnakeController : ControllerBase
     /// <summary>
     /// Updates an existing snake with field-level audit logging. (Admin only)
     /// </summary>
-    [Authorize]
+    [Authorize(Roles = UserTypeConstants.Admin)]
     [HttpPut(APIRoute.Snake.Update, Name = nameof(UpdateAsync))]
     public async Task<IActionResult> UpdateAsync([FromRoute] Guid id, [FromBody] UpdateSnakeRequest req)
     {
@@ -74,7 +67,7 @@ public class SnakeController : ControllerBase
     /// <summary>
     /// Soft-deletes a snake entity asynchronously. (Admin only)
     /// </summary>
-    [Authorize]
+    [Authorize(Roles = UserTypeConstants.Admin)]
     [HttpDelete(APIRoute.Snake.Delete, Name = nameof(DeleteAsync))]
     public async Task<IActionResult> DeleteAsync(Guid id)
     {
@@ -88,7 +81,7 @@ public class SnakeController : ControllerBase
     /// <summary>
     /// Preview Excel (.xlsx) import: parse and validate, returns summary without writing to DB.
     /// </summary>
-    [Authorize]
+    [Authorize(Roles = UserTypeConstants.Admin)]
     [HttpPost(APIRoute.Snake.ImportPreview, Name = nameof(ImportPreviewAsync))]
     public async Task<IActionResult> ImportPreviewAsync(IFormFile file)
     {
@@ -102,7 +95,7 @@ public class SnakeController : ControllerBase
     /// <summary>
     /// Apply Excel (.xlsx) import: upsert by ScientificName with full audit trail.
     /// </summary>
-    [Authorize]
+    [Authorize(Roles = UserTypeConstants.Admin)]
     [HttpPost(APIRoute.Snake.ImportApply, Name = nameof(ImportApplyAsync))]
     public async Task<IActionResult> ImportApplyAsync(IFormFile file, [FromQuery] string? changeReason)
     {
@@ -120,17 +113,17 @@ public class SnakeController : ControllerBase
     /// <summary>
     /// Get change history for a specific snake with pagination.
     /// </summary>
-    [Authorize]
+    [Authorize(Roles = UserTypeConstants.Admin)]
     [HttpGet(APIRoute.Snake.History, Name = nameof(GetHistoryAsync))]
-    public async Task<IActionResult> GetHistoryAsync(Guid id, [FromQuery] int page = 0, [FromQuery] int size = 20)
+    public async Task<IActionResult> GetHistoryAsync(Guid id, [FromQuery] BaseSpecParams specParams)
     {
-        return Ok(await _snakeService.GetSnakeChangeHistory(id, page, size));
+        return Ok(await _snakeService.GetSnakeChangeHistory(id, specParams));
     }
 
     /// <summary>
     /// Revert a specific field change using its ChangeLog entry ID.
     /// </summary>
-    [Authorize]
+    [Authorize(Roles = UserTypeConstants.Admin)]
     [HttpPut(APIRoute.Snake.Revert, Name = nameof(RevertFieldAsync))]
     public async Task<IActionResult> RevertFieldAsync(Guid changeLogId)
     {

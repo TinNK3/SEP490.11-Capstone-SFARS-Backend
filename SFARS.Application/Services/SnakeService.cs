@@ -9,6 +9,7 @@ using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
+using SFARS.Domain.Specifications.Params;
 
 namespace SFARS.Application.Services
 {
@@ -219,45 +220,26 @@ namespace SFARS.Application.Services
 
         #region Search
 
-        public async Task<IServiceResult> SearchSnakes(string? searchTerm, int page = 0, int pageSize = 10)
+        public async Task<IServiceResult> GetAllSnakesAsync(SnakeSpecParams specParams)
         {
-            var spec = SnakeSpecification.SearchWithPagination(searchTerm, page, pageSize);
+            var spec = new SnakeSpecification(specParams, isCount: false);
             var result = await GetAllWithSpecAsync(spec);
             
-            var countSpec = SnakeSpecification.ByNameContains(searchTerm);
-            var totalCount = await _unitOfWork.Repository<Snake, Guid>().CountAsync(countSpec);
-            var totalPages = pageSize > 0 ? (int)Math.Ceiling(totalCount / (double)pageSize) : 0;
+            var countSpec = new SnakeSpecification(specParams, isCount: true);
+            var totalItems = await _unitOfWork.Repository<Snake, Guid>().CountAsync(countSpec);
+            
+            var limit = specParams.GetTake();
+            var page = specParams.GetPage();
+            var totalPages = limit > 0 ? (int)Math.Ceiling(totalItems / (double)limit) : 0;
             
             var dtos = result.Data as IEnumerable<SnakeDto> ?? Enumerable.Empty<SnakeDto>();
             
             var pagedResult = new PaginatedResultDto<SnakeDto>(
                 dtos,
-                page + 1,
-                pageSize,
+                page,
+                limit,
                 totalPages,
-                totalCount
-            );
-            
-            result.Data = pagedResult;
-            return result;
-        }
-
-        public async Task<IServiceResult> GetAllSnakesPaginated(int page = 0, int pageSize = 10)
-        {
-            var spec = SnakeSpecification.WithPagination(page, pageSize);
-            var result = await GetAllWithSpecAsync(spec);
-            
-            var totalCount = await _unitOfWork.Repository<Snake, Guid>().CountAsync(new SnakeSpecification());
-            var totalPages = pageSize > 0 ? (int)Math.Ceiling(totalCount / (double)pageSize) : 0;
-            
-            var dtos = result.Data as IEnumerable<SnakeDto> ?? Enumerable.Empty<SnakeDto>();
-            
-            var pagedResult = new PaginatedResultDto<SnakeDto>(
-                dtos,
-                page + 1,
-                pageSize,
-                totalPages,
-                totalCount
+                totalItems
             );
             
             result.Data = pagedResult;
@@ -412,7 +394,7 @@ namespace SFARS.Application.Services
         /// <summary>
         /// Get change history for a specific snake with pagination.
         /// </summary>
-        public async Task<IServiceResult> GetSnakeChangeHistory(Guid snakeId, int page = 0, int pageSize = 20)
+        public async Task<IServiceResult> GetSnakeChangeHistory(Guid snakeId, BaseSpecParams specParams)
         {
             var snake = await _unitOfWork.Repository<Snake, Guid>().GetByIdAsync(snakeId);
             if (snake == null)
@@ -425,17 +407,21 @@ namespace SFARS.Application.Services
                 .OrderByDescending(l => l.CreatedAt)
                 .ToList();
 
-            var total = allLogs.Count;
-            var paged = allLogs.Skip(page * pageSize).Take(pageSize).ToList();
+            var totalItems = allLogs.Count;
+            var limit = specParams.GetTake();
+            var page = specParams.GetPage();
+            var skip = specParams.GetSkip();
+
+            var paged = allLogs.Skip(skip).Take(limit).ToList();
             var dtos = _mapper.Map<List<SnakeChangeLogDto>>(paged);
 
-            var totalPages = pageSize > 0 ? (int)Math.Ceiling(total / (double)pageSize) : 0;
+            var totalPages = limit > 0 ? (int)Math.Ceiling(totalItems / (double)limit) : 0;
             var pagedResult = new PaginatedResultDto<SnakeChangeLogDto>(
                 dtos, 
-                page + 1, 
-                pageSize, 
+                page, 
+                limit, 
                 totalPages, 
-                total
+                totalItems
             );
 
             return new ServiceResult(ResultCodeConst.SYS_Success0001, "Change history retrieved")
