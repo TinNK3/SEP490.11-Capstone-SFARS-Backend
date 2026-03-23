@@ -112,6 +112,21 @@ namespace SFARS.API.Controller
         }
 
         /// <summary>
+        /// Manually trigger SOS dispatch.
+        /// Overrides the AI countdown or reactivates an accidentally cancelled SOS.
+        /// </summary>
+        /// <param name="id">Incident ID</param>
+        /// <returns>Result of manual dispatch</returns>
+        [Authorize]
+        [HttpPost(APIRoute.Incident.Dispatch, Name = nameof(ManualDispatchAsync))]
+        public async Task<IActionResult> ManualDispatchAsync([FromRoute] Guid id)
+        {
+            var userId = User.GetUserId();
+            var result = await _incidentService.ManualDispatchAsync(userId, id);
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
         /// Submit an AI Review from a Rescuer
         /// </summary>
         /// <param name="id">Incident ID</param>
