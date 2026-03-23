@@ -129,6 +129,7 @@ namespace SFARS.Application.Common
         public const string Incident_Reason0006 = "Incident.Reason0006";  // Claim timeout — rescuer ghosted
         public const string Incident_Reason0007 = "Incident.Reason0007";  // Dispatch fallback — no rescuer found
         public const string Incident_Reason0008 = "Incident.Reason0008";  // Victim resolved external (115)
+        public const string Incident_Reason0009 = "Incident.Reason0009";  // Victim manually dispatched SOS
         #endregion
 
         #region AI

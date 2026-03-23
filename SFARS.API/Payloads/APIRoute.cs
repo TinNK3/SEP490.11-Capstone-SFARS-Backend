@@ -1,4 +1,4 @@
-﻿namespace SFARS.API.Payloads
+namespace SFARS.API.Payloads
 {
     public class APIRoute
     {
@@ -103,6 +103,7 @@
             // [PATCH]
             public const string VoiceSymptom = Base + "/incidents/{id}/voice-symptom";
             public const string Cancel = Base + "/incidents/{id}/cancel";
+            public const string Dispatch = Base + "/incidents/{id}/dispatch";
         }
 
         /// <summary>

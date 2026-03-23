@@ -588,6 +588,18 @@
     "Vi": "Đã hết tất cả vòng tìm kiếm. Không có nhân viên cứu hộ nào nhận ca."
   },
   {
+    "MsgId": "Incident.Reason0008",
+    "MsgContent": "Resolved externally (e.g. called 115).",
+    "En": "Resolved externally (e.g. called 115).",
+    "Vi": "Nạn nhân đã tự gọi dịch vụ khẩn cấp bên ngoài (115)."
+  },
+  {
+    "MsgId": "Incident.Reason0009",
+    "MsgContent": "Manual SOS dispatch triggered by user.",
+    "En": "Manual SOS dispatch triggered by user.",
+    "Vi": "Người dùng chủ động gọi cứu hộ SOS."
+  },
+  {
     "MsgId": "Incident.Notify0003",
     "MsgContent": "Rescuer is on the way!",
     "En": "Rescuer is on the way!",

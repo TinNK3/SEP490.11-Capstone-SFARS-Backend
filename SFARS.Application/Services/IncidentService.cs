@@ -764,6 +764,73 @@ namespace SFARS.Application.Services
         }
 
         /// <inheritdoc />
+        public async Task<IServiceResult> ManualDispatchAsync(Guid userId, Guid incidentId)
+        {
+            var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
+
+            if (incident == null)
+                return new ServiceResult(
+                    ResultCodeConst.Incident_Warning0002,
+                    string.Format(await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0002), "Incident")
+                );
+
+            if (incident.VictimId != userId)
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0013,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0013)
+                );
+
+            if (incident.CurrentStatus != IncidentStatus.Pending && incident.CurrentStatus != IncidentStatus.Cancelled)
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004)
+                );
+
+            var now = DateTime.UtcNow;
+
+            if (incident.CurrentStatus == IncidentStatus.Cancelled)
+            {
+                incident.CurrentStatus = IncidentStatus.Pending;
+                incident.UpdatedAt = now;
+                incident.UpdatedBy = userId;
+
+                var statusHistory = new IncidentStatusHistory
+                {
+                    Id = Guid.NewGuid(),
+                    IncidentId = incidentId,
+                    StatusFrom = IncidentStatus.Cancelled,
+                    StatusTo = IncidentStatus.Pending,
+                    ChangedBy = userId,
+                    ChangeReason = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Reason0009),
+                    CreatedAt = now,
+                    CreatedBy = userId
+                };
+
+                await _unitOfWork.Repository<Incident, Guid>().UpdateAsync(incident);
+                await _unitOfWork.Repository<IncidentStatusHistory, Guid>().AddAsync(statusHistory);
+
+                var saved = await _unitOfWork.SaveChangesAsync();
+                if (saved <= 0)
+                    return new ServiceResult(
+                        ResultCodeConst.SYS_Fail0001,
+                        await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001)
+                    );
+            }
+
+            // Trigger dispatch immediately
+            BackgroundJob.Enqueue<IDispatchService>(s => s.StartDispatchAsync(incidentId));
+
+            _logger.LogInformation(
+                "Manual dispatch triggered for incident {IncidentId} by victim {UserId}.",
+                incidentId, userId);
+
+            return new ServiceResult(
+                ResultCodeConst.Incident_Success0001, // Reusing creation success or generic success
+                await _msgService.GetMessageAsync(ResultCodeConst.Incident_Success0001)
+            );
+        }
+
+        /// <inheritdoc />
         public async Task<IServiceResult> ResolveFallbackAsync(Guid userId, Guid incidentId)
         {
             // Load incident and verify ownership

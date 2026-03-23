@@ -99,8 +99,7 @@ public class DispatchService : IDispatchService
             maxEtaMinutes: DispatchConstants.Tier1EtaMinutes,
             nextStatus: IncidentStatus.Dispatching_Tier2,
             freshnessMinutes: DispatchConstants.LocationHeartbeatWindowMinutes,
-            maxRescuers: DispatchConstants.Tier1MaxRescuers,
-            isSignalR: true);
+            maxRescuers: DispatchConstants.Tier1MaxRescuers);
 
     /// <inheritdoc />
     [Queue(DispatchConstants.HangfireQueue)]
@@ -111,8 +110,7 @@ public class DispatchService : IDispatchService
             maxEtaMinutes: DispatchConstants.Tier2EtaMinutes,
             nextStatus: IncidentStatus.Dispatching_Tier3,
             freshnessMinutes: DispatchConstants.Tier2FreshnessHours * 60,
-            maxRescuers: DispatchConstants.Tier2MaxRescuers,
-            isSignalR: false);
+            maxRescuers: DispatchConstants.Tier2MaxRescuers);
 
     /// <inheritdoc />
     [Queue(DispatchConstants.HangfireQueue)]
@@ -123,8 +121,7 @@ public class DispatchService : IDispatchService
             maxEtaMinutes: DispatchConstants.Tier3EtaMinutes,
             nextStatus: null,
             freshnessMinutes: DispatchConstants.Tier3FreshnessHours * 60,
-            maxRescuers: DispatchConstants.Tier3MaxRescuers,
-            isSignalR: false);
+            maxRescuers: DispatchConstants.Tier3MaxRescuers);
 
     /// <inheritdoc />
     [Queue(DispatchConstants.HangfireQueue)]
@@ -177,8 +174,7 @@ public class DispatchService : IDispatchService
         int maxEtaMinutes,
         IncidentStatus? nextStatus,
         int freshnessMinutes,
-        int maxRescuers,
-        bool isSignalR)
+        int maxRescuers)
     {
         var spec = new BaseSpecification<Incident>(i => i.Id == incidentId);
         spec.ApplyInclude(q => q
@@ -237,102 +233,93 @@ public class DispatchService : IDispatchService
         var aiConfidence = incident.AiConfidenceScore;
         var priorityText = incident.PriorityLevel.ToString();
 
-        if (isSignalR)
+        var baseTitleMsg = DispatchConstants.PushTitlePrefix;
+        var defaultUnknownSnake = DispatchConstants.PushUnknownSnake;
+        var topSnake = isAiSkipped ? defaultUnknownSnake : (aiName ?? defaultUnknownSnake);
+        var notificationsToSave = new List<NotificationLog>();
+
+        foreach (var rescuer in candidates)
         {
-            foreach (var rescuer in candidates)
+            var dedupKey = $"dispatch:{incidentId}:{rescuer.Id}";
+            // Atomic SETNX to prevent race conditions and double dispatch
+            var locked = await db.StringSetAsync(dedupKey, "1", TimeSpan.FromHours(3), When.NotExists);
+            if (!locked) continue;
+            
+            var distKm = LocationHelper.HaversineMeters(rescuer.CurrentLocation!, incident.Location) / 1000.0;
+            var distRounded = Math.Round(distKm, 2);
+            var etaMin = (int)Math.Ceiling(distKm / DispatchConstants.AvgSpeedKmh * 60);
+
+            var dto = new SosDispatchNotificationDto
             {
-                var dedupKey = $"dispatch:{incidentId}:{rescuer.Id}";
-                // Atomic SETNX to prevent race conditions and double dispatch
-                var locked = await db.StringSetAsync(dedupKey, "1", TimeSpan.FromHours(3), When.NotExists);
-                if (!locked) continue;
+                IncidentId = incidentId,
+                IncidentCode = incident.Code,
+                Latitude = incident.Location.Y,
+                Longitude = incident.Location.X,
+                AddressString = incident.AddressString,
+                PriorityLevel = priorityText,
+                DistanceKm = distRounded,
+                EstimatedEtaMin = etaMin,
+                Tier = tier,
+                DispatchedAt = now,
+
+                // Fields for Rich UI Push (Summary payload)
+                IncidentImageUrl = imageUrl,
+                IsAiSkipped = isAiSkipped,
+                AiPrimarySnakeName = aiName,
+                AiConfidence = aiConfidence,
+                ToxinGroup = toxin,
+                SymptomAudioUrl = incident.SymptomAudioUrl,
+                MinutesSinceBite = incident.MinutesSinceBite,
+                ExtractedSymptoms = incident.ExtractedSymptoms
+            };
+
+            await _rescueHub.Clients
+                .Group(DispatchConstants.RescuerGroupPrefix + rescuer.Id)
+                .SendAsync(DispatchConstants.EventNewDispatch, dto);
+
+            var bodyMsg = string.Format(DispatchConstants.PushBodyTemplate, topSnake, Math.Round(distKm, 1));
+
+            var data = new Dictionary<string, string>
+            {
+                { "incidentId", incidentId.ToString() },
+                { "lat", incident.Location.Y.ToString() },
+                { "lng", incident.Location.X.ToString() },
+                { "severity", incident.PriorityLevel.ToString() },
+                { "type", DispatchConstants.FcmSosDispatchTitleKey },
                 
-                var distKm = LocationHelper.HaversineMeters(rescuer.CurrentLocation!, incident.Location) / 1000.0;
-                var etaMin = (int)Math.Ceiling(distKm / DispatchConstants.AvgSpeedKmh * 60);
+                // Pass enriched AI summary to FCM Notification Click Payload
+                { "imageUrl", imageUrl ?? "" },
+                { "isAiSkipped", isAiSkipped.ToString() },
+                { "aiPrimarySnakeName", aiName ?? "" },
+                { "toxinGroup", toxin ?? "" },
+                { "minutesSinceBite", incident.MinutesSinceBite?.ToString() ?? "" },
+                { "extractedSymptoms", incident.ExtractedSymptoms ?? "" }
+            };
 
-                var dto = new SosDispatchNotificationDto
-                {
-                    IncidentId = incidentId,
-                    IncidentCode = incident.Code,
-                    Latitude = incident.Location.Y,
-                    Longitude = incident.Location.X,
-                    AddressString = incident.AddressString,
-                    PriorityLevel = priorityText,
-                    DistanceKm = Math.Round(distKm, 2),
-                    EstimatedEtaMin = etaMin,
-                    Tier = tier,
-                    DispatchedAt = now,
+            await _fcmService.SendToUserAsync(rescuer.Id, baseTitleMsg, bodyMsg, data);
 
-                    // Fields for Rich UI Push (Summary payload)
-                    IncidentImageUrl = imageUrl,
-                    IsAiSkipped = isAiSkipped,
-                    AiPrimarySnakeName = aiName,
-                    AiConfidence = aiConfidence,
-                    ToxinGroup = toxin,
-                    SymptomAudioUrl = incident.SymptomAudioUrl,
-                    MinutesSinceBite = incident.MinutesSinceBite,
-                    ExtractedSymptoms = incident.ExtractedSymptoms
-                };
-
-                await _rescueHub.Clients
-                    .Group(DispatchConstants.RescuerGroupPrefix + rescuer.Id)
-                    .SendAsync(DispatchConstants.EventNewDispatch, dto);
-            }
+            // Store FCM notification in memory for batch save
+            notificationsToSave.Add(new NotificationLog
+            {
+                Id = Guid.NewGuid(),
+                UserId = rescuer.Id,
+                Title = baseTitleMsg,
+                Message = bodyMsg,
+                Type = NotificationType.Mission,
+                IsRead = false,
+                SentAt = now,
+                CreatedAt = now
+            });
         }
-        else // FCM Push
+
+        if (notificationsToSave.Any())
         {
-            var baseTitleMsg = DispatchConstants.PushTitlePrefix;
-            var defaultUnknownSnake = DispatchConstants.PushUnknownSnake;
-            var topSnake = isAiSkipped ? defaultUnknownSnake : (aiName ?? defaultUnknownSnake);
-
-            foreach (var rescuer in candidates)
-            {
-                var dedupKey = $"dispatch:{incidentId}:{rescuer.Id}";
-                // Atomic SETNX to prevent race conditions and double dispatch
-                var locked = await db.StringSetAsync(dedupKey, "1", TimeSpan.FromHours(3), When.NotExists);
-                if (!locked) continue;
-                
-                var distKm = LocationHelper.HaversineMeters(rescuer.CurrentLocation!, incident.Location) / 1000.0;
-                var bodyMsg = string.Format(DispatchConstants.PushBodyTemplate, topSnake, Math.Round(distKm, 1));
-
-                var data = new Dictionary<string, string>
-                {
-                    { "incidentId", incidentId.ToString() },
-                    { "lat", incident.Location.Y.ToString() },
-                    { "lng", incident.Location.X.ToString() },
-                    { "severity", incident.PriorityLevel.ToString() },
-                    { "type", DispatchConstants.FcmSosDispatchTitleKey },
-                    
-                    // Pass enriched AI summary to FCM Notification Click Payload
-                    { "imageUrl", imageUrl ?? "" },
-                    { "isAiSkipped", isAiSkipped.ToString() },
-                    { "aiPrimarySnakeName", aiName ?? "" },
-                    { "toxinGroup", toxin ?? "" },
-                    { "minutesSinceBite", incident.MinutesSinceBite?.ToString() ?? "" },
-                    { "extractedSymptoms", incident.ExtractedSymptoms ?? "" }
-                };
-
-                await _fcmService.SendToUserAsync(rescuer.Id, baseTitleMsg, bodyMsg, data);
-
-                // Store FCM notification in DB
-                await _unitOfWork.Repository<NotificationLog, Guid>().AddAsync(new NotificationLog
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = rescuer.Id,
-                    Title = baseTitleMsg,
-                    Message = bodyMsg,
-                    Type = NotificationType.Mission,
-                    IsRead = false,
-                    SentAt = now,
-                    CreatedAt = now
-                });
-            }
-
-            // Batch save all NotificationLog entries for this tier
+            await _unitOfWork.Repository<NotificationLog, Guid>().AddRangeAsync(notificationsToSave);
             await _unitOfWork.SaveChangesAsync();
         }
 
-        _logger.LogInformation("Tier{T} ({CH}) dispatched to {Count} rescuers. IncidentId={Id}",
-            tier, isSignalR ? "SignalR" : "FCM", candidates.Count, incidentId);
+        _logger.LogInformation("Tier{T} (SignalR + FCM) dispatched to {Count} rescuers. IncidentId={Id}",
+            tier, candidates.Count, incidentId);
     }
 
     private async Task<List<User>> FindRescuersInRadiusAsync(
