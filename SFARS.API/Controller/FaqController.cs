@@ -68,6 +68,17 @@ namespace SFARS.API.Controller
         }
 
         /// <summary>
+        /// [Admin] Suggest next FAQ order (max active order + 1)
+        /// </summary>
+        [Authorize(Roles = UserTypeConstants.Admin)]
+        [HttpGet(APIRoute.Admin.GetFaqSuggestedOrder, Name = "AdminFaq_GetSuggestedOrder")]
+        public async Task<IActionResult> GetSuggestedOrderAsync()
+        {
+            var result = await _faqService.GetSuggestedOrderAsync();
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
         /// [Admin] Get a single FAQ by ID
         /// </summary>
         [Authorize]
@@ -103,7 +114,7 @@ namespace SFARS.API.Controller
         }
 
         /// <summary>
-        /// [Admin] Delete (soft delete) a FAQ by setting IsActive = false
+        /// [Admin] Delete FAQ permanently (hard delete)
         /// </summary>
         [Authorize(Roles = UserTypeConstants.Admin)]
         [HttpDelete(APIRoute.Admin.DeleteFaq, Name = "AdminFaq_Delete")]

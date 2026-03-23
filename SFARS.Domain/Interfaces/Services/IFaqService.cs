@@ -17,7 +17,7 @@ namespace SFARS.Domain.Interfaces.Services
         Task<IServiceResult> UpdateFaqAsync(Guid id, TDto dto);
 
         /// <summary>
-        /// [Admin] Delete (soft delete) a FAQ by setting IsActive = false
+        /// [Admin] Delete FAQ permanently (hard delete)
         /// </summary>
         Task<IServiceResult> DeleteFaqAsync(Guid id);
 
@@ -35,5 +35,10 @@ namespace SFARS.Domain.Interfaces.Services
         /// [Admin] Get all FAQs with pagination (including inactive)
         /// </summary>
         Task<IServiceResult> GetAllFaqsPaginatedAsync(SFARS.Domain.Specifications.Params.BaseSpecParams specParams);
+
+        /// <summary>
+        /// [Admin] Suggest next FAQ order (max order + 1)
+        /// </summary>
+        Task<IServiceResult> GetSuggestedOrderAsync();
     }
 }

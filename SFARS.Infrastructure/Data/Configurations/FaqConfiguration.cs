@@ -26,5 +26,8 @@ public class FaqConfiguration : IEntityTypeConfiguration<Faq>
         builder.Property(f => f.IsActive)
             .IsRequired()
             .HasDefaultValue(true);
+
+        builder.HasIndex(f => f.Order)
+            .IsUnique();
     }
 }

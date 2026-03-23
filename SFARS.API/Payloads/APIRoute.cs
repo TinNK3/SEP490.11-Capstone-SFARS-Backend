@@ -173,6 +173,7 @@
             // [GET]
             public const string GetAllFaqs = Base + "/admin/faqs";
             public const string GetFaqById = Base + "/admin/faqs/{id}";
+            public const string GetFaqSuggestedOrder = Base + "/admin/faqs/suggested-order";
             // [POST]
             public const string CreateFaq = Base + "/admin/faqs";
             // [PUT]
