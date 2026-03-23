@@ -11,6 +11,7 @@ using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Repositories.Base;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Specifications.Interfaces;
+using SFARS.Domain.Specifications.Params;
 
 namespace SFARS.Tests.Application.Services.Snakes;
 
@@ -20,7 +21,7 @@ namespace SFARS.Tests.Application.Services.Snakes;
 /// - CreateAsync          (POST /api/snakes)
 /// - UpdateSnakeAsync     (PUT  /api/snakes/{id})
 /// - DeleteSnake          (DELETE /api/snakes/{id})
-/// - SearchSnakes         (GET  /api/snakes/search)
+/// - GetAllSnakesAsync    (GET  /api/snakes)
 /// - PreviewImportAsync   (POST /api/snakes/import/preview)
 /// - ApplyImportAsync     (POST /api/snakes/import/apply)
 ///
@@ -515,19 +516,17 @@ public class SnakeServiceTests
 
     #endregion
 
-    #region SearchSnakes Tests
+    #region GetAllSnakesAsync Tests
 
     /// <summary>
     /// Test Type: NORMAL
-    /// Tests: SearchSnakes with search term
-    /// Precondition: Valid search term provided
-    /// Expected Result: Returns filtered snakes
+    /// Tests: GetAllSnakesAsync with search term
     /// </summary>
     [Fact]
-    public async Task SearchSnakes_ValidSearchTerm_ReturnsFilteredResults()
+    public async Task GetAllSnakesAsync_ValidSearchTerm_ReturnsFilteredResults()
     {
         // Arrange
-        var searchTerm = "cobra";
+        var specParams = new SnakeSpecParams { Search = "cobra" };
         var snakes = new List<Snake>
         {
             new Snake { Id = Guid.NewGuid(), ScientificName = "Naja kaouthia", CommonName = "Monocled cobra", IsActive = true },
@@ -542,23 +541,22 @@ public class SnakeServiceTests
             .Returns(new List<SnakeDto> { new SnakeDto(), new SnakeDto() });
 
         // Act
-        var result = await _sut.SearchSnakes(searchTerm, 0, 10);
+        var result = await _sut.GetAllSnakesAsync(specParams);
 
         // Assert
         result.Data.Should().NotBeNull();
-        _snakeRepoMock.Verify(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<Snake>>(), true), Times.Once);
+        _snakeRepoMock.Verify(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<Snake>>(), It.IsAny<bool>()), Times.Once);
     }
 
     /// <summary>
     /// Test Type: BOUNDARY
-    /// Tests: SearchSnakes with null/empty search term
-    /// Precondition: Search term is null or empty
-    /// Expected Result: Returns all snakes (no filter)
+    /// Tests: GetAllSnakesAsync with null/empty search term
     /// </summary>
     [Fact]
-    public async Task SearchSnakes_EmptySearchTerm_ReturnsAllSnakes()
+    public async Task GetAllSnakesAsync_EmptySearchTerm_ReturnsAllSnakes()
     {
         // Arrange
+        var specParams = new SnakeSpecParams();
         _snakeRepoMock
             .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<Snake>>(), It.IsAny<bool>()))
             .ReturnsAsync(new List<Snake>());
@@ -567,7 +565,7 @@ public class SnakeServiceTests
             .Returns(new List<SnakeDto>());
 
         // Act
-        var result = await _sut.SearchSnakes(null, 0, 10);
+        var result = await _sut.GetAllSnakesAsync(specParams);
 
         // Assert
         result.Data.Should().NotBeNull();
@@ -575,16 +573,13 @@ public class SnakeServiceTests
 
     /// <summary>
     /// Test Type: BOUNDARY
-    /// Tests: SearchSnakes with pagination
-    /// Precondition: Multiple pages of results
-    /// Expected Result: Returns correct page of results
+    /// Tests: GetAllSnakesAsync with pagination
     /// </summary>
     [Fact]
-    public async Task SearchSnakes_Pagination_ReturnsCorrectPage()
+    public async Task GetAllSnakesAsync_Pagination_ReturnsCorrectPage()
     {
         // Arrange
-        var page = 1;
-        var pageSize = 10;
+        var specParams = new SnakeSpecParams { Search = "test", Page = 1, PageSize = 10 };
 
         _snakeRepoMock
             .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<Snake>>(), It.IsAny<bool>()))
@@ -594,40 +589,11 @@ public class SnakeServiceTests
             .Returns(new List<SnakeDto>());
 
         // Act
-        var result = await _sut.SearchSnakes("test", page, pageSize);
+        var result = await _sut.GetAllSnakesAsync(specParams);
 
         // Assert
         result.Data.Should().NotBeNull();
-        _snakeRepoMock.Verify(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<Snake>>(), true), Times.Once);
-    }
-
-    #endregion
-
-    #region GetAllSnakesPaginated Tests
-
-    /// <summary>
-    /// Test Type: NORMAL
-    /// Tests: GetAllSnakesPaginated returns paginated list
-    /// Precondition: Multiple snakes exist
-    /// Expected Result: Returns paginated snake list
-    /// </summary>
-    [Fact]
-    public async Task GetAllSnakesPaginated_ValidRequest_ReturnsPaginatedList()
-    {
-        // Arrange
-        _snakeRepoMock
-            .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<Snake>>(), It.IsAny<bool>()))
-            .ReturnsAsync(new List<Snake>());
-
-        _mapperMock.Setup(m => m.Map<List<SnakeDto>>(It.IsAny<List<Snake>>()))
-            .Returns(new List<SnakeDto>());
-
-        // Act
-        var result = await _sut.GetAllSnakesPaginated(0, 20);
-
-        // Assert
-        result.Data.Should().NotBeNull();
-        _snakeRepoMock.Verify(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<Snake>>(), true), Times.Once);
+        _snakeRepoMock.Verify(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<Snake>>(), It.IsAny<bool>()), Times.Once);
     }
 
     #endregion
