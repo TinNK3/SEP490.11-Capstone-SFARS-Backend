@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos.Faq;
-using SFARS.Application.Services.Faq;
+using SFARS.Application.Services;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Repositories.Base;
@@ -33,6 +33,9 @@ public class FaqServiceTests
 
     private readonly FaqService _sut;
 
+    private static IQueryable<T> BuildQueryable<T>(IEnumerable<T> source) where T : class
+        => source.AsQueryable();
+
     public FaqServiceTests()
     {
         _msgServiceMock = new Mock<ISystemMessageService>();
@@ -42,6 +45,15 @@ public class FaqServiceTests
         _faqRepoMock = new Mock<IGenericRepository<Domain.Entities.Faq, Guid>>();
 
         _unitOfWorkMock.Setup(x => x.Repository<Domain.Entities.Faq, Guid>()).Returns(_faqRepoMock.Object);
+        _unitOfWorkMock.Setup(x => x.BeginTransactionAsync()).Returns(Task.CompletedTask);
+        _unitOfWorkMock.Setup(x => x.CommitTransactionAsync()).Returns(Task.CompletedTask);
+        _unitOfWorkMock.Setup(x => x.RollbackTransactionAsync()).Returns(Task.CompletedTask);
+        _faqRepoMock
+            .Setup(r => r.GetAllWithSpecAsync(It.IsAny<SFARS.Domain.Specifications.Interfaces.ISpecification<Domain.Entities.Faq>>(), false))
+            .ReturnsAsync(new List<Domain.Entities.Faq>());
+        _faqRepoMock
+            .Setup(r => r.CountAsync(It.IsAny<SFARS.Domain.Specifications.Interfaces.ISpecification<Domain.Entities.Faq>>()))
+            .ReturnsAsync(0);
 
         _msgServiceMock
             .Setup(x => x.GetMessageAsync(It.IsAny<string>()))
@@ -61,7 +73,7 @@ public class FaqServiceTests
     /// Test Type: ABNORMAL
     /// Tests: CreateFaqAsync with empty Question
     /// Precondition: DTO has null or whitespace Question
-    /// Expected Result: Returns SYS_Warning0001 (validation error)
+    /// Expected Result: Returns SYS_Warning0002 (validation error)
     /// </summary>
     [Theory]
     [InlineData(null)]
@@ -80,7 +92,7 @@ public class FaqServiceTests
         var result = await _sut.CreateFaqAsync(dto);
 
         // Assert
-        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0001);
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0002);
         result.Data.Should().BeNull();
     }
 
@@ -88,7 +100,7 @@ public class FaqServiceTests
     /// Test Type: ABNORMAL
     /// Tests: CreateFaqAsync with empty Answer
     /// Precondition: DTO has null or whitespace Answer
-    /// Expected Result: Returns SYS_Warning0001 (validation error)
+    /// Expected Result: Returns SYS_Warning0002 (validation error)
     /// </summary>
     [Theory]
     [InlineData(null)]
@@ -107,7 +119,7 @@ public class FaqServiceTests
         var result = await _sut.CreateFaqAsync(dto);
 
         // Assert
-        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0001);
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0002);
         result.Data.Should().BeNull();
     }
 
@@ -184,7 +196,7 @@ public class FaqServiceTests
             .ReturnsAsync(false);
 
         _faqRepoMock
-            .Setup(r => r.GetAllAsync(true))
+            .Setup(r => r.GetAllWithSpecAsync(It.IsAny<SFARS.Domain.Specifications.Interfaces.ISpecification<Domain.Entities.Faq>>(), false))
             .ReturnsAsync(new List<Domain.Entities.Faq>());
 
         _mapperMock.Setup(m => m.Map<Domain.Entities.Faq>(It.IsAny<FaqDto>())).Returns(createdEntity);
@@ -250,8 +262,8 @@ public class FaqServiceTests
             .ReturnsAsync(false);
 
         _faqRepoMock
-            .Setup(r => r.GetAllAsync(true))
-            .ReturnsAsync(existingFaqs);
+            .Setup(r => r.GetAllWithSpecAsync(It.IsAny<SFARS.Domain.Specifications.Interfaces.ISpecification<Domain.Entities.Faq>>(), false))
+            .ReturnsAsync(new List<Domain.Entities.Faq> { existingFaqs.MaxBy(f => f.Order)! });
 
         _mapperMock.Setup(m => m.Map<Domain.Entities.Faq>(It.IsAny<FaqDto>())).Returns(createdEntity);
         _mapperMock.Setup(m => m.Map<FaqDto>(It.IsAny<Domain.Entities.Faq>())).Returns(resultDto);
@@ -266,6 +278,37 @@ public class FaqServiceTests
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
         var data = result.Data as FaqDto;
         data!.Order.Should().Be(6);
+    }
+
+    /// <summary>
+    /// Test Type: ABNORMAL
+    /// Tests: CreateFaqAsync with duplicate Order
+    /// Precondition: Question is unique but Order already exists
+    /// Expected Result: Returns SYS_Warning0003 (duplicate entry)
+    /// </summary>
+    [Fact]
+    public async Task CreateFaqAsync_DuplicateOrder_ReturnsDuplicateWarning()
+    {
+        // Arrange
+        var dto = new FaqDto
+        {
+            Question = "Unique question",
+            Answer = "Unique answer",
+            Order = 5,
+            IsActive = true
+        };
+
+        _faqRepoMock
+            .SetupSequence(r => r.AnyAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Domain.Entities.Faq, bool>>>()))
+            .ReturnsAsync(false) // duplicate question check
+            .ReturnsAsync(true); // duplicate order check
+
+        // Act
+        var result = await _sut.CreateFaqAsync(dto);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0003);
+        result.Message.Should().Contain("same order");
     }
 
     #endregion
@@ -290,8 +333,8 @@ public class FaqServiceTests
         };
 
         _faqRepoMock
-            .Setup(r => r.GetByIdAsync(faqId))
-            .ReturnsAsync((Domain.Entities.Faq?)null);
+            .Setup(r => r.DeleteAsync(faqId))
+            .ReturnsAsync(0);
 
         // Act
         var result = await _sut.UpdateFaqAsync(faqId, dto);
@@ -305,7 +348,7 @@ public class FaqServiceTests
     /// Test Type: ABNORMAL
     /// Tests: UpdateFaqAsync with empty Question
     /// Precondition: DTO has null or whitespace Question
-    /// Expected Result: Returns SYS_Warning0001 (validation error)
+    /// Expected Result: Returns SYS_Warning0002 (validation error)
     /// </summary>
     [Theory]
     [InlineData(null)]
@@ -336,7 +379,7 @@ public class FaqServiceTests
         var result = await _sut.UpdateFaqAsync(faqId, dto);
 
         // Assert
-        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0001);
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0002);
     }
 
     /// <summary>
@@ -377,6 +420,49 @@ public class FaqServiceTests
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0003);
         result.Message.Should().Contain("already exists");
+    }
+
+    /// <summary>
+    /// Test Type: ABNORMAL
+    /// Tests: UpdateFaqAsync with duplicate Order (excluding current FAQ)
+    /// Precondition: Another FAQ already uses the target Order
+    /// Expected Result: Returns SYS_Warning0003 (duplicate entry)
+    /// </summary>
+    [Fact]
+    public async Task UpdateFaqAsync_DuplicateOrder_ReturnsDuplicateWarning()
+    {
+        // Arrange
+        var faqId = Guid.NewGuid();
+        var existingFaq = new Domain.Entities.Faq
+        {
+            Id = faqId,
+            Question = "Original question",
+            Answer = "Original answer",
+            Order = 1
+        };
+
+        var dto = new FaqDto
+        {
+            Question = "Updated question",
+            Answer = "Updated answer",
+            Order = 2
+        };
+
+        _faqRepoMock
+            .Setup(r => r.GetByIdAsync(faqId))
+            .ReturnsAsync(existingFaq);
+
+        _faqRepoMock
+            .SetupSequence(r => r.AnyAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Domain.Entities.Faq, bool>>>()))
+            .ReturnsAsync(false) // duplicate question check
+            .ReturnsAsync(true); // duplicate order check
+
+        // Act
+        var result = await _sut.UpdateFaqAsync(faqId, dto);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0003);
+        result.Message.Should().Contain("same order");
     }
 
     /// <summary>
@@ -471,38 +557,24 @@ public class FaqServiceTests
 
     /// <summary>
     /// Test Type: NORMAL
-    /// Tests: DeleteFaqAsync with valid ID (soft delete)
+    /// Tests: DeleteFaqAsync with valid ID (hard delete)
     /// Precondition: Valid FAQ ID exists
-    /// Expected Result: Returns success and IsActive set to false
+    /// Expected Result: Returns success and entity is deleted
     /// </summary>
     [Fact]
-    public async Task DeleteFaqAsync_ValidId_SoftDeletesAndReturnsSuccess()
+    public async Task DeleteFaqAsync_ValidId_HardDeletesAndReturnsSuccess()
     {
         // Arrange
         var faqId = Guid.NewGuid();
-        var existingFaq = new Domain.Entities.Faq
-        {
-            Id = faqId,
-            Question = "Question to delete",
-            Answer = "Answer to delete",
-            IsActive = true
-        };
-
-        _faqRepoMock
-            .Setup(r => r.GetByIdAsync(faqId))
-            .ReturnsAsync(existingFaq);
-
-        _faqRepoMock.Setup(r => r.Update(It.IsAny<Domain.Entities.Faq>()));
-        _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+        _faqRepoMock.Setup(r => r.DeleteAsync(faqId)).ReturnsAsync(1);
 
         // Act
         var result = await _sut.DeleteFaqAsync(faqId);
 
         // Assert
-        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
-        result.Message.Should().Contain("deleted successfully");
-        existingFaq.IsActive.Should().BeFalse();
-        _faqRepoMock.Verify(r => r.Update(It.Is<Domain.Entities.Faq>(f => f.IsActive == false)), Times.Once);
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0004);
+        result.Data.Should().Be(true);
+        _faqRepoMock.Verify(r => r.DeleteAsync(faqId), Times.Once);
     }
 
     #endregion
@@ -610,8 +682,8 @@ public class FaqServiceTests
         };
 
         _faqRepoMock
-            .Setup(r => r.GetAllAsync(true))
-            .ReturnsAsync(allFaqs);
+            .Setup(r => r.GetAllWithSpecAsync(It.IsAny<SFARS.Domain.Specifications.Interfaces.ISpecification<Domain.Entities.Faq>>(), false))
+            .ReturnsAsync(allFaqs.Where(f => f.IsActive).OrderBy(f => f.Order).ToList());
 
         _mapperMock.Setup(m => m.Map<List<FaqDto>>(It.IsAny<List<Domain.Entities.Faq>>()))
             .Returns(activeFaqDtos);
@@ -640,7 +712,7 @@ public class FaqServiceTests
     {
         // Arrange
         _faqRepoMock
-            .Setup(r => r.GetAllAsync(true))
+            .Setup(r => r.GetAllWithSpecAsync(It.IsAny<SFARS.Domain.Specifications.Interfaces.ISpecification<Domain.Entities.Faq>>(), false))
             .ReturnsAsync(new List<Domain.Entities.Faq>());
 
         _mapperMock.Setup(m => m.Map<List<FaqDto>>(It.IsAny<List<Domain.Entities.Faq>>()))
@@ -690,8 +762,11 @@ public class FaqServiceTests
         }).ToList();
 
         _faqRepoMock
-            .Setup(r => r.GetAllAsync(true))
-            .ReturnsAsync(allFaqs);
+            .Setup(r => r.GetAllWithSpecAsync(It.IsAny<SFARS.Domain.Specifications.Interfaces.ISpecification<Domain.Entities.Faq>>(), false))
+            .ReturnsAsync(allFaqs.Skip(10).Take(10).ToList());
+        _faqRepoMock
+            .Setup(r => r.CountAsync(It.IsAny<SFARS.Domain.Specifications.Interfaces.ISpecification<Domain.Entities.Faq>>()))
+            .ReturnsAsync(allFaqs.Count);
 
         _mapperMock.Setup(m => m.Map<List<FaqDto>>(It.IsAny<List<Domain.Entities.Faq>>()))
             .Returns(pageDtos);
@@ -746,8 +821,11 @@ public class FaqServiceTests
         }).ToList();
 
         _faqRepoMock
-            .Setup(r => r.GetAllAsync(true))
-            .ReturnsAsync(allFaqs);
+            .Setup(r => r.GetAllWithSpecAsync(It.IsAny<SFARS.Domain.Specifications.Interfaces.ISpecification<Domain.Entities.Faq>>(), false))
+            .ReturnsAsync(allFaqs.Take(10).ToList());
+        _faqRepoMock
+            .Setup(r => r.CountAsync(It.IsAny<SFARS.Domain.Specifications.Interfaces.ISpecification<Domain.Entities.Faq>>()))
+            .ReturnsAsync(allFaqs.Count);
 
         _mapperMock.Setup(m => m.Map<List<FaqDto>>(It.IsAny<List<Domain.Entities.Faq>>()))
             .Returns(firstPageDtos);
@@ -770,6 +848,103 @@ public class FaqServiceTests
         totalCount.Should().Be(25);
         page.Should().Be(1); // 0 + 1
         totalPages.Should().Be(3); // 25 / 10 = 2.5 -> 3 pages
+    }
+
+    /// <summary>
+    /// Test Type: NORMAL
+    /// Tests: GetAllFaqsPaginatedAsync with search keyword on question
+    /// Precondition: FAQs contain mixed questions and one keyword match subset
+    /// Expected Result: Returns only FAQs whose question contains keyword
+    /// </summary>
+    [Fact]
+    public async Task GetAllFaqsPaginatedAsync_SearchByQuestionKeyword_ReturnsFilteredFaqs()
+    {
+        // Arrange
+        var allFaqs = new List<Domain.Entities.Faq>
+        {
+            new() { Id = Guid.NewGuid(), Question = "How to treat snake bite?", Answer = "A1", Order = 1, IsActive = true },
+            new() { Id = Guid.NewGuid(), Question = "Billing and payment", Answer = "A2", Order = 2, IsActive = true },
+            new() { Id = Guid.NewGuid(), Question = "Snake identification tips", Answer = "A3", Order = 3, IsActive = false }
+        };
+
+        var filteredDtos = new List<FaqDto>
+        {
+            new() { Question = "How to treat snake bite?", Order = 1 },
+            new() { Question = "Snake identification tips", Order = 3 }
+        };
+
+        _faqRepoMock
+            .Setup(r => r.GetAllWithSpecAsync(It.IsAny<SFARS.Domain.Specifications.Interfaces.ISpecification<Domain.Entities.Faq>>(), false))
+            .ReturnsAsync(allFaqs.Where(x =>
+                !string.IsNullOrEmpty(x.Question) &&
+                x.Question.Contains("snake", StringComparison.OrdinalIgnoreCase)).OrderBy(x => x.Order).ToList());
+        _faqRepoMock
+            .Setup(r => r.CountAsync(It.IsAny<SFARS.Domain.Specifications.Interfaces.ISpecification<Domain.Entities.Faq>>()))
+            .ReturnsAsync(2);
+
+        _mapperMock.Setup(m => m.Map<List<FaqDto>>(It.Is<List<Domain.Entities.Faq>>(list =>
+                list.Count == 2 &&
+                list.Any(x => x.Question == "How to treat snake bite?") &&
+                list.Any(x => x.Question == "Snake identification tips"))))
+            .Returns(filteredDtos);
+
+        // Act
+        var result = await _sut.GetAllFaqsPaginatedAsync(new SFARS.Domain.Specifications.Params.BaseSpecParams
+        {
+            Search = "snake",
+            Page = 1,
+            PageSize = 10
+        });
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
+        var paginatedData = result.Data as SFARS.Application.Dtos.PaginatedResultDto<FaqDto>;
+        paginatedData.Should().NotBeNull();
+        paginatedData!.Pagination.TotalItems.Should().Be(2);
+        paginatedData.Items.Should().HaveCount(2);
+    }
+
+    #endregion
+
+    #region GetSuggestedOrderAsync Tests
+
+    [Fact]
+    public async Task GetSuggestedOrderAsync_NoFaqs_ReturnsOne()
+    {
+        // Arrange
+        _faqRepoMock
+            .Setup(r => r.GetAllWithSpecAsync(It.IsAny<SFARS.Domain.Specifications.Interfaces.ISpecification<Domain.Entities.Faq>>(), false))
+            .ReturnsAsync(new List<Domain.Entities.Faq>());
+
+        // Act
+        var result = await _sut.GetSuggestedOrderAsync();
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
+        result.Data.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetSuggestedOrderAsync_WithFaqs_ReturnsMaxPlusOne()
+    {
+        // Arrange
+        var allFaqs = new List<Domain.Entities.Faq>
+        {
+            new() { Id = Guid.NewGuid(), Order = 10, IsActive = true },
+            new() { Id = Guid.NewGuid(), Order = 22, IsActive = true },
+            new() { Id = Guid.NewGuid(), Order = 5, IsActive = false }
+        };
+
+        _faqRepoMock
+            .Setup(r => r.GetAllWithSpecAsync(It.IsAny<SFARS.Domain.Specifications.Interfaces.ISpecification<Domain.Entities.Faq>>(), false))
+            .ReturnsAsync(new List<Domain.Entities.Faq> { allFaqs.Where(x => x.IsActive).MaxBy(x => x.Order)! });
+
+        // Act
+        var result = await _sut.GetSuggestedOrderAsync();
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
+        result.Data.Should().Be(23);
     }
 
     #endregion

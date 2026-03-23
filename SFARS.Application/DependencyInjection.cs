@@ -76,7 +76,7 @@ public static class DependencyInjection
         services.AddScoped<ICommunityPostService, CommunityPostService>();
 
         // FAQ services
-        services.AddScoped<IFaqService<FaqDto>, Services.Faq.FaqService>();
+        services.AddScoped<IFaqService<FaqDto>, FaqService>();
 
         // Transaction / Donation services
         services.AddScoped<ITransactionService<TransactionDto>, TransactionService>();
