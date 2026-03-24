@@ -10,6 +10,7 @@ using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
+using SFARS.Domain.Specifications.Community;
 using SFARS.Domain.Specifications.Params;
 using SFARS.Domain.Specifications;
 using SFARS.Infrastructure.Hubs;
@@ -44,7 +45,7 @@ public class CommunityPostService : ICommunityPostService
 
         var repo = _uow.Repository<ContentPost, Guid>();
 
-        var total = await repo.CountAsync(new BaseSpecification<ContentPost>(p => p.Type == PostType.Community));
+        var total = await repo.CountAsync(CommunityPostSpecification.Count(specParams));
 
         if (total == 0)
         {
@@ -59,10 +60,7 @@ public class CommunityPostService : ICommunityPostService
                     0));
         }
 
-        var spec = new BaseSpecification<ContentPost>(p => p.Type == PostType.Community);
-        spec.AddOrderByDescending(p => p.CreatedAt);
-        spec.ApplyPaging(limit, specParams.GetSkip());
-        spec.ApplyInclude(q => q.Include(p => p.Author).Include(p => p.Medias).Include(p => p.Likes));
+        var spec = CommunityPostSpecification.List(specParams, currentUserId);
 
         var posts = await repo.GetAllWithSpecAsync(spec, tracked: false);
 

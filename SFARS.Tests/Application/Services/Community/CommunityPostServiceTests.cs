@@ -137,6 +137,63 @@ new ContentPost { Id = Guid.NewGuid(), Type = PostType.Community, Author = new U
         data!.Pagination.TotalItems.Should().Be(2);
         data.Items.Should().HaveCount(2);
     }
+
+    [Fact]
+    public async Task GetPostsAsync_WithSearch_ApplySearchFilterInCountSpec()
+    {
+        // Arrange
+        var currentUserId = Guid.NewGuid();
+        _postRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<ContentPost>>())).ReturnsAsync(0);
+
+        // Act
+        var result = await _sut.GetPostsAsync(new CommunityPostSpecParams
+        {
+            Search = "snake"
+        }, currentUserId);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
+        _postRepoMock.Verify(r => r.CountAsync(It.Is<ISpecification<ContentPost>>(s => s.Filters.Count == 1)), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetPostsAsync_WithSort_ApplySortInListSpec()
+    {
+        // Arrange
+        var currentUserId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var mockPosts = new List<ContentPost>
+        {
+            new ContentPost
+            {
+                Id = Guid.NewGuid(),
+                Type = PostType.Community,
+                Author = new User { Id = authorId, FirstName = "Sort", LastName = "Test" },
+                Medias = new List<PostMedia>(),
+                Likes = new List<PostLike>()
+            }
+        };
+
+        ISpecification<ContentPost>? capturedListSpec = null;
+
+        _postRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<ContentPost>>())).ReturnsAsync(1);
+        _postRepoMock
+            .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<ContentPost>>(), false))
+            .Callback<ISpecification<ContentPost>, bool>((spec, _) => capturedListSpec = spec)
+            .ReturnsAsync(mockPosts);
+
+        // Act
+        var result = await _sut.GetPostsAsync(new CommunityPostSpecParams
+        {
+            Sort = "LikeCount"
+        }, currentUserId);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
+        capturedListSpec.Should().NotBeNull();
+        capturedListSpec!.OrderBy.Should().NotBeNull();
+        capturedListSpec.OrderBy.Body.ToString().Should().Contain("LikeCount");
+    }
     #endregion
 
     #region Tests cho DeletePostAsync
