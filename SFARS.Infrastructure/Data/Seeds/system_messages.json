@@ -661,9 +661,9 @@
   },
   {
     "MsgId": "Dispatch.Notify0002",
-    "MsgContent": "We are expanding the search to offline volunteers. While waiting, for your safety: CALL 115 or GO TO HOSPITAL NOW. IMMOBILIZE the bite area — DO NOT tourniquet or cut the wound.",
-    "En": "We are expanding the search to offline volunteers. While waiting, for your safety: CALL 115 or GO TO HOSPITAL NOW. IMMOBILIZE the bite area — DO NOT tourniquet or cut the wound.",
-    "Vi": "Hệ thống đang chờ phản hồi từ các tình nguyện viên offline. Trong lúc chờ đợi, để đảm bảo an toàn: GỌI 115 hoặc ĐẾN BỆNH VIỆN NGAY. BẤT ĐỘNG vùng bị cắn — KHÔNG thắt garo/rạch vết thương."
+    "MsgContent": "No rescuers nearby yet. We're reaching out to more volunteers. For your safety: CALL 115 or go to the nearest hospital immediately.",
+    "En": "No rescuers nearby yet. We're reaching out to more volunteers. For your safety: CALL 115 or go to the nearest hospital immediately.",
+    "Vi": "Hiện chưa có tình nguyện viên ở gần. Hệ thống đang mở rộng tìm kiếm. Trong lúc chờ đợi, hãy GỌI 115 hoặc đến bệnh viện gần nhất NGAY."
   },
   {
     "MsgId": "Incident.Warning0007",

@@ -529,4 +529,147 @@ public class AiInferenceService : IAiInferenceService
     }
 
     #endregion
+
+    /// <inheritdoc />
+    public async Task<IServiceResult> IdentifySnakeAsync(Stream? imageStream, string? contentType, long? fileSize)
+    {
+        if (imageStream == null || fileSize == null || fileSize <= 0 || string.IsNullOrEmpty(contentType))
+        {
+            return new ServiceResult(
+                ResultCodeConst.SYS_Warning0008,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0008) // Invalid file
+            );
+        }
+
+        var storageOpt = _storageOptions.Value;
+        
+        if (!IsAllowedImageType(contentType, storageOpt))
+        {
+            return new ServiceResult(
+                ResultCodeConst.AI_Warning0004,
+                await _msgService.GetMessageAsync(ResultCodeConst.AI_Warning0004)
+            );
+        }
+
+        using var bufferStream = new MemoryStream();
+        await imageStream.CopyToAsync(bufferStream);
+        var imageBytes = bufferStream.ToArray();
+
+        var geminiDetection = await _geminiService.DetectSnakeInImageAsync(imageBytes, contentType);
+
+        if (!geminiDetection.IsSnake)
+        {
+            return new ServiceResult(
+                ResultCodeConst.AI_Success0001,
+                "AI nhận định không có rắn trong ảnh.",
+                new SnakeIdentificationResponseDto
+                {
+                    Note = "Hình ảnh được AI đánh giá là KHÔNG PHẢI RẮN. Vui lòng thử lại với ảnh rõ hơn."
+                }
+            );
+        }
+
+        using var yoloStream = new MemoryStream(imageBytes);
+        var speciesPredictions = await _yoloService.InferSpeciesOnlyAsync(yoloStream, topK: 3);
+        var yoloPredictions = speciesPredictions.ToList();
+
+        if (!yoloPredictions.Any())
+        {
+            return new ServiceResult(
+                ResultCodeConst.AI_Success0001,
+                "AI chưa thể xác định chính xác loài rắn từ ảnh này.",
+                new SnakeIdentificationResponseDto
+                {
+                    Note = "AI chưa thể phân loại chính xác giống rắn. Bạn có thể thử chụp lại ảnh rõ hơn (toàn thân rắn, ánh sáng đủ)."
+                }
+            );
+        }
+
+        var activeSnakes = await _unitOfWork.Repository<Snake, Guid>().GetAllAsync(tracked: false);
+        var snakeDict = activeSnakes.Where(s => s.IsActive).ToDictionary(s => s.ScientificName, StringComparer.OrdinalIgnoreCase);
+
+        Snake? FindSnakeLocal(string className)
+        {
+            var sciName = className.Replace("_", " ");
+            return snakeDict.TryGetValue(sciName, out var s) ? s : null;
+        }
+
+        var response = new SnakeIdentificationResponseDto();
+        var candidates = new List<SnakeCandidateDto>();
+        IdentifiedSnakeDetailDto? primaryDetail = null;
+
+        var first = true;
+        foreach (var p in yoloPredictions)
+        {
+            var s = FindSnakeLocal(p.ClassName);
+            if (s != null)
+            {
+                if (first)
+                {
+                    primaryDetail = new IdentifiedSnakeDetailDto
+                    {
+                        SnakeId = s.Id,
+                        ScientificName = s.ScientificName,
+                        CommonName = s.CommonName,
+                        Confidence = Math.Round(p.Confidence, 4),
+                        ToxicityLevel = s.ToxicityLevel,
+                        ToxinGroup = s.ToxinGroup,
+                        DangerSummary = GetDangerSummary(s.ToxicityLevel),
+                        TypicalSymptoms = s.TypicalSymptoms,
+                        Description = s.Description,
+                        KeyIdentifiers = s.KeyIdentifiers,
+                        Habitat = s.Habitat,
+                        DistributionNote = s.DistributionNote,
+                        Note = s.Note
+                    };
+                    first = false;
+                }
+                else
+                {
+                    candidates.Add(new SnakeCandidateDto
+                    {
+                        SnakeId = s.Id,
+                        ScientificName = s.ScientificName,
+                        CommonName = s.CommonName,
+                        Confidence = Math.Round(p.Confidence, 4),
+                        ToxicityLevel = s.ToxicityLevel,
+                        ToxinGroup = s.ToxinGroup,
+                        DangerSummary = GetDangerSummary(s.ToxicityLevel),
+                        TypicalSymptoms = s.TypicalSymptoms
+                    });
+                }
+            }
+        }
+
+        if (primaryDetail != null)
+        {
+            response.PrimarySnake = primaryDetail;
+            response.OtherCandidates = candidates;
+            response.Note = "Kết quả nhận diện do AI đưa ra và chỉ mang tính tham khảo.";
+        }
+        else
+        {
+            response.Note = "AI nhận diện được rắn nhưng không tìm thấy thông tin khoa học tương ứng trong hệ thống.";
+        }
+
+        string finalMessage;
+        if (response.PrimarySnake != null)
+        {
+            finalMessage = string.Format(
+                await _msgService.GetMessageAsync(ResultCodeConst.AI_Success0001),
+                response.PrimarySnake.CommonName,
+                (response.PrimarySnake.Confidence * 100).ToString("0.##")
+            );
+        }
+        else
+        {
+            finalMessage = "Hoàn tất nhận diện ảnh.";
+        }
+
+        return new ServiceResult(
+            ResultCodeConst.AI_Success0001,
+            finalMessage,
+            response
+        );
+    }
 }

@@ -163,6 +163,29 @@ public class DispatchService : IDispatchService
             .Group(LocationConstants.SignalRGroupPrefix + incidentId)
             .SendAsync(DispatchConstants.EventFallback, fallbackDto);
 
+        var fcmTitle = "Cập nhật yêu cầu cứu hộ SOS";
+        var fcmData = new Dictionary<string, string>
+        {
+            { "incidentId", incidentId.ToString() },
+            { "type", "sos_fallback" }
+        };
+
+        await _fcmService.SendToUserAsync(incident.VictimId, fcmTitle, message, fcmData);
+
+        await _unitOfWork.Repository<NotificationLog, Guid>().AddAsync(new NotificationLog
+        {
+            Id = Guid.NewGuid(),
+            UserId = incident.VictimId,
+            Title = fcmTitle,
+            Message = message,
+            Type = NotificationType.System,
+            IsRead = false,
+            SentAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _unitOfWork.SaveChangesAsync();
+
         _logger.LogWarning("SOS Fallback triggered for IncidentId={Id}. Status=Unassigned.", incidentId);
     }
 

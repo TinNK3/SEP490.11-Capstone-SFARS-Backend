@@ -21,4 +21,10 @@ public interface IAiInferenceService
         string? contentType,
         long? fileSize,
         MediaType? mediaType);
+
+    /// <summary>
+    /// Standalone snake identification. Does not upload image or save to DB.
+    /// Fast response for Pokedex-like features.
+    /// </summary>
+    Task<IServiceResult> IdentifySnakeAsync(Stream? imageStream, string? contentType, long? fileSize);
 }
