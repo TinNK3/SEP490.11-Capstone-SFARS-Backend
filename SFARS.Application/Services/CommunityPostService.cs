@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SFARS.Application.Common;
+using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Community;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
@@ -9,6 +10,7 @@ using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
+using SFARS.Domain.Specifications.Params;
 using SFARS.Domain.Specifications;
 using SFARS.Infrastructure.Hubs;
 using System.Linq;
@@ -34,21 +36,43 @@ public class CommunityPostService : ICommunityPostService
         _fileStorage = fileStorage;
     }
 
-    public async Task<IServiceResult> GetPostsAsync(int page, int pageSize, Guid currentUserId)
+    public async Task<IServiceResult> GetPostsAsync(CommunityPostSpecParams specParams, Guid currentUserId)
     {
+        specParams ??= new CommunityPostSpecParams();
+        var page = specParams.GetPage();
+        var limit = specParams.GetTake();
+
         var repo = _uow.Repository<ContentPost, Guid>();
 
         var total = await repo.CountAsync(new BaseSpecification<ContentPost>(p => p.Type == PostType.Community));
 
+        if (total == 0)
+        {
+            return new ServiceResult(
+                ResultCodeConst.SYS_Warning0004,
+                "Không có bài đăng.",
+                new PaginatedResultDto<CommunityPostDto>(
+                    Enumerable.Empty<CommunityPostDto>(),
+                    page,
+                    limit,
+                    0,
+                    0));
+        }
+
         var spec = new BaseSpecification<ContentPost>(p => p.Type == PostType.Community);
         spec.AddOrderByDescending(p => p.CreatedAt);
-        spec.ApplyPaging(pageSize, (page - 1) * pageSize);
+        spec.ApplyPaging(limit, specParams.GetSkip());
         spec.ApplyInclude(q => q.Include(p => p.Author).Include(p => p.Medias).Include(p => p.Likes));
 
         var posts = await repo.GetAllWithSpecAsync(spec, tracked: false);
 
         var dtos = posts.Select(p => MapToDto(p, currentUserId)).ToList();
-        return new ServiceResult(ResultCodeConst.SYS_Success0002, "Lấy danh sách thành công", new PostListResponse(dtos, total, page, pageSize));
+        var totalPages = (int)Math.Ceiling((double)total / limit);
+
+        return new ServiceResult(
+            ResultCodeConst.SYS_Success0002,
+            "Lấy danh sách thành công",
+            new PaginatedResultDto<CommunityPostDto>(dtos, page, limit, totalPages, total));
     }
 
     public async Task<IServiceResult> GetPostByIdAsync(Guid postId, Guid currentUserId)

@@ -1,4 +1,5 @@
 using SFARS.Domain.Interfaces.Services.Base;
+using SFARS.Domain.Specifications.Params;
 using System.IO;
 
 namespace SFARS.Domain.Interfaces.Services;
@@ -7,7 +8,7 @@ public record MediaUploadInfo(Stream Stream, string FileName, string ContentType
 
 public interface ICommunityPostService
 {
-    Task<IServiceResult> GetPostsAsync(int page, int pageSize, Guid currentUserId);
+    Task<IServiceResult> GetPostsAsync(CommunityPostSpecParams specParams, Guid currentUserId);
     Task<IServiceResult> GetPostByIdAsync(Guid postId, Guid currentUserId);
     Task<IServiceResult> CreatePostAsync(Guid authorId, string? content, List<MediaUploadInfo>? mediaFiles);
     Task<IServiceResult> DeletePostAsync(Guid postId, Guid requesterId);

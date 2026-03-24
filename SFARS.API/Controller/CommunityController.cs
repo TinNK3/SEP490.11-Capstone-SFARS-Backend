@@ -6,6 +6,7 @@ using SFARS.API.Payloads;
 using SFARS.API.Payloads.Request.Community;
 using SFARS.Application.Dtos.Community;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Domain.Specifications.Params;
 
 namespace SFARS.API.Controller;
 
@@ -20,9 +21,8 @@ public class CommunityController : ControllerBase
 
     /// <summary>Danh sách bài đăng cộng đồng (phân trang)</summary>
     [HttpGet(APIRoute.Community.GetPosts, Name = nameof(GetPostsAsync))]
-    public async Task<IActionResult> GetPostsAsync(
-        [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
-        => this.ToIActionResult(await _svc.GetPostsAsync(page, pageSize, User.GetUserId()));
+    public async Task<IActionResult> GetPostsAsync([FromQuery] CommunityPostSpecParams specParams)
+        => this.ToIActionResult(await _svc.GetPostsAsync(specParams, User.GetUserId()));
 
     /// <summary>Chi tiết bài đăng</summary>
     [HttpGet(APIRoute.Community.GetPostById, Name = nameof(GetPostByIdAsync))]
