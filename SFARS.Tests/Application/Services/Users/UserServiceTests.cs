@@ -12,6 +12,7 @@ using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Repositories.Base;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Specifications;
 using SFARS.Domain.Specifications.Interfaces;
 using SFARS.Domain.Specifications.Params;
@@ -36,6 +37,7 @@ namespace SFARS.Tests.Application.Services.Users
         private readonly Mock<IMapper> _mapperMock;
         private readonly Mock<ILogger<UserService>> _loggerMock;
         private readonly Mock<IPublisher> _publisherMock;
+        private readonly Mock<IFileStorageService> _fileStorageServiceMock;
         private readonly Mock<IAdminAuditLogService> _auditLogServiceMock;
 
         private readonly UserService _sut;
@@ -50,6 +52,7 @@ namespace SFARS.Tests.Application.Services.Users
             _mapperMock     = new Mock<IMapper>();
             _loggerMock     = new Mock<ILogger<UserService>>();
             _publisherMock  = new Mock<IPublisher>();
+            _fileStorageServiceMock = new Mock<IFileStorageService>();
             _auditLogServiceMock = new Mock<IAdminAuditLogService>();
 
             _unitOfWorkMock
@@ -66,6 +69,7 @@ namespace SFARS.Tests.Application.Services.Users
                 _mapperMock.Object,
                 _loggerMock.Object,
                 _publisherMock.Object,
+                _fileStorageServiceMock.Object,
                 _auditLogServiceMock.Object
             );
         }

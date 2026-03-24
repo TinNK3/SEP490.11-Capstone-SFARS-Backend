@@ -10,6 +10,7 @@ using SFARS.Application.Dtos.User;
 using SFARS.Application.Events;
 using SFARS.Application.Utils;
 using SFARS.Application.Validations;
+using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
@@ -20,6 +21,7 @@ using SFARS.Domain.Specifications.Params;
 using SFARS.Domain.Specifications.Users;
 using SFARS.Infrastructure.Helpers;
 using System.Text.Json;
+using SFARS.Domain.Interfaces.Infrastructure;
 
 namespace SFARS.Application.Services
 {
@@ -27,6 +29,7 @@ namespace SFARS.Application.Services
     {
         private readonly IPublisher _publisher;
         private readonly IAdminAuditLogService _auditLogService;
+        private readonly IFileStorageService _fileStorageService;
 
         public UserService(
             ISystemMessageService msgService,
@@ -34,10 +37,12 @@ namespace SFARS.Application.Services
             IMapper mapper,
             ILogger<UserService> logger,
             IPublisher publisher,
+            IFileStorageService fileStorageService,
             IAdminAuditLogService auditLogService) : base(msgService, unitOfWork, mapper, logger)
         {
             _publisher = publisher;
             _auditLogService = auditLogService;
+            _fileStorageService = fileStorageService;
         }
 
         /// <summary>
@@ -199,6 +204,101 @@ namespace SFARS.Application.Services
                 ResultCodeConst.SYS_Success0003,
                 await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0003),
                 _mapper.Map<UserDto>(userWithRole)
+            );
+        }
+
+        public async Task<IServiceResult> UpdateAvatarAsync(Guid userId, Stream? fileStream, string? fileName, string? contentType)
+        {
+            // Input validation
+            if (fileStream == null || fileStream.Length == 0 || string.IsNullOrEmpty(fileName) || string.IsNullOrEmpty(contentType))
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0001,
+                    "File stream, fileName, and contentType are required."
+                );
+            }
+
+            if (userId == Guid.Empty)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0007,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0007)
+                );
+            }
+
+            // File size validation
+            if (fileStream.Length > FileStorageConstants.MaxAvatarSizeBytes)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0001,
+                    $"File size cannot exceed {FileStorageConstants.MaxAvatarSizeBytes / (1024 * 1024)} MB."
+                );
+            }
+
+            // MIME type validation - Avatar must be image
+            if (!FileStorageConstants.AllowedAvatarMimeTypes.Contains(contentType.ToLowerInvariant()))
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0001,
+                    $"Invalid file type. Allowed types: {string.Join(", ", FileStorageConstants.AllowedAvatarMimeTypes)}"
+                );
+            }
+
+            // Fetch user
+            var user = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(userId);
+            if (user == null)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004)
+                );
+            }
+
+            // Preserve old avatar URL for deletion later
+            var oldAvatarUrl = user.Avatar;
+
+            // Upload new avatar to Cloudinary
+            var uploadResult = await _fileStorageService.UploadAsync(
+                fileStream, 
+                fileName, 
+                FileStorageConstants.AvatarFolder, 
+                contentType
+            );
+
+            // Update user with new avatar URL
+            user.Avatar = uploadResult.Url;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            // Persist to database
+            await _unitOfWork.Repository<User, Guid>().UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync();
+
+            // Delete old avatar from Cloudinary (after DB save succeeds)
+            // Wrap in try-catch: deletion failure should not fail the overall operation
+            if (!string.IsNullOrEmpty(oldAvatarUrl))
+            {
+                try
+                {
+                    await _fileStorageService.DeleteByUrlAsync(oldAvatarUrl);
+                }
+                catch (Exception ex)
+                {
+                    // Log the failure but don't throw - old file deletion is non-critical
+                    _logger.LogWarning(
+                        ex,
+                        "Failed to delete old avatar from Cloudinary for User {UserId}. URL: {OldAvatarUrl}",
+                        userId,
+                        oldAvatarUrl
+                    );
+                }
+            }
+
+            // Return updated user DTO
+            var userDto = _mapper.Map<UserDto>(user);
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0003,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0003),
+                userDto
             );
         }
 

@@ -22,6 +22,7 @@ using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Models;
 using SFARS.Domain.Specifications;
 using System.IdentityModel.Tokens.Jwt;
+using Microsoft.EntityFrameworkCore;
 
 namespace SFARS.Application.Services.Auth
 {
@@ -481,6 +482,176 @@ namespace SFARS.Application.Services.Auth
 
         #endregion
 
+        #region Change Password
+
+        /// <summary>
+        /// Change password for authenticated user.
+        /// User must:
+        /// 1. Have a valid JWT token (Authorize attribute in controller)
+        /// 2. Have verified OTP via POST /api/auth/verify-otp (with type: ChangePassword)
+        /// 3. Provide correct current password
+        /// 4. Provide strong new password (different from current)
+        /// 
+        /// After successful change:
+        /// - User is logged out (all tokens revoked)
+        /// - User must login again with new password
+        /// </summary>
+        public async Task<IServiceResult> ChangePasswordAsync(
+            Guid userId,
+            string currentPassword,
+            string newPassword,
+            string otp,
+            string accessToken)
+        {
+            // Validate using DTO
+            var dto = new ChangePasswordDto
+            {
+                CurrentPassword = currentPassword,
+                NewPassword = newPassword,
+                Otp = otp
+            };
+
+            var validation = await ValidatorExtensions.ValidateAsync(dto);
+            if (validation != null && !validation.IsValid)
+            {
+                return new ServiceResult(ResultCodeConst.SYS_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001),
+                    validation.ToProblemDetails().Errors);
+            }
+
+            // 1. Get user
+            var user = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(userId);
+            if (user == null)
+                throw new KeyNotFoundException($"User {userId} not found");
+
+            if (user.Status != UserStatus.Active)
+                throw new UnauthorizedAccessException("User account is not active");
+
+            // 2. Verify current password
+            if (!HashUtils.VerifyPassword(currentPassword, user.PasswordHash))
+                throw new UnauthorizedAccessException("Current password is incorrect");
+
+            // 3. Validate new password is different from current
+            if (currentPassword == newPassword)
+                throw new InvalidOperationException("New password must be different from current password");
+
+            // 4. Validate new password strength
+            ValidatePasswordStrength(newPassword);
+
+            // 5. Verify OTP was verified previously
+            //    OTP must exist in DB, belong to this user, be for ChangePassword, and not be used yet
+            var otpRequest = await _unitOfWork.Repository<OtpRequest, Guid>()
+                .GetQueryable()
+                .Where(o => o.UserId == userId
+                    && o.Type == OtpType.ChangePassword
+                    && o.Code == otp
+                    && !o.IsUsed
+                    && o.ExpiredAt >= DateTime.UtcNow)  // Not expired
+                .OrderByDescending(o => o.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (otpRequest == null)
+                throw new UnauthorizedAccessException("Invalid, expired, or already-used OTP");
+
+            // 6. Update password hash (DB transaction start)
+            user.PasswordHash = HashUtils.HashPassword(newPassword);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            // 7. Mark OTP as used (BEFORE token revocation)
+            otpRequest.IsUsed = true;
+            otpRequest.UpdatedAt = DateTime.UtcNow;
+
+            // 8. Persist changes (atomic operation)
+            await _unitOfWork.Repository<User, Guid>().UpdateAsync(user);
+            await _unitOfWork.Repository<OtpRequest, Guid>().UpdateAsync(otpRequest);
+            await _unitOfWork.SaveChangesAsync();
+
+            // 9. REVOKE ALL TOKENS for this user (hard logout)
+            //    This invalidates current session immediately
+            await SignOutAsync(userId, accessToken);
+
+            // 10. Send confirmation email
+            try
+            {
+                var emailMessageDto = new EmailMessageDto
+                {
+                    To = user.Email,
+                    Subject = "Password Changed Successfully",
+                    Body = $"Your password was changed at {DateTime.UtcNow:O}. If you didn't make this change, please reset your password immediately."
+                };
+
+                var sent = await _emailService.SendEmailAsync(emailMessageDto, isBodyHtml: false);
+                if (!sent)
+                {
+                    _logger.LogWarning("Failed to send password changed confirmation email to {Email}", user.Email);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log but don't fail - email is non-critical
+                _logger.LogWarning(ex, "Failed to send password change email to {Email}", user.Email);
+            }
+
+            _logger.LogInformation("Password changed successfully for User {UserId} ({Email})", userId, user.Email);
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0003,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0003));
+        }
+
+        /// <summary>
+        /// Validate password strength requirements
+        /// Requirements:
+        /// - Min 8 characters
+        /// - At least 1 uppercase letter
+        /// - At least 1 lowercase letter  
+        /// - At least 1 digit
+        /// - At least 1 special character
+        /// - Max 2 consecutive identical characters
+        /// </summary>
+        private void ValidatePasswordStrength(string password)
+        {
+            if (string.IsNullOrEmpty(password))
+                throw new ArgumentException("Password cannot be empty");
+
+            if (password.Length < PasswordPolicyConstants.MinPasswordLength)
+                throw new InvalidOperationException($"Password must be at least {PasswordPolicyConstants.MinPasswordLength} characters");
+
+            if (password.Length > PasswordPolicyConstants.MaxPasswordLength)
+                throw new InvalidOperationException($"Password cannot exceed {PasswordPolicyConstants.MaxPasswordLength} characters");
+
+            if (PasswordPolicyConstants.RequireUppercase && !password.Any(char.IsUpper))
+                throw new InvalidOperationException("Password must contain at least one uppercase letter");
+
+            if (PasswordPolicyConstants.RequireLowercase && !password.Any(char.IsLower))
+                throw new InvalidOperationException("Password must contain at least one lowercase letter");
+
+            if (PasswordPolicyConstants.RequireDigit && !password.Any(char.IsDigit))
+                throw new InvalidOperationException("Password must contain at least one digit");
+
+            if (PasswordPolicyConstants.RequireSpecialCharacter && !password.Any(c => PasswordPolicyConstants.AllowedSpecialCharacters.Contains(c)))
+                throw new InvalidOperationException($"Password must contain at least one special character ({PasswordPolicyConstants.AllowedSpecialCharacters})");
+
+            // Check consecutive identical characters (max 2)
+            const int maxConsecutive = 2;
+            int consecutiveCount = 1;
+            for (int i = 1; i < password.Length; i++)
+            {
+                if (password[i] == password[i - 1])
+                {
+                    consecutiveCount++;
+                    if (consecutiveCount > maxConsecutive)
+                        throw new InvalidOperationException($"Password cannot contain more than {maxConsecutive} consecutive identical characters");
+                }
+                else
+                {
+                    consecutiveCount = 1;
+                }
+            }
+        }
+
+        #endregion
+
         #region Token Management
 
         // Handle refresh token
@@ -873,7 +1044,7 @@ namespace SFARS.Application.Services.Auth
         #region OTP Management
 
         /// <summary>
-        /// Send OTP - unified endpoint for both SignIn and ResetPassword types
+        /// Send OTP - unified endpoint for SignIn, ResetPassword, and ChangePassword types
         /// </summary>
         public async Task<IServiceResult> SendOtpAsync(string email, OtpType type)
         {
@@ -977,15 +1148,26 @@ namespace SFARS.Application.Services.Auth
             string emailSubject;
             string emailBody;
 
-            if (type == OtpType.ResetPassword)
+            if (type == OtpType.ResetPassword || type == OtpType.ChangePassword)
             {
-                bool isSetPassword = string.IsNullOrEmpty(userDto.PasswordHash);
-                string title = isSetPassword ? "Thiết Lập Mật Khẩu" : "Đặt Lại Mật Khẩu";
-                string actionText = isSetPassword ? "thiết lập mật khẩu" : "đặt lại mật khẩu";
-                string warningActionText = isSetPassword ? "thiết lập mật khẩu" : "tác vụ này";
-                string warningSuffix = isSetPassword ? "." : " và đổi mật khẩu ngay lập tức.";
+                bool isChangePassword = type == OtpType.ChangePassword;
+                bool isSetPassword = !isChangePassword && string.IsNullOrEmpty(userDto.PasswordHash);
+                string title = isChangePassword
+                    ? "Đổi Mật Khẩu"
+                    : (isSetPassword ? "Thiết Lập Mật Khẩu" : "Đặt Lại Mật Khẩu");
+                string actionText = isChangePassword
+                    ? "đổi mật khẩu"
+                    : (isSetPassword ? "thiết lập mật khẩu" : "đặt lại mật khẩu");
+                string warningActionText = isChangePassword
+                    ? "đổi mật khẩu"
+                    : (isSetPassword ? "thiết lập mật khẩu" : "tác vụ này");
+                string warningSuffix = (isSetPassword || isChangePassword)
+                    ? "."
+                    : " và đổi mật khẩu ngay lập tức.";
 
-                emailSubject = isSetPassword ? "Set Password OTP for SFARS" : "Password Reset OTP for SFARS";
+                emailSubject = isChangePassword
+                    ? "Change Password OTP for SFARS"
+                    : (isSetPassword ? "Set Password OTP for SFARS" : "Password Reset OTP for SFARS");
                 emailBody = $@"
                     <div style='font-family: Arial, sans-serif; background:#f6f7fb; padding:24px;'>
                         <div style='max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;'>

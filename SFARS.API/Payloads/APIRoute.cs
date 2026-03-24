@@ -21,6 +21,7 @@ namespace SFARS.API.Payloads
             public const string SendOtp = Base + "/auth/otp/send";
             public const string VerifyOtp = Base + "/auth/otp/verify";
             public const string SignOut = Base + "/auth/sign-out";
+            public const string ChangePassword = Base + "/auth/change-password";
             // [PUT]
 
         }
@@ -36,6 +37,8 @@ namespace SFARS.API.Payloads
             public const string MeDonationHistory = Base + "/me/donation-history";
             // [PUT]
             public const string UpdateMe = Base + "/me";
+            // [PATCH]
+            public const string UpdateAvatar = Base + "/me/avatar";
         }
 
         /// <summary>

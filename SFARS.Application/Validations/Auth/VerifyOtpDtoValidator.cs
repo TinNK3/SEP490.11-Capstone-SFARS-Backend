@@ -36,7 +36,7 @@ namespace SFARS.Application.Validations.Auth
             // Type validation
             RuleFor(x => x.Type)
                 .IsInEnum()
-                .WithMessage(isVi ? "Loại OTP không hợp lệ. Chỉ chấp nhận: SignIn, ResetPassword" : "Invalid OTP type. Accepted values: SignIn, ResetPassword");
+                .WithMessage(isVi ? "Loại OTP không hợp lệ. Chỉ chấp nhận: SignIn, ResetPassword, ChangePassword" : "Invalid OTP type. Accepted values: SignIn, ResetPassword, ChangePassword");
         }
     }
 }

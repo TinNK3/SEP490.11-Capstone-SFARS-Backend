@@ -166,4 +166,54 @@ public class CloudinaryStorageService : IFileStorageService
             return false;
         }
     }
+
+    /// <inheritdoc />
+    public async Task<bool> DeleteByUrlAsync(string url)
+    {
+        if (string.IsNullOrEmpty(url)) return false;
+
+        var publicId = ExtractPublicIdFromCloudinaryUrl(url);
+        if (string.IsNullOrEmpty(publicId))
+        {
+            _logger.LogWarning("Could not extract public ID from URL: {Url}", url);
+            return false;
+        }
+
+        return await DeleteAsync(publicId);
+    }
+
+    /// <summary>
+    /// Extract Cloudinary public ID from secure URL
+    /// Example: https://res.cloudinary.com/.../upload/v.../user_avatars/xyz.jpg → user_avatars/xyz
+    /// </summary>
+    private static string? ExtractPublicIdFromCloudinaryUrl(string secureUrl)
+    {
+        try
+        {
+            var uri = new Uri(secureUrl);
+            var path = uri.AbsolutePath;
+
+            var uploadIndex = path.IndexOf("/upload/", StringComparison.OrdinalIgnoreCase);
+            if (uploadIndex < 0) return null;
+
+            var afterUpload = path.Substring(uploadIndex + 8); 
+
+            var versionEndIndex = afterUpload.IndexOf('/');
+            if (versionEndIndex < 0) return null;
+
+            var publicIdWithExt = afterUpload.Substring(versionEndIndex + 1);
+
+            var lastDotIndex = publicIdWithExt.LastIndexOf('.');
+            if (lastDotIndex > 0)
+            {
+                return publicIdWithExt.Substring(0, lastDotIndex);
+            }
+
+            return publicIdWithExt;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }

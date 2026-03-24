@@ -11,6 +11,7 @@ namespace SFARS.Domain.Interfaces.Services
         Task<IServiceResult> GetByEmailAsync(string email);
         Task<IServiceResult> GetMeAsync(Guid userId);
         Task<IServiceResult> UpdateMeAsync(Guid userId, TDto dto);
+        Task<IServiceResult> UpdateAvatarAsync(Guid userId, Stream? fileStream, string? fileName, string? contentType);
         Task<IServiceResult> UpdateEmailVerificationCodeAsync(Guid userId, string otp);
         Task<IServiceResult> UpdatePasswordAsync(Guid userId, string newPasswordHash);
 

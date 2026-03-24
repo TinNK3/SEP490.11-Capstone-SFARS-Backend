@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SFARS.API.Extension;
 using SFARS.API.Extensions;
@@ -10,6 +10,8 @@ using SFARS.Application.Dtos.User;
 using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Specifications.Params;
+using Microsoft.AspNetCore.Http;
+using SFARS.Application.Common;
 
 namespace SFARS.API.Controller
 {
@@ -56,6 +58,22 @@ namespace SFARS.API.Controller
             var userId = User.GetUserId();
 
             var result = await _userService.UpdateMeAsync(userId, req.ToUserForUpdate());
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
+        /// Update current authenticated user's avatar
+        /// </summary>
+        /// <param name="file">Avatar image file to upload (multipart/form-data)</param>
+        /// <returns>Updated user profile</returns>
+        [Authorize]
+        [HttpPatch(APIRoute.User.UpdateAvatar, Name = nameof(UpdateAvatarAsync))]
+        public async Task<IActionResult> UpdateAvatarAsync(IFormFile? file)
+        {
+            var userId = User.GetUserId();
+            using var stream = file?.OpenReadStream();
+            var result = await _userService.UpdateAvatarAsync(userId, stream, file?.FileName, file?.ContentType);
+            
             return this.ToIActionResult(result);
         }
 

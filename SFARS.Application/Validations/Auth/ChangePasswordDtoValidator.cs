@@ -7,34 +7,18 @@ using SFARS.Domain.Common.Enum;
 
 namespace SFARS.Application.Validations.Auth
 {
-    /// <summary>
-    /// Validator for ResetPasswordDto
-    /// </summary>
-    public class ResetPasswordDtoValidator : AbstractValidator<ResetPasswordDto>
+    public class ChangePasswordDtoValidator : AbstractValidator<ChangePasswordDto>
     {
-        public ResetPasswordDtoValidator()
+        public ChangePasswordDtoValidator()
         {
             var langContext = LanguageContext.CurrentLanguage ?? "en";
             var langEnum = (SystemLanguage?)EnumExtensions.GetValueFromDescription<SystemLanguage>(langContext);
             var isVi = langEnum == SystemLanguage.Vietnamese;
 
-            // Email validation
-            RuleFor(x => x.Email)
+            RuleFor(x => x.CurrentPassword)
                 .NotEmpty()
-                .WithMessage(isVi ? "Email không được để trống" : "Email must not be empty")
-                .EmailAddress()
-                .WithMessage(isVi ? "Email không hợp lệ" : "Invalid email format")
-                .MaximumLength(256)
-                .WithMessage(isVi ? "Email không được vượt quá 256 ký tự" : "Email must not exceed 256 characters");
+                .WithMessage(isVi ? "Mật khẩu hiện tại không được để trống" : "Current password must not be empty");
 
-            // OTP validation
-            RuleFor(x => x.Otp)
-                .NotEmpty()
-                .WithMessage(isVi ? "Mã OTP không được để trống" : "OTP must not be empty")
-                .Matches(@"^\d{6}$")
-                .WithMessage(isVi ? "Mã OTP phải gồm 6 chữ số" : "OTP must be 6 digits");
-
-            // NewPassword validation
             RuleFor(x => x.NewPassword)
                 .NotEmpty()
                 .WithMessage(isVi ? "Mật khẩu mới không được để trống" : "New password must not be empty")
@@ -56,10 +40,18 @@ namespace SFARS.Application.Validations.Auth
                 .WithMessage(isVi
                     ? $"Mật khẩu phải có ít nhất một ký tự đặc biệt ({PasswordPolicyConstants.AllowedSpecialCharacters})"
                     : $"Password must contain at least one special character ({PasswordPolicyConstants.AllowedSpecialCharacters})")
+                .NotEqual(x => x.CurrentPassword)
+                .WithMessage(isVi ? "Mật khẩu mới phải khác mật khẩu hiện tại" : "New password must be different from the current password")
                 .Must(password => !ContainsConsecutiveIdenticalCharacters(password))
                 .WithMessage(isVi
                     ? "Mật khẩu không được chứa quá 2 ký tự giống nhau liên tiếp"
                     : "Password cannot contain more than 2 consecutive identical characters");
+
+            RuleFor(x => x.Otp)
+                .NotEmpty()
+                .WithMessage(isVi ? "Mã OTP không được để trống" : "OTP must not be empty")
+                .Matches(@"^\d{6}$")
+                .WithMessage(isVi ? "Mã OTP phải gồm 6 chữ số" : "OTP must be 6 digits");
         }
 
         private static bool ContainsAllowedSpecialCharacter(string password)
