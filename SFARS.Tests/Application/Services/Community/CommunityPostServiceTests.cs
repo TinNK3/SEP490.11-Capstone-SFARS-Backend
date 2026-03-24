@@ -13,6 +13,7 @@ using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Repositories.Base;
 using SFARS.Domain.Specifications;
 using SFARS.Domain.Specifications.Interfaces;
+using SFARS.Domain.Specifications.Params;
 using SFARS.Infrastructure.Hubs;
 using System.Linq.Expressions;
 
@@ -127,12 +128,13 @@ new ContentPost { Id = Guid.NewGuid(), Type = PostType.Community, Author = new U
             .ReturnsAsync(mockPosts);
 
         // Act
-        var result = await _sut.GetPostsAsync(1, 10, currentUserId);
+        var result = await _sut.GetPostsAsync(new CommunityPostSpecParams { Page = 1, PageSize = 10 }, currentUserId);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
-        var data = result.Data as PostListResponse;
-        data!.TotalCount.Should().Be(2);
+        var data = result.Data as SFARS.Application.Dtos.PaginatedResultDto<CommunityPostDto>;
+        data.Should().NotBeNull();
+        data!.Pagination.TotalItems.Should().Be(2);
         data.Items.Should().HaveCount(2);
     }
     #endregion
