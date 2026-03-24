@@ -5,8 +5,6 @@ using SFARS.API.Middlewares;
 using SFARS.Infrastructure;
 using SFARS.Infrastructure.Hubs;
 using SFARS.Application;
-using SFARS.Domain.Common.Constants;
-using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,7 +18,9 @@ builder.Services
     //Add Api Health check
     .AddApiHealthCheck()
     // Add SQL Server health check
-    .AddSqlServerHealthCheck();
+    .AddSqlServerHealthCheck()
+    // Add Redis health check
+    .AddRedisHealthCheck();
 
 builder.Services
     // Configure endpoints, swagger, and controllers
@@ -46,22 +46,10 @@ builder.Services
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddSwaggerFeature();
 
-// Redis: IConnectionMultiplexer (singleton, shared across all services)
-var redisConnectionString = builder.Configuration.GetConnectionString("Redis")
-    ?? "localhost:6379,abortConnect=false";
-builder.Services.AddSingleton<IConnectionMultiplexer>(
-    ConnectionMultiplexer.Connect(redisConnectionString));
-
 // In-memory cache for short-lived local caches (e.g., MedicalFacilityService)
 builder.Services.AddMemoryCache();
 
-// SignalR with Redis backplane for multi-instance support
-builder.Services.AddSignalR()
-    .AddStackExchangeRedis(redisConnectionString, options =>
-    {
-        options.Configuration.ChannelPrefix =
-            RedisChannel.Literal(LocationConstants.SignalRRedisChannelPrefix);
-    });
+builder.Services.ConfigureRedisIntegration(builder.Configuration);
 
 var app = builder.Build();
 
