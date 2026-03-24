@@ -34,6 +34,7 @@ namespace SFARS.Application.Validations
                 { } when typeof(T) == typeof(ResetPasswordDto) => (IValidator<T>)(object)new ResetPasswordDtoValidator(),
                 { } when typeof(T) == typeof(SendOtpDto) => (IValidator<T>)(object)new SendOtpDtoValidator(),
                 { } when typeof(T) == typeof(VerifyOtpDto) => (IValidator<T>)(object)new VerifyOtpDtoValidator(),
+                { } when typeof(T) == typeof(ChangePasswordDto) => (IValidator<T>)(object)new ChangePasswordDtoValidator(),
                 { } when typeof(T) == typeof(IncidentDto) => (IValidator<T>)(object)new CreateIncidentValidator(),
                 { } when typeof(T) == typeof(FacilityDto) => (IValidator<T>)(object)new FacilityDtoValidator(),
                 { } when typeof(T) == typeof(FaqDto) => (IValidator<T>)(object)new FaqDtoValidator(),

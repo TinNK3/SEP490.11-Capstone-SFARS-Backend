@@ -1,4 +1,4 @@
-﻿using SFARS.Domain.Common.Enum;
+using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Interfaces.Services.Base;
 
 namespace SFARS.Domain.Interfaces.Services
@@ -15,6 +15,7 @@ namespace SFARS.Domain.Interfaces.Services
         Task<IServiceResult> ResetPasswordAsync(string email, string otp, string newPassword);
         Task<IServiceResult> RefreshTokenAsync(string refreshTokenId, string accessToken);
         Task<IServiceResult> SignOutAsync(Guid userId, string accessToken);
+        Task<IServiceResult> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword, string otp, string accessToken);
 
         // OTP Management
         Task<IServiceResult> SendOtpAsync(string email, OtpType type);

@@ -98,7 +98,7 @@ public class AnalyticsRescuerService : IAnalyticsRescuerService
                 IncidentLocation = x.Incident.Location,
                 IncidentPriority = x.Incident.PriorityLevel,
                 IncidentDescription = x.Incident.Description,
-                Review = x.Review
+                x.Review
             })
             .ToListAsync();
 

@@ -92,6 +92,16 @@ namespace SFARS.API.Controller
         }
 
         [Authorize]
+        [HttpPost(APIRoute.Auth.ChangePassword, Name = nameof(ChangePasswordAsync))]
+        public async Task<IActionResult> ChangePasswordAsync([FromBody] ChangePasswordRequest request)
+        {
+            var userId = User.GetUserId();
+            var accessToken = Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+            var result = await _authService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword, request.Otp, accessToken);
+            return this.ToIActionResult(result);
+        }
+
+        [Authorize]
         [HttpPost(APIRoute.Auth.SignOut, Name = nameof(SignOutAsync))]
         public async Task<IActionResult> SignOutAsync()
         {

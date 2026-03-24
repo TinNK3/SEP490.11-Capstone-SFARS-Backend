@@ -21,6 +21,13 @@ public interface IFileStorageService
     /// <param name="publicId">Public ID of the file</param>
     /// <returns>True if deleted successfully</returns>
     Task<bool> DeleteAsync(string publicId);
+
+    /// <summary>
+    /// Delete a file from cloud storage by its full URL
+    /// </summary>
+    /// <param name="url">Full URL of the file</param>
+    /// <returns>True if deleted successfully</returns>
+    Task<bool> DeleteByUrlAsync(string url);
 }
 
 /// <summary>

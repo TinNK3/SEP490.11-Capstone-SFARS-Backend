@@ -786,7 +786,7 @@ public class AuthenticationServiceTests
     {
         // Arrange
         var email = "test@example.com";
-        var otp = "wrong-otp";
+        var otp = "654321";
         var newPassword = "NewPassword123!";
         
         var userDto = CreateValidUserDto();
@@ -799,7 +799,7 @@ public class AuthenticationServiceTests
         {
             Id = Guid.NewGuid(),
             UserId = userDto.Id,
-            Code = "correct-otp",
+            Code = "123456",
             Type = OtpType.ResetPassword,
             IsUsed = false,
             AttemptCount = 0,

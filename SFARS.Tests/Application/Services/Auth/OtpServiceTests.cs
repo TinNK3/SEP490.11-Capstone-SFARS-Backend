@@ -761,7 +761,7 @@ public class OtpServiceTests
         SetupOtpRepository(new List<OtpRequest> { otpRequest });
 
         // Act
-        var result = await _sut.ResetPasswordAsync(TestEmail, "wrong-otp", "NewPassword123!");
+        var result = await _sut.ResetPasswordAsync(TestEmail, "654321", "NewPassword123!");
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0005);
