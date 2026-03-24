@@ -44,7 +44,11 @@ public class HealthCheckController : ControllerBase
         {
             Name = entry.Key,
             Status = entry.Value.Status.ToString(),
-            Description = entry.Value.Description
+            Description = string.IsNullOrWhiteSpace(entry.Value.Description)
+                ? (entry.Value.Status == HealthStatus.Healthy
+                    ? $"{entry.Key} is healthy."
+                    : $"{entry.Key} health check did not return a description.")
+                : entry.Value.Description
         });
 
         bool isHealthy = healthStatus.All(entry => entry.Value.Status == HealthStatus.Healthy);

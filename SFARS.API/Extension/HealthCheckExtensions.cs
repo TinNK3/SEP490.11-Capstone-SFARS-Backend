@@ -21,5 +21,10 @@ namespace SFARS.API.Extensions
             // Add check for database health 
             return builder.AddCheck<CacheHealthCheck>("Cache");
         }
+
+        public static IHealthChecksBuilder AddRedisHealthCheck(this IHealthChecksBuilder builder)
+        {
+            return builder.AddCheck<RedisHealthCheck>("Redis");
+        }
     }
 }

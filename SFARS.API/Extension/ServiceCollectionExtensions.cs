@@ -2,7 +2,9 @@ using Microsoft.Data.SqlClient;
 using Serilog;
 using SFARS.Application.Configurations;
 using SFARS.Application.HealthChecks;
+using SFARS.Domain.Common.Constants;
 using SFARS.Infrastructure.Configurations;
+using StackExchange.Redis;
 using System.Data.Common;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -149,6 +151,27 @@ namespace SFARS.API.Extension
                     .AllowAnyMethod()
                     .AllowCredentials();
             }));
+            return services;
+        }
+
+        public static IServiceCollection ConfigureRedisIntegration(this IServiceCollection services,
+            IConfiguration configuration)
+        {
+            var redisConnectionString = configuration.GetConnectionString("Redis")
+                ?? "localhost:6379,abortConnect=false";
+
+            // Redis multiplexer is shared across app services.
+            services.AddSingleton<IConnectionMultiplexer>(
+                ConnectionMultiplexer.Connect(redisConnectionString));
+
+            // SignalR uses Redis backplane for multi-instance support.
+            services.AddSignalR()
+                .AddStackExchangeRedis(redisConnectionString, options =>
+                {
+                    options.Configuration.ChannelPrefix =
+                        RedisChannel.Literal(LocationConstants.SignalRRedisChannelPrefix);
+                });
+
             return services;
         }
     }
