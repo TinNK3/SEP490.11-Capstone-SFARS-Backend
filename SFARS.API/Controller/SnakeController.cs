@@ -23,6 +23,24 @@ public class SnakeController : ControllerBase
     #region Public Read Endpoints
 
     /// <summary>
+    /// Standalone API to identify a snake species from an uploaded image.
+    /// This is independent of the SOS workflow.
+    /// </summary>
+    [HttpPost(APIRoute.Snake.IdentifySpecies, Name = nameof(IdentifySnakeSpeciesAsync))]
+    [AllowAnonymous]
+    public async Task<IActionResult> IdentifySnakeSpeciesAsync(
+        [FromServices] IAiInferenceService aiService,
+        [FromForm] IdentifySnakeRequest request)
+    {
+        var result = await aiService.IdentifySnakeAsync(
+            request.Image.OpenReadStream(), 
+            request.Image.ContentType, 
+            request.Image.Length);
+            
+        return this.ToIActionResult(result);
+    }
+
+    /// <summary>
     /// Retrieves all snake entities asynchronously with optional searching and filtering.
     /// </summary>
     [HttpGet(APIRoute.Snake.GetAll, Name = nameof(GetAllAsync))]

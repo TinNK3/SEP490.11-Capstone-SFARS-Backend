@@ -49,6 +49,7 @@ namespace SFARS.API.Payloads
             public const string Search = Base + "/snakes/search";
             public const string History = Base + "/snakes/{id}/history";
             // [POST]
+            public const string IdentifySpecies = Base + "/snakes/identify-species";
             public const string Create = Base + "/snakes";
             public const string ImportPreview = Base + "/snakes/import/preview";
             public const string ImportApply = Base + "/snakes/import/apply";

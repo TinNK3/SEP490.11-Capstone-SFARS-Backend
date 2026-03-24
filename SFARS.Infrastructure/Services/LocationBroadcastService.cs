@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NetTopologySuite.Geometries;
 using SFARS.Domain.Common.Constants;
@@ -32,6 +33,7 @@ public class LocationBroadcastService : ILocationBroadcastService
     private readonly ILocationCacheService _cacheService;
     private readonly ILogger<LocationBroadcastService> _logger;
     private readonly IConnectionMultiplexer _redis;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     private static readonly TimeSpan ThrottleInterval = LocationConstants.BroadcastThrottleInterval;
     private static readonly TimeSpan IncidentsCacheTtl = LocationConstants.UserIncidentsCacheTtl;
@@ -42,7 +44,8 @@ public class LocationBroadcastService : ILocationBroadcastService
         IUnitOfWork unitOfWork,
         ILocationCacheService cacheService,
         IConnectionMultiplexer redis,
-        ILogger<LocationBroadcastService> logger)
+        ILogger<LocationBroadcastService> logger,
+        IServiceScopeFactory scopeFactory)
     {
         _hubContext = hubContext;
         _rescueHub = rescueHub;
@@ -50,6 +53,7 @@ public class LocationBroadcastService : ILocationBroadcastService
         _cacheService = cacheService;
         _redis = redis;
         _logger = logger;
+        _scopeFactory = scopeFactory;
     }
 
     public async Task BroadcastLocationToIncidentsAsync(Guid userId)
@@ -172,7 +176,12 @@ public class LocationBroadcastService : ILocationBroadcastService
             
             spec.ApplyInclude(q => q.Include(m => m.Incident));
             
-            var enRouteMissions = await _unitOfWork.Repository<RescueMission, Guid>().GetAllWithSpecAsync(spec);
+            // Create a dedicated scope for this Fire-and-Forget background task!
+            // This prevents "A second operation was started on this context" exception.
+            using var scope = _scopeFactory.CreateScope();
+            var bgUnitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            var enRouteMissions = await bgUnitOfWork.Repository<RescueMission, Guid>().GetAllWithSpecAsync(spec);
 
             if (!enRouteMissions.Any()) return;
 
