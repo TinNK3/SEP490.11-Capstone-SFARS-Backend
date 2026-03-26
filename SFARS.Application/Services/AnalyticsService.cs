@@ -1,6 +1,14 @@
+using Microsoft.EntityFrameworkCore;
+using NetTopologySuite;
+using NetTopologySuite.Geometries;
+using SFARS.Application.Common;
+using SFARS.Application.Dtos.Analytics;
 using SFARS.Application.Services.Analytics;
+using SFARS.Domain.Entities;
+using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
+using SFARS.Domain.Specifications;
 using SFARS.Domain.Specifications.Params;
 
 namespace SFARS.Application.Services;
@@ -12,19 +20,28 @@ public class AnalyticsService : IAnalyticsService
     private readonly IAnalyticsRescuerService _rescuerService;
     private readonly IAnalyticsAiService _aiService;
     private readonly IAnalyticsExportService _exportService;
+    private readonly IFcmPushService _fcmPushService;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ISystemMessageService _msgService;
 
     public AnalyticsService(
         IAnalyticsOverviewService overviewService,
         IAnalyticsIncidentService incidentService,
         IAnalyticsRescuerService rescuerService,
         IAnalyticsAiService aiService,
-        IAnalyticsExportService exportService)
+        IAnalyticsExportService exportService,
+        IFcmPushService fcmPushService,
+        IUnitOfWork unitOfWork,
+        ISystemMessageService msgService)
     {
         _overviewService = overviewService;
         _incidentService = incidentService;
         _rescuerService = rescuerService;
         _aiService = aiService;
         _exportService = exportService;
+        _fcmPushService = fcmPushService;
+        _unitOfWork = unitOfWork;
+        _msgService = msgService;
     }
 
     public Task<IServiceResult> GetOverviewMetricsAsync(AnalyticsSpecParams filter)
@@ -50,5 +67,54 @@ public class AnalyticsService : IAnalyticsService
 
     public Task<IServiceResult> ExportCsvAsync(string exportType, AnalyticsSpecParams filter)
         => _exportService.ExportCsvAsync(exportType, filter);
-}
 
+    public async Task<IServiceResult> PingHeatmapHotspotAsync(double latitude, double longitude, string? customMessage = null)
+    {
+        // 1. Tạo Point của điểm nóng
+        var geometryFactory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+        var hotspotLocation = geometryFactory.CreatePoint(new Coordinate(longitude, latitude));
+        
+        // Bán kính cảnh báo: 10km (10,000 mét)
+        double radiusInMeters = 10000;
+
+        // 2. Query SIÊU TỐI ƯU: Tìm các User có tọa độ cách điểm nóng <= 10km VÀ có DeviceToken
+        // EF Core sẽ dịch hàm Distance() thành truy vấn STDistance cực nhanh dưới SQL Server
+        var userIds = await _unitOfWork.Repository<User, Guid>().GetQueryable(false)
+            .Where(u => u.CurrentLocation != null 
+                     && u.CurrentLocation.Distance(hotspotLocation) <= radiusInMeters) // Khoanh vùng
+            .SelectMany(u => u.UserDevices) // Lấy device của các user này
+            .Where(d => !string.IsNullOrEmpty(d.DeviceToken))
+            .Select(d => d.UserId)
+            .Distinct()
+            .ToListAsync();
+
+        // 2. If no users have device tokens in radius, return warning
+        if (userIds.Count == 0)
+        {
+            return new ServiceResult(
+                ResultCodeConst.Analytics_Warning0001,
+                await _msgService.GetMessageAsync(ResultCodeConst.Analytics_Warning0001));
+        }
+
+        // 3. Build notification content
+        var title = "⚠️ Cảnh báo khu vực nguy hiểm";
+        var body = !string.IsNullOrWhiteSpace(customMessage)
+            ? customMessage
+            : $"Khu vực gần ({latitude:F4}°N, {longitude:F4}°E) được ghi nhận có nhiều sự cố rắn cắn. Hãy đề cao cảnh giác khi di chuyển trong khu vực này.";
+
+        var data = new Dictionary<string, string>
+        {
+            ["type"]      = "heatmap_alert",
+            ["latitude"]  = latitude.ToString("F6"),
+            ["longitude"] = longitude.ToString("F6")
+        };
+
+        // 4. Broadcast FCM push notification — FcmPushService handles chunking, stale-token cleanup, and NotificationLog.
+        await _fcmPushService.SendToUsersAsync(userIds, title, body, data);
+
+        return new ServiceResult(
+            ResultCodeConst.Analytics_Success0001,
+            await _msgService.GetMessageAsync(ResultCodeConst.Analytics_Success0001),
+            new { PingedUsers = userIds.Count, Latitude = latitude, Longitude = longitude });
+    }
+}

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SFARS.API.Extensions;
 using SFARS.API.Payloads;
+using SFARS.API.Payloads.Request.Admin;
 using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Specifications.Params;
@@ -74,6 +75,17 @@ namespace SFARS.API.Controller
         public async Task<IActionResult> ExportAsync([FromQuery] string exportType, [FromQuery] AnalyticsSpecParams filter)
         {
             var result = await _analyticsService.ExportCsvAsync(exportType, filter);
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
+        /// [POST] Admin pings a high-risk heatmap hotspot — broadcasts an FCM Alert push notification
+        /// to all community users with registered device tokens.
+        /// </summary>
+        [HttpPost(APIRoute.Analytics.PingHeatmapHotspot, Name = nameof(PingHeatmapHotspotAsync))]
+        public async Task<IActionResult> PingHeatmapHotspotAsync([FromBody] PingHeatmapHotspotRequest req)
+        {
+            var result = await _analyticsService.PingHeatmapHotspotAsync(req.Latitude, req.Longitude, req.CustomMessage);
             return this.ToIActionResult(result);
         }
     }

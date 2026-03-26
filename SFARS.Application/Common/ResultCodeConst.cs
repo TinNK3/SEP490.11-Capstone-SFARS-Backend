@@ -217,5 +217,10 @@ namespace SFARS.Application.Common
 
         public const string Admin_Fail0001 = "Admin.Fail0001";       // Status transition invalid
         #endregion
+
+        #region Analytics
+        public const string Analytics_Success0001 = "Analytics.Success0001"; // Heatmap hotspot ping sent to community
+        public const string Analytics_Warning0001 = "Analytics.Warning0001"; // No users with device tokens found – ping skipped
+        #endregion
     }
 }

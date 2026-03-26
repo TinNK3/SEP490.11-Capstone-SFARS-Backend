@@ -1,4 +1,4 @@
-﻿using SFARS.API.Payloads.Request.Admin;
+using SFARS.API.Payloads.Request.Admin;
 using SFARS.API.Payloads.Request.Auth;
 using SFARS.API.Payloads.Request.Facility;
 using SFARS.API.Payloads.Request.Faq;
@@ -8,6 +8,7 @@ using SFARS.API.Payloads.Request.Snake;
 using SFARS.API.Payloads.Request.Transaction;
 using SFARS.API.Payloads.Request.User;
 using SFARS.Application.Dtos;
+using SFARS.Application.Dtos.Analytics;
 using SFARS.Application.Dtos.Auth;
 using SFARS.Application.Dtos.Facility;
 using SFARS.Application.Dtos.Faq;
@@ -264,6 +265,17 @@ namespace SFARS.API.Extensions
                 Description = req.Description
             };
         }
+        #endregion
+
+        #region Analytics
+        // Mapping from typeof(PingHeatmapHotspotRequest) to typeof(PingHeatmapHotspotDto)
+        public static PingHeatmapHotspotDto ToPingHeatmapHotspotDto(this PingHeatmapHotspotRequest req)
+            => new PingHeatmapHotspotDto
+            {
+                Latitude = req.Latitude,
+                Longitude = req.Longitude,
+                CustomMessage = req.CustomMessage
+            };
         #endregion
     }
 }

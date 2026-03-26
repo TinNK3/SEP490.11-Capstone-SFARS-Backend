@@ -16,4 +16,5 @@ public interface IAnalyticsService
     Task<IServiceResult> GetAiAccuracyMetricsAsync(AnalyticsSpecParams filter);
     Task<IServiceResult> GetSnakeIncidentTrackingAsync(Guid snakeId, AnalyticsSpecParams filter);
     Task<IServiceResult> ExportCsvAsync(string exportType, AnalyticsSpecParams filter);
+    Task<IServiceResult> PingHeatmapHotspotAsync(double latitude, double longitude, string? customMessage = null);
 }
