@@ -286,6 +286,8 @@ namespace SFARS.API.Payloads
             public const string Heatmap = Base + "/admin/analytics/heatmap";
             public const string SnakeIncidentTracking = Base + "/admin/analytics/snakes/{snakeId}/incidents";
             public const string Export = Base + "/admin/analytics/export";
+            // [POST]
+            public const string PingHeatmapHotspot = Base + "/admin/analytics/heatmap/ping";
         }
     }
 }

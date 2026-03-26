@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore.Query;
 using Moq;
+using NetTopologySuite;
 using NetTopologySuite.Geometries;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos.Analytics;
@@ -8,8 +9,11 @@ using SFARS.Application.Services;
 using SFARS.Application.Services.Analytics;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
+using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Repositories.Base;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Domain.Specifications;
+using SFARS.Domain.Specifications.Interfaces;
 using SFARS.Domain.Specifications.Params;
 using System.Collections;
 using System.Linq.Expressions;
@@ -26,7 +30,10 @@ public class AnalyticsServiceTests
     private readonly Mock<IGenericRepository<User, Guid>> _userRepoMock;
     private readonly Mock<IGenericRepository<AiInferenceEntity, Guid>> _aiRepoMock;
     private readonly Mock<IGenericRepository<AiInferenceReviewEntity, Guid>> _aiReviewRepoMock;
+    private readonly Mock<IGenericRepository<UserDevice, Guid>> _deviceRepoMock;
     private readonly Mock<ISystemMessageService> _msgServiceMock;
+    private readonly Mock<IFcmPushService> _fcmPushServiceMock;
+    private readonly Mock<IUnitOfWork> _unitOfWorkMock;
     private readonly AnalyticsService _sut;
 
     public AnalyticsServiceTests()
@@ -37,7 +44,11 @@ public class AnalyticsServiceTests
         _userRepoMock = new Mock<IGenericRepository<User, Guid>>();
         _aiRepoMock = new Mock<IGenericRepository<AiInferenceEntity, Guid>>();
         _aiReviewRepoMock = new Mock<IGenericRepository<AiInferenceReviewEntity, Guid>>();
+        _deviceRepoMock = new Mock<IGenericRepository<UserDevice, Guid>>();
         _msgServiceMock = new Mock<ISystemMessageService>();
+        _fcmPushServiceMock = new Mock<IFcmPushService>();
+        _unitOfWorkMock = new Mock<IUnitOfWork>();
+
         _msgServiceMock
             .Setup(x => x.GetMessageAsync(It.IsAny<string>()))
             .ReturnsAsync((string code) => $"Message for {code}");
@@ -48,6 +59,15 @@ public class AnalyticsServiceTests
         _userRepoMock.Setup(x => x.GetQueryable(It.IsAny<bool>())).Returns(ToAsyncQueryable(new List<User>()));
         _aiRepoMock.Setup(x => x.GetQueryable(It.IsAny<bool>())).Returns(ToAsyncQueryable(new List<AiInferenceEntity>()));
         _aiReviewRepoMock.Setup(x => x.GetQueryable(It.IsAny<bool>())).Returns(ToAsyncQueryable(new List<AiInferenceReviewEntity>()));
+
+        // Wire up UnitOfWork to return the repos
+        _unitOfWorkMock
+            .Setup(x => x.Repository<UserDevice, Guid>())
+            .Returns(_deviceRepoMock.Object);
+
+        _unitOfWorkMock
+            .Setup(x => x.Repository<User, Guid>())
+            .Returns(_userRepoMock.Object);
 
         var overviewService = new AnalyticsOverviewService(
             _incidentRepoMock.Object,
@@ -86,7 +106,10 @@ public class AnalyticsServiceTests
             incidentService,
             rescuerService,
             aiService,
-            exportService);
+            exportService,
+            _fcmPushServiceMock.Object,
+            _unitOfWorkMock.Object,
+            _msgServiceMock.Object);
     }
 
     [Fact]
@@ -327,6 +350,118 @@ public class AnalyticsServiceTests
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0003);
         result.Data.Should().BeNull();
+    }
+
+    // -------------------------------------------------------------------------
+    // PingHeatmapHotspotAsync
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task PingHeatmapHotspotAsync_NoDeviceTokens_ReturnsWarning()
+    {
+        // Arrange — no users in radius
+        _userRepoMock
+            .Setup(x => x.GetQueryable(false))
+            .Returns(ToAsyncQueryable(new List<User>()));
+
+        var dto = new PingHeatmapHotspotDto { Latitude = 10.7, Longitude = 106.7 };
+
+        // Act
+        var result = await _sut.PingHeatmapHotspotAsync(10.7, 106.7);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.Analytics_Warning0001);
+        result.Data.Should().BeNull();
+        _fcmPushServiceMock.Verify(
+            x => x.SendToUsersAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IDictionary<string, string>>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task PingHeatmapHotspotAsync_WithUsers_CallsFcmAndReturnsSuccess()
+    {
+        // Arrange — two distinct users, each with a device token and valid location
+        var userId1 = Guid.NewGuid();
+        var userId2 = Guid.NewGuid();
+        
+        var geometryFactory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+        var hotspotLocation = geometryFactory.CreatePoint(new Coordinate(106.7, 10.7));
+
+        var users = new List<User>
+        {
+            new User 
+            { 
+                Id = userId1, 
+                CurrentLocation = hotspotLocation,
+                UserDevices = new List<UserDevice> { new() { Id = Guid.NewGuid(), UserId = userId1, DeviceToken = "token-a" } } 
+            },
+            new User 
+            { 
+                Id = userId2, 
+                CurrentLocation = hotspotLocation,
+                UserDevices = new List<UserDevice> { new() { Id = Guid.NewGuid(), UserId = userId2, DeviceToken = "token-b" } } 
+            }
+        };
+
+        _userRepoMock
+            .Setup(x => x.GetQueryable(false))
+            .Returns(ToAsyncQueryable(users));
+
+        _fcmPushServiceMock
+            .Setup(x => x.SendToUsersAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IDictionary<string, string>>()))
+            .Returns(Task.CompletedTask);
+
+        // Act
+        var result = await _sut.PingHeatmapHotspotAsync(10.7, 106.7);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.Analytics_Success0001);
+        result.Data.Should().NotBeNull();
+        _fcmPushServiceMock.Verify(
+            x => x.SendToUsersAsync(
+                It.Is<IEnumerable<Guid>>(ids => ids.Count() == 2),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.Is<IDictionary<string, string>>(d => d["type"] == "heatmap_alert")),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task PingHeatmapHotspotAsync_WithCustomMessage_UsesCustomMessageAsBody()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var geometryFactory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+        var hotspotLocation = geometryFactory.CreatePoint(new Coordinate(106.7, 10.7));
+
+        var users = new List<User>
+        {
+            new User 
+            { 
+                Id = userId, 
+                CurrentLocation = hotspotLocation,
+                UserDevices = new List<UserDevice> { new() { Id = Guid.NewGuid(), UserId = userId, DeviceToken = "token-x" } } 
+            }
+        };
+
+        var customMsg = "Cảnh báo đặc biệt từ admin!";
+
+        _userRepoMock
+            .Setup(x => x.GetQueryable(false))
+            .Returns(ToAsyncQueryable(users));
+
+        string? capturedBody = null;
+        _fcmPushServiceMock
+            .Setup(x => x.SendToUsersAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IDictionary<string, string>>()))
+            .Callback<IEnumerable<Guid>, string, string, IDictionary<string, string>>((_, _, body, _) => capturedBody = body)
+            .Returns(Task.CompletedTask);
+
+        // Act
+        var result = await _sut.PingHeatmapHotspotAsync(10.7, 106.7, customMsg);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.Analytics_Success0001);
+        capturedBody.Should().Be(customMsg);
     }
 
     private static IQueryable<T> ToAsyncQueryable<T>(IEnumerable<T> source)
