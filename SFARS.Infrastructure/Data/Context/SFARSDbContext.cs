@@ -45,6 +45,9 @@ public partial class SFARSDbContext : DbContext
     public DbSet<UserPoint> UserPoints { get; set; }
     public DbSet<PointTransaction> PointTransactions { get; set; }
     public DbSet<SnakeHotspot> SnakeHotspots { get; set; }
+    public DbSet<Reel> Reels { get; set; }
+    public DbSet<ReelLike> ReelLikes { get; set; }
+    public DbSet<ReelComment> ReelComments { get; set; }
 
     // Finance & System
     public DbSet<Transaction> Transactions { get; set; }

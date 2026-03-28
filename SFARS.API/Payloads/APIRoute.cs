@@ -95,6 +95,32 @@ namespace SFARS.API.Payloads
         }
 
         /// <summary>
+        /// Reels endpoints (Short Video feature)
+        /// </summary>
+        public static class Reels
+        {
+            private const string Base = "api/reels";
+
+            // [GET]
+            public const string GetFeed = Base + "/feed";
+            public const string GetById = Base + "/{id}";
+            public const string GetComments = Base + "/{id}/comments";
+            public const string GetSubComments = Base + "/comments/{id}/sub-comments";
+
+            // [POST]
+            public const string Create = Base;
+            public const string ToggleLike = Base + "/{id}/like";
+            public const string AddComment = Base + "/{id}/comments";
+
+            // [PATCH]
+            public const string Hide = Base + "/{id}/hide";
+
+            // [DELETE]
+            public const string Delete = Base + "/{id}";
+            public const string DeleteComment = Base + "/comments/{id}";
+        }
+
+        /// <summary>
         /// Incident endpoints
         /// </summary>
         public static class Incident
