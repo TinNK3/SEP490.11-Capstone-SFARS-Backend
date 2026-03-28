@@ -5,14 +5,12 @@ namespace SFARS.Domain.Common.Enum
     public enum NotificationType
     {
         [Description("Hệ thống")]
-        System,
+        System = 0,
         [Description("Cứu hộ")]
-        Mission,
-        [Description("Khuyến mãi")]
-        Promotion,
+        Mission = 1,
         [Description("Cảnh báo")]
-        Alert,
+        Alert = 2,
         [Description("Điều phối SOS")]
-        SosDispatch
+        SosDispatch = 3
     }
 }
