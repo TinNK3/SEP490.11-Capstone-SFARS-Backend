@@ -19,6 +19,7 @@ using SFARS.Application.Services.Auth;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Application.Utils;
 using SFARS.Domain.Interfaces.Services.Base;
+using SFARS.Application.Interfaces.Services;
 using System.Reflection;
 
 namespace SFARS.Application;
@@ -65,6 +66,9 @@ public static class DependencyInjection
 
         // Chat services
         services.AddScoped<IChatService, ChatService>();
+
+        // Notification services
+        services.AddScoped<INotificationService, NotificationService>();
 
         // Facility services
         services.AddScoped<IMedicalFacilityService<FacilityDto>, MedicalFacilityService>();

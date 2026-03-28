@@ -58,6 +58,14 @@ namespace SFARS.Domain.Interfaces.Repositories.Base
         
         Task UpdateAsync(TEntity entity);
 
+        /// <summary>
+        /// Updates entities matching specification. Returns number of affected rows.
+        /// EF Core 7+ ExecuteUpdateAsync - no entities loaded into memory.
+        /// </summary>
+        Task<int> UpdateWithSpecAsync(
+            ISpecification<TEntity> specification, 
+            Expression<Func<Microsoft.EntityFrameworkCore.Query.SetPropertyCalls<TEntity>, Microsoft.EntityFrameworkCore.Query.SetPropertyCalls<TEntity>>> setPropertyCalls);
+
         #endregion
 
         #region OTHERS

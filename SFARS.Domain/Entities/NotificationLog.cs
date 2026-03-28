@@ -11,6 +11,7 @@ public class NotificationLog : BaseEntity
     public NotificationType Type { get; set; }
     public bool IsRead { get; set; }
     public DateTime SentAt { get; set; } = DateTime.UtcNow;
+    public Guid? ReferenceId { get; set; }
 
     public virtual User User { get; set; } = null!;
 }

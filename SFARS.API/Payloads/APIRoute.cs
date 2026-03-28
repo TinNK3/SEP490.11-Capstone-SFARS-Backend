@@ -289,5 +289,18 @@ namespace SFARS.API.Payloads
             // [POST]
             public const string PingHeatmapHotspot = Base + "/admin/analytics/heatmap/ping";
         }
+
+        /// <summary>
+        /// Notification endpoints
+        /// </summary>
+        public static class Notifications
+        {
+            // [GET]
+            public const string GetList = Base + "/notifications";
+            public const string GetUnreadCount = Base + "/notifications/unread-count";
+            // [PATCH]
+            public const string MarkAsRead = Base + "/notifications/{id}/read";
+            public const string MarkAllAsRead = Base + "/notifications/read-all";
+        }
     }
 }

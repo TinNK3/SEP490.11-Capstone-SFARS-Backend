@@ -211,6 +211,17 @@ namespace SFARS.Infrastructure.Repositories
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Updates entities matching a specification using ExecuteUpdateAsync.
+        /// </summary>
+        /// <returns>Number of rows affected</returns>
+        public async Task<int> UpdateWithSpecAsync(
+            ISpecification<TEntity> specification,
+            Expression<Func<Microsoft.EntityFrameworkCore.Query.SetPropertyCalls<TEntity>, Microsoft.EntityFrameworkCore.Query.SetPropertyCalls<TEntity>>> setPropertyCalls)
+        {
+            return await ApplySpecification(specification).ExecuteUpdateAsync(setPropertyCalls);
+        }
+
         #endregion
 
         #region OTHERS

@@ -167,4 +167,80 @@ public class FcmPushService : IFcmPushService
             _logger.LogError(ex, "Error sending FCM Multicast");
         }
     }
+
+    //public async Task SendToUserWithoutLogAsync(Guid userId, string title, string body, IDictionary<string, string>? data = null)
+    //{
+    //    await SendToUsersWithoutLogAsync(new[] { userId }, title, body, data);
+    //}
+
+    //public async Task SendToUsersWithoutLogAsync(IEnumerable<Guid> userIds, string title, string body, IDictionary<string, string>? data = null)
+    //{
+    //    if (!_isInitialized) return;
+
+    //    var userIdsList = userIds.Distinct().ToList();
+    //    if (userIdsList.Count == 0) return;
+
+    //    var spec = new BaseSpecification<UserDevice>(x => userIdsList.Contains(x.UserId));
+    //    var userDevices = await _unitOfWork.Repository<UserDevice, Guid>()
+    //        .GetAllWithSpecAsync(spec, tracked: true);
+
+    //    var validDevices = userDevices.Where(d => !string.IsNullOrEmpty(d.DeviceToken)).ToList();
+    //    if (validDevices.Count == 0) return;
+
+    //    var tokens = validDevices.Select(d => d.DeviceToken).Distinct().ToList();
+    //    var messageData = data ?? new Dictionary<string, string>();
+        
+    //    try
+    //    {
+    //        var chunks = tokens.Chunk(500);
+    //        var failedTokens = new List<UserDevice>();
+
+    //        foreach (var chunk in chunks)
+    //        {
+    //            var multicastMessage = new MulticastMessage()
+    //            {
+    //                Tokens = chunk.ToList(),
+    //                Notification = new Notification()
+    //                {
+    //                    Title = title,
+    //                    Body = body
+    //                },
+    //                Data = new Dictionary<string, string>(messageData)
+    //            };
+
+    //            var response = await FirebaseMessaging.DefaultInstance.SendEachForMulticastAsync(multicastMessage);
+    //            _logger.LogInformation("FCM SendEachForMulticastAsync (WithoutLog): Success: {Success}, Failure: {Fail}", response.SuccessCount, response.FailureCount);
+
+    //            for (var i = 0; i < response.Responses.Count; i++)
+    //            {
+    //                var tokenStr = chunk[i];
+    //                var device = validDevices.FirstOrDefault(d => d.DeviceToken == tokenStr);
+                    
+    //                if (!response.Responses[i].IsSuccess)
+    //                {
+    //                    var exception = response.Responses[i].Exception;
+    //                    var errCode = exception?.MessagingErrorCode;
+    //                    if (errCode == MessagingErrorCode.Unregistered || 
+    //                        errCode == MessagingErrorCode.InvalidArgument ||
+    //                        errCode == MessagingErrorCode.SenderIdMismatch)
+    //                    {
+    //                        if (device != null) failedTokens.Add(device);
+    //                    }
+    //                }
+    //            }
+    //        }
+
+    //        if (failedTokens.Count > 0)
+    //        {
+    //            var deadIds = failedTokens.Select(d => d.Id).ToArray();
+    //            await _unitOfWork.Repository<UserDevice, Guid>().DeleteRangeAsync(deadIds);
+    //            _logger.LogInformation("Cleaned up {Count} stale UserDevices.", failedTokens.Count);
+    //            await _unitOfWork.SaveChangesAsync();
+    //        }
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex, "Error sending FCM Multicast (WithoutLog)");
+    //    }
+    //}
 }

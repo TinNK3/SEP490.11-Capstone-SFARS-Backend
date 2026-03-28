@@ -5,6 +5,7 @@ using NetTopologySuite;
 using NetTopologySuite.Geometries;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos.Analytics;
+using SFARS.Application.Interfaces.Services;
 using SFARS.Application.Services;
 using SFARS.Application.Services.Analytics;
 using SFARS.Domain.Common.Enum;
@@ -32,7 +33,7 @@ public class AnalyticsServiceTests
     private readonly Mock<IGenericRepository<AiInferenceReviewEntity, Guid>> _aiReviewRepoMock;
     private readonly Mock<IGenericRepository<UserDevice, Guid>> _deviceRepoMock;
     private readonly Mock<ISystemMessageService> _msgServiceMock;
-    private readonly Mock<IFcmPushService> _fcmPushServiceMock;
+    private readonly Mock<INotificationService> _notificationServiceMock;
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
     private readonly AnalyticsService _sut;
 
@@ -46,7 +47,7 @@ public class AnalyticsServiceTests
         _aiReviewRepoMock = new Mock<IGenericRepository<AiInferenceReviewEntity, Guid>>();
         _deviceRepoMock = new Mock<IGenericRepository<UserDevice, Guid>>();
         _msgServiceMock = new Mock<ISystemMessageService>();
-        _fcmPushServiceMock = new Mock<IFcmPushService>();
+        _notificationServiceMock = new Mock<INotificationService>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
 
         _msgServiceMock
@@ -107,7 +108,7 @@ public class AnalyticsServiceTests
             rescuerService,
             aiService,
             exportService,
-            _fcmPushServiceMock.Object,
+            _notificationServiceMock.Object,
             _unitOfWorkMock.Object,
             _msgServiceMock.Object);
     }
@@ -372,15 +373,15 @@ public class AnalyticsServiceTests
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Analytics_Warning0001);
         result.Data.Should().BeNull();
-        _fcmPushServiceMock.Verify(
-            x => x.SendToUsersAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IDictionary<string, string>>()),
+        _notificationServiceMock.Verify(
+            x => x.SendNotificationsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<NotificationType>(), It.IsAny<Guid?>()),
             Times.Never);
     }
 
     [Fact]
-    public async Task PingHeatmapHotspotAsync_WithUsers_CallsFcmAndReturnsSuccess()
+    public async Task PingHeatmapHotspotAsync_WithUsers_CallsNotificationServiceAndReturnsSuccess()
     {
-        // Arrange — two distinct users, each with a device token and valid location
+        // Arrange — two distinct users with valid location (no DeviceToken required)
         var userId1 = Guid.NewGuid();
         var userId2 = Guid.NewGuid();
         
@@ -392,14 +393,12 @@ public class AnalyticsServiceTests
             new User 
             { 
                 Id = userId1, 
-                CurrentLocation = hotspotLocation,
-                UserDevices = new List<UserDevice> { new() { Id = Guid.NewGuid(), UserId = userId1, DeviceToken = "token-a" } } 
+                CurrentLocation = hotspotLocation
             },
             new User 
             { 
                 Id = userId2, 
-                CurrentLocation = hotspotLocation,
-                UserDevices = new List<UserDevice> { new() { Id = Guid.NewGuid(), UserId = userId2, DeviceToken = "token-b" } } 
+                CurrentLocation = hotspotLocation
             }
         };
 
@@ -407,9 +406,9 @@ public class AnalyticsServiceTests
             .Setup(x => x.GetQueryable(false))
             .Returns(ToAsyncQueryable(users));
 
-        _fcmPushServiceMock
-            .Setup(x => x.SendToUsersAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IDictionary<string, string>>()))
-            .Returns(Task.CompletedTask);
+        _notificationServiceMock
+            .Setup(x => x.SendNotificationsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<NotificationType>(), It.IsAny<Guid?>()))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, "OK"));
 
         // Act
         var result = await _sut.PingHeatmapHotspotAsync(10.7, 106.7);
@@ -417,12 +416,13 @@ public class AnalyticsServiceTests
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Analytics_Success0001);
         result.Data.Should().NotBeNull();
-        _fcmPushServiceMock.Verify(
-            x => x.SendToUsersAsync(
+        _notificationServiceMock.Verify(
+            x => x.SendNotificationsAsync(
                 It.Is<IEnumerable<Guid>>(ids => ids.Count() == 2),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
-                It.Is<IDictionary<string, string>>(d => d["type"] == "heatmap_alert")),
+                NotificationType.Alert,
+                null),
             Times.Once);
     }
 
@@ -439,8 +439,7 @@ public class AnalyticsServiceTests
             new User 
             { 
                 Id = userId, 
-                CurrentLocation = hotspotLocation,
-                UserDevices = new List<UserDevice> { new() { Id = Guid.NewGuid(), UserId = userId, DeviceToken = "token-x" } } 
+                CurrentLocation = hotspotLocation
             }
         };
 
@@ -451,10 +450,10 @@ public class AnalyticsServiceTests
             .Returns(ToAsyncQueryable(users));
 
         string? capturedBody = null;
-        _fcmPushServiceMock
-            .Setup(x => x.SendToUsersAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IDictionary<string, string>>()))
-            .Callback<IEnumerable<Guid>, string, string, IDictionary<string, string>>((_, _, body, _) => capturedBody = body)
-            .Returns(Task.CompletedTask);
+        _notificationServiceMock
+            .Setup(x => x.SendNotificationsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<NotificationType>(), It.IsAny<Guid?>()))
+            .Callback<IEnumerable<Guid>, string, string, NotificationType, Guid?>((_, _, body, _, _) => capturedBody = body)
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, "OK"));
 
         // Act
         var result = await _sut.PingHeatmapHotspotAsync(10.7, 106.7, customMsg);

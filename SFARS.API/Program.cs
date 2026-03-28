@@ -1,4 +1,4 @@
-﻿using Hangfire;
+using Hangfire;
 using SFARS.API.Extension;
 using SFARS.API.Extensions;
 using SFARS.API.Middlewares;
@@ -79,6 +79,7 @@ app.UseAuthorization();
 app.MapHub<LocationTrackingHub>("/hubs/location-tracking");
 app.MapHub<RescueDispatchHub>("/hubs/rescue");
 app.MapHub<CommunityHub>("/hubs/community");
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 // Hangfire dashboard (admin access only)
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
