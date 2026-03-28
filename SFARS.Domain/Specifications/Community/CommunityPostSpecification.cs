@@ -15,7 +15,7 @@ namespace SFARS.Domain.Specifications.Community
 
         public static CommunityPostSpecification List(CommunityPostSpecParams p, Guid currentUserId)
         {
-            var spec = new CommunityPostSpecification(post => post.Type == PostType.Community);
+            var spec = new CommunityPostSpecification(post => post.Type == PostType.Community && (post.IsPublished || post.AuthorId == currentUserId));
 
             ApplySearchFilter(spec, p.Search);
             ApplySort(spec, p.Sort);
@@ -30,9 +30,9 @@ namespace SFARS.Domain.Specifications.Community
             return spec;
         }
 
-        public static CommunityPostSpecification Count(CommunityPostSpecParams p)
+        public static CommunityPostSpecification Count(CommunityPostSpecParams p, Guid currentUserId)
         {
-            var spec = new CommunityPostSpecification(post => post.Type == PostType.Community);
+            var spec = new CommunityPostSpecification(post => post.Type == PostType.Community && (post.IsPublished || post.AuthorId == currentUserId));
             ApplySearchFilter(spec, p.Search);
             return spec;
         }

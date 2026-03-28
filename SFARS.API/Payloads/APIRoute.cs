@@ -82,6 +82,13 @@ namespace SFARS.API.Payloads
             public const string AddComment = Base + "/posts/{id}/comments";
             public const string ToggleLike = Base + "/posts/{id}/like";
 
+            // [PUT]
+            public const string UpdatePost = Base + "/posts/{id}";
+
+            // [PATCH]
+            public const string HidePost = Base + "/posts/{id}/hide";
+            public const string UnhidePost = Base + "/posts/{id}/unhide";
+
             // [DELETE]
             public const string DeletePost = Base + "/posts/{id}";
             public const string DeleteComment = Base + "/posts/comments/{commentId}";
