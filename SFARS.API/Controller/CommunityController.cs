@@ -42,6 +42,24 @@ public class CommunityController : ControllerBase
     public async Task<IActionResult> DeletePostAsync(Guid id)
         => this.ToIActionResult(await _svc.DeletePostAsync(id, User.GetUserId()));
 
+    /// <summary>Sửa bài đăng (chỉ tác giả)</summary>
+    [HttpPut(APIRoute.Community.UpdatePost, Name = nameof(UpdatePostAsync))]
+    public async Task<IActionResult> UpdatePostAsync(Guid id, [FromForm] UpdateCommunityPostRequest req)
+    {
+        var newFiles = req.NewMediaFiles?.Select(f => new MediaUploadInfo(f.OpenReadStream(), f.FileName, f.ContentType)).ToList();
+        return this.ToIActionResult(await _svc.UpdatePostAsync(id, User.GetUserId(), req.Content, req.RetainedMediaUrls, newFiles));
+    }
+
+    /// <summary>Ẩn bài đăng (chỉ tác giả)</summary>
+    [HttpPatch(APIRoute.Community.HidePost, Name = nameof(HidePostAsync))]
+    public async Task<IActionResult> HidePostAsync(Guid id)
+        => this.ToIActionResult(await _svc.HidePostAsync(id, User.GetUserId()));
+
+    /// <summary>Bỏ ẩn bài đăng (chỉ tác giả)</summary>
+    [HttpPatch(APIRoute.Community.UnhidePost, Name = nameof(UnhidePostAsync))]
+    public async Task<IActionResult> UnhidePostAsync(Guid id)
+        => this.ToIActionResult(await _svc.UnhidePostAsync(id, User.GetUserId()));
+
     /// <summary>Toggle like / unlike</summary>
     [HttpPost(APIRoute.Community.ToggleLike, Name = nameof(ToggleLikeAsync))]
     public async Task<IActionResult> ToggleLikeAsync(Guid id)

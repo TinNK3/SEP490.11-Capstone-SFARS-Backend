@@ -245,6 +245,110 @@ new ContentPost { Id = Guid.NewGuid(), Type = PostType.Community, Author = new U
     }
     #endregion
 
+    #region Tests cho UpdatePostAsync
+    [Fact]
+    public async Task UpdatePostAsync_BaiVietKhongTonTai_TraVeCanhBao()
+    {
+        // Arrange
+        _postRepoMock.Setup(r => r.GetWithSpecAsync(It.IsAny<ISpecification<ContentPost>>(), true)).ReturnsAsync((ContentPost?)null);
+
+        // Act
+        var result = await _sut.UpdatePostAsync(Guid.NewGuid(), Guid.NewGuid(), "Hello", null, null);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
+    }
+
+    [Fact]
+    public async Task UpdatePostAsync_KhongPhaiTacGia_TraVeCanhBaoQuyen()
+    {
+        // Arrange
+        var post = new ContentPost { Id = Guid.NewGuid(), Type = PostType.Community, AuthorId = Guid.NewGuid() };
+        _postRepoMock.Setup(r => r.GetWithSpecAsync(It.IsAny<ISpecification<ContentPost>>(), true)).ReturnsAsync(post);
+
+        // Act (Sửa bằng UserID khác AuthorID)
+        var result = await _sut.UpdatePostAsync(post.Id, Guid.NewGuid(), "New Context", null, null);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0007);
+    }
+
+    [Fact]
+    public async Task UpdatePostAsync_DuLieuHopLe_SuaThanhCong()
+    {
+        // Arrange
+        var authorId = Guid.NewGuid();
+        var postId = Guid.NewGuid();
+        var post = new ContentPost { Id = postId, Type = PostType.Community, AuthorId = authorId, BodyContent = "Old", Medias = new List<PostMedia>(), Likes = new List<PostLike>() };
+        
+        post.Author = new User { Id = authorId, FirstName = "Test", LastName = "Mock" };
+
+        _postRepoMock.Setup(r => r.GetWithSpecAsync(It.IsAny<ISpecification<ContentPost>>(), true)).ReturnsAsync(post);
+        _postRepoMock.Setup(r => r.GetWithSpecAsync(It.Is<ISpecification<ContentPost>>(s => s.Includes.Count > 0 && !s.IsPagingEnabled && !s.AsSplitQuery), false)).ReturnsAsync(post);
+        _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Act
+        var result = await _sut.UpdatePostAsync(postId, authorId, "New text", null, null);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
+        result.Data.Should().BeOfType<CommunityPostDto>();
+        var dto = result.Data as CommunityPostDto;
+        dto!.Content.Should().Be("New text");
+        _uowMock.Verify(u => u.SaveChangesAsync(), Times.Once);
+    }
+    #endregion
+
+    #region Tests cho HidePostAsync
+    [Fact]
+    public async Task HidePostAsync_BaiVietKhongTonTai_TraVeCanhBao()
+    {
+        // Arrange
+        _postRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((ContentPost?)null);
+
+        // Act
+        var result = await _sut.HidePostAsync(Guid.NewGuid(), Guid.NewGuid());
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
+    }
+
+    [Fact]
+    public async Task HidePostAsync_KhongPhaiTacGia_TraVeCanhBaoQuyen()
+    {
+        // Arrange
+        var post = new ContentPost { Id = Guid.NewGuid(), Type = PostType.Community, AuthorId = Guid.NewGuid() };
+        _postRepoMock.Setup(r => r.GetByIdAsync(post.Id)).ReturnsAsync(post);
+
+        // Act
+        var result = await _sut.HidePostAsync(post.Id, Guid.NewGuid());
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0007);
+    }
+
+    [Fact]
+    public async Task HidePostAsync_TacGiaHopLe_TraVeSuccessVaNoiDuocAn()
+    {
+        // Arrange
+        var authorId = Guid.NewGuid();
+        var post = new ContentPost { Id = Guid.NewGuid(), Type = PostType.Community, AuthorId = authorId, IsPublished = true };
+
+        _postRepoMock.Setup(r => r.GetByIdAsync(post.Id)).ReturnsAsync(post);
+        _postRepoMock.Setup(r => r.Update(post)).Verifiable();
+        _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Act
+        var result = await _sut.HidePostAsync(post.Id, authorId);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
+        post.IsPublished.Should().BeFalse();
+        _postRepoMock.Verify(r => r.Update(It.IsAny<ContentPost>()), Times.Once);
+        _uowMock.Verify(u => u.SaveChangesAsync(), Times.Once);
+    }
+    #endregion
+
     #region Tests cho ToggleLikeAsync
     [Fact]
     public async Task ToggleLikeAsync_ThemLikeThanhCongVaDaySignalR()
