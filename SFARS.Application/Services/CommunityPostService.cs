@@ -45,7 +45,7 @@ public class CommunityPostService : ICommunityPostService
 
         var repo = _uow.Repository<ContentPost, Guid>();
 
-        var total = await repo.CountAsync(CommunityPostSpecification.Count(specParams));
+        var total = await repo.CountAsync(CommunityPostSpecification.Count(specParams, currentUserId));
 
         if (total == 0)
         {
@@ -75,7 +75,7 @@ public class CommunityPostService : ICommunityPostService
 
     public async Task<IServiceResult> GetPostByIdAsync(Guid postId, Guid currentUserId)
     {
-        var spec = new BaseSpecification<ContentPost>(p => p.Id == postId && p.Type == PostType.Community);
+        var spec = new BaseSpecification<ContentPost>(p => p.Id == postId && p.Type == PostType.Community && (p.IsPublished || p.AuthorId == currentUserId));
         spec.ApplyInclude(q => q.Include(p => p.Author).Include(p => p.Medias).Include(p => p.Likes));
 
         var post = await _uow.Repository<ContentPost, Guid>().GetWithSpecAsync(spec, tracked: false);
@@ -137,6 +137,129 @@ public class CommunityPostService : ICommunityPostService
             dto.Id, dto.Author, TruncateContent(dto.Content, 100), dto.Medias.Count, dto.CreatedAt));
 
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Tạo bài đăng thành công", dto);
+    }
+
+    public async Task<IServiceResult> UpdatePostAsync(Guid postId, Guid authorId, string? content, List<string>? retainedMediaUrls, List<MediaUploadInfo>? newMediaFiles)
+    {
+        var spec = new BaseSpecification<ContentPost>(p => p.Id == postId && p.Type == PostType.Community);
+        // Không Include Medias để tránh lỗi EF Core Tracking khi thao tác xóa
+        
+        var post = await _uow.Repository<ContentPost, Guid>().GetWithSpecAsync(spec, tracked: true);
+
+        if (post is null)
+            return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Bài đăng không tồn tại.");
+
+        if (post.AuthorId != authorId)
+            return new ServiceResult(ResultCodeConst.SYS_Warning0007, "Bạn không có quyền sửa bài đăng này.");
+
+        if (string.IsNullOrWhiteSpace(content) && (retainedMediaUrls is null || retainedMediaUrls.Count == 0) && (newMediaFiles is null || newMediaFiles.Count == 0))
+            return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Bài đăng phải có nội dung hoặc ít nhất 1 ảnh.");
+
+        post.BodyContent = content;
+        post.Title = content?.Length > 0 ? TruncateContent(content, 100) : "Community Post";
+        post.UpdatedAt = DateTime.UtcNow;
+        post.UpdatedBy = authorId;
+
+        var mediaRepo = _uow.Repository<PostMedia, Guid>();
+        
+        // Fetch riêng PostMedia mà không dính dáng tới ChangeTracker của list post.Medias
+        var postMedias = await mediaRepo.GetAllWithSpecAsync(new BaseSpecification<PostMedia>(m => m.PostId == postId), tracked: false);
+        var postMediasList = postMedias.ToList();
+
+        var mediasToRemove = postMediasList.Where(m => retainedMediaUrls == null || !retainedMediaUrls.Contains(m.Url)).ToList();
+        
+        if (mediasToRemove.Any())
+        {
+            await mediaRepo.DeleteRangeAsync(mediasToRemove.Select(m => m.Id).ToArray());
+        }
+
+        var mediasToKeep = postMediasList.Where(m => !mediasToRemove.Contains(m)).ToList();
+        int targetOrder = 0;
+
+        // Cập nhật Order cho ảnh giữ lại (nếu cần)
+        foreach (var media in mediasToKeep.OrderBy(m => m.Order))
+        {
+            if (media.Order != targetOrder)
+            {
+                media.Order = targetOrder;
+                await mediaRepo.UpdateAsync(media); // Kích hoạt Modified state
+            }
+            targetOrder++;
+        }
+
+        // Upload file mới
+        if (newMediaFiles?.Count > 0)
+        {
+            for (int i = 0; i < newMediaFiles.Count; i++)
+            {
+                var file = newMediaFiles[i];
+
+                var uploadResult = await _fileStorage.UploadAsync(
+                    file.Stream,
+                    file.FileName,
+                    "community_posts",
+                    file.ContentType);
+
+                var newMedia = new PostMedia
+                {
+                    PostId = postId,
+                    Url = uploadResult.Url,
+                    ContentType = file.ContentType,
+                    Order = targetOrder++,
+                    CreatedBy = authorId
+                };
+                
+                await mediaRepo.AddAsync(newMedia); // Kích hoạt Added state
+            }
+        }
+
+        await _uow.SaveChangesAsync();
+
+        var returnSpec = new BaseSpecification<ContentPost>(p => p.Id == postId);
+        returnSpec.ApplyInclude(q => q.Include(p => p.Author).Include(p => p.Medias).Include(p => p.Likes));
+
+        var updated = await _uow.Repository<ContentPost, Guid>().GetWithSpecAsync(returnSpec, tracked: false);
+        var dto = MapToDto(updated!, authorId);
+
+        return new ServiceResult(ResultCodeConst.SYS_Success0001, "Sửa bài đăng thành công", dto);
+    }
+
+    public async Task<IServiceResult> HidePostAsync(Guid postId, Guid requesterId)
+    {
+        var post = await _uow.Repository<ContentPost, Guid>().GetByIdAsync(postId);
+        if (post is null || post.Type != PostType.Community)
+            return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Bài đăng không tồn tại.");
+
+        if (post.AuthorId != requesterId)
+            return new ServiceResult(ResultCodeConst.SYS_Warning0007, "Bạn không có quyền ẩn bài đăng này.");
+
+        post.IsPublished = false;
+        post.UpdatedAt = DateTime.UtcNow;
+        post.UpdatedBy = requesterId;
+
+        _uow.Repository<ContentPost, Guid>().Update(post);
+        await _uow.SaveChangesAsync();
+
+        return new ServiceResult(ResultCodeConst.SYS_Success0001, "Ẩn bài đăng thành công", true);
+    }
+
+    public async Task<IServiceResult> UnhidePostAsync(Guid postId, Guid requesterId)
+    {
+        var post = await _uow.Repository<ContentPost, Guid>().GetByIdAsync(postId);
+        if (post is null || post.Type != PostType.Community)
+            return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Bài đăng không tồn tại.");
+
+        if (post.AuthorId != requesterId)
+            return new ServiceResult(ResultCodeConst.SYS_Warning0007, "Bạn không có quyền bỏ ẩn bài đăng này.");
+
+        post.IsPublished = true;
+        post.UpdatedAt = DateTime.UtcNow;
+        post.UpdatedBy = requesterId;
+
+        _uow.Repository<ContentPost, Guid>().Update(post);
+        await _uow.SaveChangesAsync();
+
+        return new ServiceResult(ResultCodeConst.SYS_Success0001, "Bỏ ẩn bài đăng thành công", true);
     }
 
     public async Task<IServiceResult> DeletePostAsync(Guid postId, Guid requesterId)
