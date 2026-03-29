@@ -79,4 +79,27 @@ public static class AiInferenceConstants
     }
 
     #endregion
+
+    #region User Messages (Chat & Inference)
+
+    public const string MsgIdentifyDone = "Đã hoàn tất nhận diện. Vui lòng xem kết quả bên dưới.";
+    public const string MsgSkipAction = "Bạn đã bỏ qua chụp ảnh. Quy trình cứu hộ đã được kích hoạt.";
+    public const string MsgNotSnakeAction = "Không phát hiện rắn trong ảnh. Ca cứu hộ đã được ghi nhận.";
+    public const string MsgLowConfAction = "Chưa thể xác định loài rắn. Vui lòng áp dụng sơ cứu chung và chờ hỗ trợ.";
+
+    public const string NoteIdentifyResult = "Đây là kết quả nhận diện sơ bộ và chỉ mang tính tham khảo. Vui lòng tham khảo ý kiến chuyên gia y tế.";
+    public const string NoteIdentifyNotFound = "Hệ thống phát hiện rắn nhưng chưa tìm được thông tin loài tương ứng. Vui lòng liên hệ nhân viên y tế để được hỗ trợ.";
+    public const string NoteIdentifyNotSnake = "Hệ thống xác nhận vật thể trong ảnh không phải là rắn. Nếu bạn chắc chắn đã bị rắn cắn, hãy thử chụp lại ảnh rõ hơn hoặc liên hệ đường dây nóng.";
+    public const string NoteIdentifyLowConf = "Hệ thống chưa đủ thông tin để nhận diện loài rắn. Bạn có thể thử chụp lại ảnh rõ nét hơn, lấy toàn thân rắn và đảm bảo đủ ánh sáng.";
+
+    public const string NoteSkip = "Bạn đã bỏ qua bước chụp ảnh. Để đảm bảo an toàn, hệ thống sẽ xử lý ca này như trường hợp rắn chưa rõ loài. Hãy áp dụng sơ cứu chung và chờ nhân viên y tế hỗ trợ.";
+    public const string NoteNotSnake = "Hệ thống không phát hiện rắn trong ảnh bạn gửi. Dù vậy, ca cứu hộ vẫn được ghi nhận và nhân viên y tế sẽ liên hệ bạn sớm nhất.";
+    public const string NoteLowConf = "Hệ thống chưa thể xác định chính xác loài rắn từ ảnh này. Bạn có thể thử chụp lại ảnh rõ hơn (toàn thân rắn, đủ ánh sáng). Hãy áp dụng sơ cứu chung bên dưới trong lúc chờ hỗ trợ.";
+    public const string NoteResult = "Đây là kết quả nhận diện sơ bộ và chỉ mang tính tham khảo. Vui lòng ưu tiên làm theo hướng dẫn sơ cứu và chỉ dẫn của nhân viên y tế.";
+
+    public const string ChatInitialFormat = "Kết quả nhận diện: {0} ({1})\nĐộ tin cậy: {2}%\nMức độ: {3}\nNhóm độc: {4}\n\nSơ cứu đã được hướng dẫn ở trên.\nHãy theo dõi và báo lại nếu xuất hiện triệu chứng mới.";
+    public const string ChatSkipped = "Hệ thống ghi nhận bạn đã bỏ qua bước chụp ảnh.\nĐể bảo đảm an toàn tối đa, ca cứu hộ này được xếp vào khẩn cấp vô danh (Rắn Chưa Rõ Loài).\nVui lòng tuyệt đối tuân thủ hướng dẫn Sơ cứu BẤT ĐỘNG ở mặt trước màn hình.\nNếu có bất kỳ triệu chứng nào (khó thở, sưng nhanh...), hãy nhập vào đây để AI cập nhật sơ cứu.";
+    public const string SuccessIdentifyFormat = "Nhận diện rắn: {0} (Độ tin cậy {1}%)"; // This was format expected in AiInferenceService previously? Actually, let's keep the exact string format.
+
+    #endregion
 }

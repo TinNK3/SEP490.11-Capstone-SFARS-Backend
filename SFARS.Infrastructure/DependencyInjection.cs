@@ -38,6 +38,14 @@ public static class DependencyInjection
             services.Configure<StorageOptions>(
                 configuration.GetSection(StorageOptions.SectionName));
 
+            // Configure Classification options
+            services.Configure<ClassificationModelOptions>(
+                configuration.GetSection(ClassificationModelOptions.SectionName));
+
+            // Configure YOLO Detection options
+            services.Configure<YoloDetectionOptions>(
+                configuration.GetSection(YoloDetectionOptions.SectionName));
+
             // Configure PayOS
             services.Configure<PayOSSettings>(
                 configuration.GetSection(PayOSSettings.SectionName));
@@ -67,8 +75,9 @@ public static class DependencyInjection
             services.AddScoped<IFileStorageService, CloudinaryStorageService>();
             services.AddScoped<IPayOSService, PayOSService>();
             
-            // AI Services
-            services.AddSingleton<IYoloInferenceService, YoloInferenceService>();
+            // AI Services — 2-Stage Pipeline
+            services.AddSingleton<ISnakeDetectionService, YoloSnakeDetectionService>();
+            services.AddSingleton<ISpeciesClassificationService, EfficientNetClassificationService>();
             services.AddHttpClient<IGeminiAiService, GeminiAiService>();
             services.AddScoped<ISpeechToTextService, GeminiSpeechToTextService>();
             

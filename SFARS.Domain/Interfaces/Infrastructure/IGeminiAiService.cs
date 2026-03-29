@@ -49,8 +49,7 @@ public interface IGeminiAiService
 /// </summary>
 public record GeminiSnakeDetectionResult(
     bool IsSnake,
-    float Confidence,
-    string? Reasoning
+    IReadOnlyList<int>? Box2D
 );
 
 // ─── Snake analysis (first-aid enrichment) ───

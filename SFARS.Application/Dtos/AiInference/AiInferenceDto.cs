@@ -10,7 +10,7 @@ public class AiInferenceResultDto
     public Guid InferenceId { get; set; }
     public SnakeCandidateDto? PrimarySnake { get; set; }
     public List<FirstAidStepDto> FirstAidSteps { get; set; } = new();
-    public List<string> Prohibitions { get; set; } = new();
+    public List<FirstAidStepDto> Prohibitions { get; set; } = new();
 
     public List<SnakeCandidateDto> OtherCandidates { get; set; } = new();
     public string? Note { get; set; }

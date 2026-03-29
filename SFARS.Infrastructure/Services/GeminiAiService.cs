@@ -35,21 +35,15 @@ public class GeminiAiService : IGeminiAiService
 
     private const string SnakeDetectionSystemPrompt =
         """
-        Bạn là chuyên gia AI cao cấp cho hệ thống phản ứng cấp cứu y tế.
-        Nhiệm vụ: Phân tích hình ảnh và xác định DUY NHẤT một câu hỏi: "Đây có phải là một con RẮN THẬT, CÒN SỐNG (hoặc mới chết) mang tính chất đe dọa sinh học hay không?"
-        
-        QUY TẮC NGHIÊM NGẶT:
-        1. TRẢ VỀ is_snake: true NẾU:
-           - Là thực thể sinh học tự nhiên (biological organism).
-           - Có bề mặt da vảy tự nhiên, mắt có độ sâu, hoặc tư thế vận động đặc trưng.
-        
-        2. TRẢ VỀ is_snake: false NẾU LÀ:
-           - Đồ chơi nhựa, cao su, gỗ, đá (thường có khớp nối, bề mặt bóng bẩy công nghiệp hoặc tư thế bất tử cứng nhắc).
-           - Hình ảnh chụp lại từ màn hình thiết bị khác (có viền màn hình, hiện tượng lóa sáng điểm ảnh).
-           - Hình vẽ, phim hoạt hình, trang sức, túi xách/quần áo có họa tiết da rắn.
-        
-        BẮT BUỘC TRẢ VỀ JSON (không giải thích thêm):
-        {"is_snake": true/false, "confidence": float, "reasoning": "Lý do ngắn gọn để AI tự kiểm chứng"}
+        You are an expert wildlife detection system for a medical first-aid application. Your strict task is to locate a REAL snake in the provided image.
+
+        CRITICAL RULES:
+
+        Verification: Confirm the object is an actual biological snake. Strictly IGNORE snake-like objects (e.g., ropes, hoses, sticks, roots, toys). If NO real snake is detected, you MUST return {"box_2d": []}.
+
+        Maximal Visible Extent (Completeness): The bounding box MUST encompass the ENTIRE visible portion of the snake within the camera frame. Whether the snake is fully visible, partially hidden by objects, coiled, or cut off by the image edges (e.g., only the body or head is captured), the box must include ALL visible snake parts present in the photo. Do NOT crop out any visible scales or segments.
+
+        Format: Return ONLY a valid JSON object with the bounding box coordinates [ymin, xmin, ymax, xmax] normalized to the [0, 1000] scale. Absolutely NO markdown, NO text, NO explanations.
         """;
 
     /// <inheritdoc />
@@ -153,8 +147,8 @@ public class GeminiAiService : IGeminiAiService
         }
 
         // Exhausted retries — fallback: assume snake to be safe (avoid missing real emergencies)
-        _logger.LogWarning("Gemini snake detection failed after all retries, falling back to IsSnake=true");
-        return new GeminiSnakeDetectionResult(IsSnake: true, Confidence: 0.5f, Reasoning: "Không thể kết nối AI xác nhận. Mặc định xác nhận có rắn để đảm bảo an toàn.");
+        _logger.LogWarning("Gemini snake detection failed after all retries, falling back to empty box (Not Sure)");
+        return new GeminiSnakeDetectionResult(IsSnake: true, Box2D: new List<int> { 0, 0, 1000, 1000 }); // Provide full image bounding box as fallback
     }
 
     /// <summary>
@@ -175,30 +169,24 @@ public class GeminiAiService : IGeminiAiService
                 throw new InvalidOperationException($"Failed to parse snake detection JSON: {jsonText}");
             }
 
+            bool isSnake = parsed.Box2D != null && parsed.Box2D.Count == 4;
             return new GeminiSnakeDetectionResult(
-                IsSnake: parsed.IsSnake,
-                Confidence: Math.Clamp(parsed.Confidence, 0f, 1f),
-                Reasoning: parsed.Reasoning
+                IsSnake: isSnake,
+                Box2D: isSnake ? parsed.Box2D : null
             );
         }
         catch (JsonException ex)
         {
-            _logger.LogWarning(ex, "Failed to parse Gemini snake detection response: {Text}", jsonText);
+            _logger.LogWarning(ex, "Failed to parse Gemini snake box detection response: {Text}", jsonText);
             // Safe fallback: assume snake
-            return new GeminiSnakeDetectionResult(IsSnake: true, Confidence: 0.5f, Reasoning: "Không thể phân tích kết quả AI. Mặc định xác nhận có rắn.");
+            return new GeminiSnakeDetectionResult(IsSnake: true, Box2D: new List<int> { 0, 0, 1000, 1000 });
         }
     }
 
     private sealed class SnakeDetectionJsonResponse
     {
-        [JsonPropertyName("is_snake")]
-        public bool IsSnake { get; set; }
-
-        [JsonPropertyName("confidence")]
-        public float Confidence { get; set; }
-
-        [JsonPropertyName("reasoning")]
-        public string? Reasoning { get; set; }
+        [JsonPropertyName("box_2d")]
+        public List<int>? Box2D { get; set; }
     }
 
     #endregion

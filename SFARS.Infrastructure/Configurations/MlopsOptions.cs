@@ -41,10 +41,4 @@ public class MlopsOptions
     /// Maximum number of characters from stderr/stdout to include in error messages.
     /// </summary>
     public int MaxErrorLogLength { get; set; } = 500;
-
-    /// <summary>
-    /// Pre-trained YOLO model file name used as the base for transfer learning.
-    /// This value is passed to trainer.py via the PRETRAINED_MODEL env variable.
-    /// </summary>
-    public string PretrainedModelName { get; set; } = "yolov8s-cls.pt";
 }
