@@ -26,6 +26,7 @@ public class CommunityPostServiceTests
     private readonly Mock<ILogger<CommunityPostService>> _loggerMock;
     private readonly Mock<IGenericRepository<ContentPost, Guid>> _postRepoMock;
     private readonly Mock<IGenericRepository<PostComment, Guid>> _commentRepoMock;
+    private readonly Mock<IGenericRepository<PostMedia, Guid>> _mediaRepoMock;
     private readonly Mock<IFileStorageService> _fileStorageMock;
 
     private readonly CommunityPostService _sut; // System Under Test
@@ -39,10 +40,12 @@ public class CommunityPostServiceTests
 
         _postRepoMock = new Mock<IGenericRepository<ContentPost, Guid>>();
         _commentRepoMock = new Mock<IGenericRepository<PostComment, Guid>>();
+        _mediaRepoMock = new Mock<IGenericRepository<PostMedia, Guid>>();
 
         // Setup IUnitOfWork trả về các repository giả lập (mocked repos)
         _uowMock.Setup(u => u.Repository<ContentPost, Guid>()).Returns(_postRepoMock.Object);
         _uowMock.Setup(u => u.Repository<PostComment, Guid>()).Returns(_commentRepoMock.Object);
+        _uowMock.Setup(u => u.Repository<PostMedia, Guid>()).Returns(_mediaRepoMock.Object);
 
         // Setup giả lập cho SignalR (IHubContext)
         var mockClients = new Mock<IHubClients>();
@@ -286,6 +289,7 @@ new ContentPost { Id = Guid.NewGuid(), Type = PostType.Community, Author = new U
         _postRepoMock.Setup(r => r.GetWithSpecAsync(It.IsAny<ISpecification<ContentPost>>(), true)).ReturnsAsync(post);
         _postRepoMock.Setup(r => r.GetWithSpecAsync(It.Is<ISpecification<ContentPost>>(s => s.Includes.Count > 0 && !s.IsPagingEnabled && !s.AsSplitQuery), false)).ReturnsAsync(post);
         _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+        _mediaRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<PostMedia>>(), false)).ReturnsAsync(new List<PostMedia>());
 
         // Act
         var result = await _sut.UpdatePostAsync(postId, authorId, "New text", null, null);
