@@ -18,22 +18,25 @@ public class RetrainOrchestrationService : IRetrainOrchestrationService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<RetrainOrchestrationService> _logger;
+    private readonly IFileStorageService _fileStorageService;
+    private readonly ISpeciesClassificationService _classificationService;
     private readonly ISystemMessageService _msgService;
-    private readonly IYoloInferenceService _yoloService;
     private readonly MlopsOptions _mlopsOptions;
 
     public RetrainOrchestrationService(
         IUnitOfWork unitOfWork,
         ILogger<RetrainOrchestrationService> logger,
-        ISystemMessageService msgService,
-        IYoloInferenceService yoloService,
-        IOptions<MlopsOptions> mlopsOptions)
+        IFileStorageService fileStorageService,
+        ISpeciesClassificationService classificationService,
+        ISystemMessageService messageService,
+        IOptions<MlopsOptions> options)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
-        _msgService = msgService;
-        _yoloService = yoloService;
-        _mlopsOptions = mlopsOptions.Value;
+        _fileStorageService = fileStorageService;
+        _classificationService = classificationService;
+        _msgService = messageService;
+        _mlopsOptions = options.Value;
     }
 
     public async Task<IServiceResult> TriggerRetrainAsync(DateTime? since = null)
@@ -68,7 +71,7 @@ public class RetrainOrchestrationService : IRetrainOrchestrationService
                 if (runResult.IsPromoted)
                 {
                     _logger.LogInformation("Model was promoted! Hot swapping ONNX model...");
-                    bool hotSwapSuccess = await _yoloService.ReloadSpeciesModelAsync();
+                    bool hotSwapSuccess = await _classificationService.ReloadSpeciesModelAsync();
                     if (!hotSwapSuccess)
                     {
                         history.ErrorMessage = "Training succeeded and model promoted, but hot-swap failed in backend.";
@@ -136,9 +139,6 @@ public class RetrainOrchestrationService : IRetrainOrchestrationService
             CreateNoWindow = true,
             WorkingDirectory = scriptDir
         };
-
-        // Pass pretrained model name as environment variable so trainer.py can use it
-        startInfo.EnvironmentVariables["PRETRAINED_MODEL"] = _mlopsOptions.PretrainedModelName;
 
         using var process = new Process { StartInfo = startInfo };
         

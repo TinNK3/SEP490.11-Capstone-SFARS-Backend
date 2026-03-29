@@ -234,6 +234,36 @@
     "Vi": "Vui lòng đăng nhập để thực hiện chức năng này."
   },
   {
+    "MsgId": "Auth.Warning0014",
+    "MsgContent": "OTP has expired. Please request a new one.",
+    "En": "OTP has expired. Please request a new one.",
+    "Vi": "Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới."
+  },
+  {
+    "MsgId": "Auth.Warning0015",
+    "MsgContent": "OTP verification locked due to too many failed attempts. Please try again later.",
+    "En": "OTP verification locked due to too many failed attempts. Please try again later.",
+    "Vi": "Xác thực OTP đã bị khóa do nhập sai quá nhiều lần. Vui lòng thử lại sau."
+  },
+  {
+    "MsgId": "Auth.Warning0016",
+    "MsgContent": "Please wait before requesting a new OTP.",
+    "En": "Please wait before requesting a new OTP.",
+    "Vi": "Vui lòng chờ trước khi yêu cầu mã OTP mới."
+  },
+  {
+    "MsgId": "Auth.Warning0017",
+    "MsgContent": "OTP not found or invalid.",
+    "En": "OTP not found or invalid.",
+    "Vi": "Mã OTP không tồn tại hoặc không hợp lệ."
+  },
+  {
+    "MsgId": "Auth.Success0010",
+    "MsgContent": "OTP verified successfully.",
+    "En": "OTP verified successfully.",
+    "Vi": "Xác thực OTP thành công."
+  },
+  {
     "MsgId": "Auth.Fail0002",
     "MsgContent": "Could not send email. Please try again later.",
     "En": "Could not send email. Please try again later.",

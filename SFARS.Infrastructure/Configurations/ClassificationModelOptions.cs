@@ -1,15 +1,17 @@
 namespace SFARS.Infrastructure.Configurations;
 
 /// <summary>
-/// Configuration for YOLO model inference
+/// Configuration for classification model inference
 /// </summary>
-public class YoloModelOptions
+public class ClassificationModelOptions
 {
+    public const string SectionName = "ClassificationModel";
     public string ModelPath { get; set; } = "wwwroot/models/best.onnx";
     public string ModelName { get; set; } = "snake-cls-v1";
     public string ModelVersion { get; set; } = "1.0.0";
     
 
+    public string SpeciesInputName { get; set; } = "images";
     public int SpeciesInputWidth { get; set; } = 320;
     public int SpeciesInputHeight { get; set; } = 320;
 
