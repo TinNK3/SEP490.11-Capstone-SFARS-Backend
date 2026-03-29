@@ -122,7 +122,7 @@ namespace SFARS.API.Extension
             
             // AI Services Configuration
             services.Configure<GeminiOptions>(builder.Configuration.GetSection("Gemini"));
-            services.Configure<YoloModelOptions>(builder.Configuration.GetSection("YoloModel"));
+            services.Configure<ClassificationModelOptions>(builder.Configuration.GetSection(ClassificationModelOptions.SectionName));
             services.Configure<MlopsOptions>(builder.Configuration.GetSection("Mlops"));
 
             return services;

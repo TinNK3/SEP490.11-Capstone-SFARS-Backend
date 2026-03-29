@@ -12,41 +12,58 @@ using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Infrastructure.Configurations;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 
 namespace SFARS.Application.Services;
 
 /// <summary>
 /// AI inference service for snake detection and first aid recommendations.
-/// Pipeline: Upload → YOLO (snake detection) → DB (first-aid by ToxinGroup) → Save all in 1 transaction.
+/// Pipeline: Upload → YOLO detection (Stage 1) → Crop & Pad → EfficientNetV2 classification (Stage 2) → Save.
 /// </summary>
 public class AiInferenceService : IAiInferenceService
 {
     private readonly ISystemMessageService _msgService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<AiInferenceService> _logger;
-    private readonly IGeminiAiService _geminiService;
-    private readonly IYoloInferenceService _yoloService;
+    private readonly ISnakeDetectionService _detectionService;
     private readonly IFileStorageService _storageService;
     private readonly IOptions<StorageOptions> _storageOptions;
+    private readonly IOptions<YoloDetectionOptions> _yoloOptions;
     private readonly IBackgroundJobClient _backgroundJobClient;
+    private readonly ISpeciesClassificationService _classificationService;
+
+    /// <summary>
+    /// Class name used by the EfficientNetV2 classifier for non-snake objects.
+    /// </summary>
+    private const string NotSnakeClassName = "not_snake";
+
+    /// <summary>
+    /// Minimum confidence gap between top-1 and top-2 predictions
+    /// when they have different toxicity. Below this, treat as venomous.
+    /// </summary>
+    private const float AmbiguousGapThreshold = 0.15f;
 
     public AiInferenceService(
         ISystemMessageService msgService,
         IUnitOfWork unitOfWork,
         ILogger<AiInferenceService> logger,
-        IGeminiAiService geminiService,
-        IYoloInferenceService yoloService,
+        ISnakeDetectionService detectionService,
+        ISpeciesClassificationService classificationService,
         IFileStorageService storageService,
         IOptions<StorageOptions> storageOptions,
+        IOptions<YoloDetectionOptions> yoloOptions,
         IBackgroundJobClient backgroundJobClient)
     {
         _msgService = msgService;
         _unitOfWork = unitOfWork;
         _logger = logger;
-        _geminiService = geminiService;
-        _yoloService = yoloService;
+        _detectionService = detectionService;
+        _classificationService = classificationService;
         _storageService = storageService;
         _storageOptions = storageOptions;
+        _yoloOptions = yoloOptions;
         _backgroundJobClient = backgroundJobClient;
     }
 
@@ -132,11 +149,11 @@ public class AiInferenceService : IAiInferenceService
             var now = DateTime.UtcNow;
 
             FileUploadResult? uploadResult = null;
-            List<YoloPrediction>? yoloPredictions = null;
+            List<SpeciesPrediction>? speciesPredictions = null;
             Snake? primarySnake = null;
             double topConfidence = 0;
             bool isSnakeClassified = true;
-
+            bool isLowConfidence = false;
             // Cache active snakes once per request to avoid N+1 queries
             var activeSnakes = await _unitOfWork.Repository<Snake, Guid>().GetAllAsync(tracked: false);
             var snakeDict = activeSnakes.Where(s => s.IsActive).ToDictionary(s => s.ScientificName, StringComparer.OrdinalIgnoreCase);
@@ -159,52 +176,77 @@ public class AiInferenceService : IAiInferenceService
                     uploadResult = await _storageService.UploadAsync(uploadStream, fileName!, folder, contentType!);
                 }
 
-                // ── Stage 1: Gemini Vision — snake / not-snake ──
-                var geminiDetection = await _geminiService.DetectSnakeInImageAsync(imageBytes, contentType!);
-
-                isSnakeClassified = geminiDetection.IsSnake;
-                topConfidence = geminiDetection.Confidence;
+                // ── Stage 1: YOLO Detection — detect snake & get bounding box ──
+                var detection = await _detectionService.DetectAsync(imageBytes);
 
                 _logger.LogInformation(
-                    "Gemini snake detection: IsSnake={IsSnake}, Confidence={Confidence:P}, Reasoning={Reasoning}",
-                    geminiDetection.IsSnake, geminiDetection.Confidence, geminiDetection.Reasoning);
+                    "YOLO detection: IsDetected={IsDetected}, Confidence={Confidence:P}",
+                    detection.IsDetected, detection.Confidence);
 
-                if (isSnakeClassified)
+                if (detection.IsDetected && detection.Box != null)
                 {
-                    // ── Stage 2: YOLO Species — classify the specific snake species ──
-                    using var yoloStream = new MemoryStream(imageBytes);
-                    var speciesPredictions = await _yoloService.InferSpeciesOnlyAsync(yoloStream, topK: 3);
+                    // ── Stage 1.5: Crop & Pad (letterbox) ──
+                    var yoloOpt = _yoloOptions.Value;
+                    var croppedBytes = CropAndPad(imageBytes, detection.Box, yoloOpt.MarginRatio);
 
+                    // ── Stage 2: EfficientNetV2 Species Classification ──
+                    using var speciesStream = new MemoryStream(croppedBytes);
+                    var classificationPredictions = await _classificationService.InferSpeciesOnlyAsync(speciesStream, topK: 3);
+                    speciesPredictions = classificationPredictions.ToList();
 
-                    yoloPredictions = speciesPredictions.ToList();
-                    topConfidence = yoloPredictions.FirstOrDefault()?.Confidence ?? 0;
+                    var top1 = speciesPredictions.FirstOrDefault();
+                    var top2 = speciesPredictions.Skip(1).FirstOrDefault();
+                    var maxConfidence = top1?.Confidence ?? 0;
 
-                    if (!yoloPredictions.Any())
+                    // Case 1: Classifier says "Not_Snake"
+                    if (top1 != null && string.Equals(top1.ClassName, NotSnakeClassName, StringComparison.OrdinalIgnoreCase))
                     {
-                        return new ServiceResult(
-                            ResultCodeConst.AI_Warning0001,
-                            await _msgService.GetMessageAsync(ResultCodeConst.AI_Warning0001)
-                        );
+                        isSnakeClassified = false;
+                        _logger.LogInformation("Classifier identified object as Not Snake (confidence: {Conf:P})", maxConfidence);
                     }
-
-                    var topPrediction = yoloPredictions.First();
-                    primarySnake = FindSnakeLocal(topPrediction.ClassName);
-
-                    if (primarySnake == null)
+                    // Case 2: Too low confidence (< 50%)
+                    else if (!speciesPredictions.Any() || maxConfidence < 0.50f)
                     {
-                        _logger.LogWarning("Snake not found for class: {ClassName}", topPrediction.ClassName);
-                        return new ServiceResult(
-                            ResultCodeConst.AI_Warning0005,
-                            await _msgService.GetMessageAsync(ResultCodeConst.AI_Warning0005)
-                        );
+                        isLowConfidence = true;
+                        isSnakeClassified = false;
+                        _logger.LogWarning("Classifier confidence below 50% threshold ({Confidence:P}). Marking as Unknown Snake.", maxConfidence);
+                    }
+                    // Case 3: Valid classification
+                    else
+                    {
+                        topConfidence = maxConfidence;
+                        primarySnake = FindSnakeLocal(top1!.ClassName);
+
+                        if (primarySnake == null)
+                        {
+                            _logger.LogWarning("Snake not found in DB for class: {ClassName}", top1.ClassName);
+                            return new ServiceResult(
+                                ResultCodeConst.AI_Warning0005,
+                                await _msgService.GetMessageAsync(ResultCodeConst.AI_Warning0005)
+                            );
+                        }
+
+                        // Gap check: if top-1 and top-2 have different toxicity and gap < 15%,
+                        // treat as venomous for safety (medical first-aid context)
+                        if (top2 != null
+                            && !string.Equals(top2.ClassName, NotSnakeClassName, StringComparison.OrdinalIgnoreCase)
+                            && (maxConfidence - top2.Confidence) < AmbiguousGapThreshold)
+                        {
+                            var secondSnake = FindSnakeLocal(top2.ClassName);
+                            if (secondSnake != null && primarySnake.ToxicityLevel != secondSnake.ToxicityLevel)
+                            {
+                                _logger.LogWarning(
+                                    "Ambiguous prediction: {Snake1} ({Conf1:P}) vs {Snake2} ({Conf2:P}), gap={Gap:P}. Treating as venomous.",
+                                    top1.ClassName, maxConfidence, top2.ClassName, top2.Confidence,
+                                    maxConfidence - top2.Confidence);
+                            }
+                        }
                     }
                 }
                 else
                 {
-
-                    _logger.LogInformation(
-                        "Image identified as Not Snake by Gemini. Confidence: {Confidence:P}",
-                        geminiDetection.Confidence);
+                    isSnakeClassified = false;
+                    _logger.LogInformation("YOLO: No snake detected in image.");
                 }
             }
 
@@ -250,10 +292,10 @@ public class AiInferenceService : IAiInferenceService
             };
             await _unitOfWork.Repository<AiInference, Guid>().AddAsync(aiInference);
 
-            if (!isSkip && isSnakeClassified && yoloPredictions != null)
+            if (!isSkip && isSnakeClassified && speciesPredictions != null)
             {
                 int rank = 1;
-                foreach (var prediction in yoloPredictions)
+                foreach (var prediction in speciesPredictions)
                 {
                     var snake = FindSnakeLocal(prediction.ClassName);
                     if (snake != null)
@@ -307,8 +349,14 @@ public class AiInferenceService : IAiInferenceService
             if (chat != null && shouldSendInitialChat)
             {
                 string chatContent = isSkip
-                    ? BuildAiChatSkippedMessage()
-                    : BuildAiChatInitialMessage(primarySnake!, topConfidence);
+                    ? AiInferenceConstants.ChatSkipped
+                    : string.Format(
+                        AiInferenceConstants.ChatInitialFormat,
+                        primarySnake!.CommonName,
+                        primarySnake!.ScientificName,
+                        (Math.Round(topConfidence, 4) * 100).ToString("0.##"),
+                        GetDangerSummary(primarySnake!.ToxicityLevel),
+                        primarySnake!.ToxinGroup.ToString());
 
                 var chatMessage = new IncidentChatMessage
                 {
@@ -344,7 +392,26 @@ public class AiInferenceService : IAiInferenceService
                 s => s.StartDispatchAsync(incidentId),
                 dispatchDelay);
 
-            var isLowConfidence = !isSkip && isSnakeClassified && topConfidence < AiInferenceConstants.ConfidenceDisplayThreshold;
+            isLowConfidence = !isSkip && isSnakeClassified && topConfidence < AiInferenceConstants.ConfidenceDisplayThreshold;
+
+            string noteMsg = isSkip 
+                ? AiInferenceConstants.NoteSkip
+                : !isSnakeClassified 
+                    ? AiInferenceConstants.NoteNotSnake
+                : isLowConfidence 
+                    ? AiInferenceConstants.NoteLowConf
+                    : AiInferenceConstants.NoteResult;
+
+            string actionMsg = isSkip 
+                ? AiInferenceConstants.MsgSkipAction
+                : !isSnakeClassified 
+                    ? AiInferenceConstants.MsgNotSnakeAction
+                : isLowConfidence 
+                    ? AiInferenceConstants.MsgLowConfAction
+                    : string.Format(
+                        AiInferenceConstants.SuccessIdentifyFormat,
+                        primarySnake!.CommonName,
+                        (Math.Round(topConfidence, 4) * 100).ToString("0.##"));
 
             var resultDto = new AiInferenceResultDto
             {
@@ -362,14 +429,8 @@ public class AiInferenceService : IAiInferenceService
                 },
                 FirstAidSteps = firstAidSteps,
                 Prohibitions = prohibitions,
-                OtherCandidates = (isSkip || !isSnakeClassified || isLowConfidence) ? new List<SnakeCandidateDto>() : await BuildOtherCandidateDtos(yoloPredictions!.Skip(1).ToList()),
-                Note = isSkip 
-                    ? "Do người dùng bỏ qua bước chụp ảnh, hệ thống mặc định coi đây là ca Rắn Chưa Rõ Loài để đảm bảo an toàn quy trình."
-                    : !isSnakeClassified
-                        ? "Hình ảnh được AI đánh giá là KHÔNG PHẢI RẮN. Dù vậy, ca cứu hộ vẫn được theo dõi và lực lượng y tế sẽ kiểm tra."
-                    : isLowConfidence
-                        ? "AI chưa thể xác định chính xác loài rắn từ ảnh này. Bạn có thể thử chụp lại ảnh rõ hơn (toàn thân rắn, ánh sáng đủ). Hãy áp dụng sơ cứu chung bên dưới."
-                        : "Kết quả nhận diện do AI đưa ra và chỉ mang tính tham khảo. AI có thể nhận diện sai trong một số trường hợp. Vui lòng ưu tiên tuân thủ hướng dẫn sơ cứu chung và làm theo chỉ dẫn của nhân viên y tế.",
+                OtherCandidates = (isSkip || !isSnakeClassified || isLowConfidence) ? new List<SnakeCandidateDto>() : await BuildOtherCandidateDtos(speciesPredictions!.Skip(1).ToList()),
+                Note = noteMsg,
                 AnalyzedAt = aiInference.CreatedAt,
                 // Server-authoritative: FE uses this to drive the 10-second cancel countdown.
                 CancelDeadline = incident.GraceExpiresAt
@@ -377,16 +438,7 @@ public class AiInferenceService : IAiInferenceService
 
             return new ServiceResult(
                 ResultCodeConst.AI_Success0001,
-                isSkip 
-                    ? "Nhận dạng bỏ qua. Kích hoạt quy trình khẩn cấp mặc định."
-                    : !isSnakeClassified 
-                        ? "AI nhận định không có rắn trong ảnh. Kích hoạt cứu hộ thông thường."
-                    : isLowConfidence
-                        ? "AI chưa thể xác định chính xác loài rắn. Vui lòng áp dụng sơ cứu chung."
-                        : string.Format(
-                            await _msgService.GetMessageAsync(ResultCodeConst.AI_Success0001),
-                            primarySnake!.CommonName,
-                            (Math.Round(topConfidence, 4) * 100).ToString("0.##")),
+                actionMsg,
                 resultDto
             );
         }
@@ -438,18 +490,72 @@ public class AiInferenceService : IAiInferenceService
     /// Get general prohibitions ("Không nên làm") — always returned with any inference result.
     /// These are FirstAidDetail records where ToxinGroup = GeneralProhibition and SnakeId = null.
     /// </summary>
-    private async Task<List<string>> GetProhibitionsAsync()
+    private async Task<List<FirstAidStepDto>> GetProhibitionsAsync()
     {
-        var items = await _unitOfWork.Repository<FirstAidDetail, Guid>()
-            .GetAllAsync(tracked: false);
+        var prohibits = await _unitOfWork.Repository<FirstAidDetail, Guid>().GetAllAsync(tracked: false);
 
-        return items
-            .Where(f => f.ToxinGroup == ToxinGroup.GeneralProhibition
-                     && f.SnakeId == null
+        return prohibits.Where(f => f.ToxinGroup == ToxinGroup.GeneralProhibition 
                      && f.LanguageCode == SystemLanguage.Vietnamese)
             .OrderBy(f => f.StepOrder)
-            .Select(f => f.Title)
-            .ToList();
+            .Select(x => new FirstAidStepDto
+            {
+                StepOrder = x.StepOrder,
+                Title = x.Title,
+                Content = x.ContentMarkdown,
+                ImageUrl = x.ImageUrl
+            }).ToList();
+    }
+
+    /// <summary>
+    /// Crop the snake region from the original image using pixel bounding box,
+    /// expand by margin, then letterbox-pad to 224x224 maintaining aspect ratio.
+    /// Matches the Python training pipeline: crop → resize (keep ratio) → pad black.
+    /// </summary>
+    private static byte[] CropAndPad(byte[] originalImageBytes, BoundingBox box, float marginRatio)
+    {
+        using var image = Image.Load<Rgb24>(originalImageBytes);
+        int imgW = image.Width;
+        int imgH = image.Height;
+
+        int boxW = box.XMax - box.XMin;
+        int boxH = box.YMax - box.YMin;
+        int marginX = (int)(boxW * marginRatio);
+        int marginY = (int)(boxH * marginRatio);
+
+        int cropXMin = Math.Max(0, box.XMin - marginX);
+        int cropYMin = Math.Max(0, box.YMin - marginY);
+        int cropXMax = Math.Min(imgW, box.XMax + marginX);
+        int cropYMax = Math.Min(imgH, box.YMax + marginY);
+
+        int cropW = cropXMax - cropXMin;
+        int cropH = cropYMax - cropYMin;
+
+        // Fallback if box is invalid
+        if (cropW <= 0 || cropH <= 0)
+            return originalImageBytes;
+
+        // Crop
+        using var cropped = image.Clone(ctx =>
+            ctx.Crop(new Rectangle(cropXMin, cropYMin, cropW, cropH)));
+
+        // Letterbox: resize maintaining aspect ratio, pad with black to 224x224
+        const int targetSize = 224;
+        float scale = Math.Min((float)targetSize / cropW, (float)targetSize / cropH);
+        int newW = (int)(cropW * scale);
+        int newH = (int)(cropH * scale);
+
+        using var resized = cropped.Clone(ctx => ctx.Resize(newW, newH));
+
+        // Create canvas with black background
+        using var canvas = new Image<Rgb24>(targetSize, targetSize, new Rgb24(0, 0, 0));
+        int offsetX = (targetSize - newW) / 2;
+        int offsetY = (targetSize - newH) / 2;
+
+        canvas.Mutate(ctx => ctx.DrawImage(resized, new Point(offsetX, offsetY), 1f));
+
+        using var ms = new MemoryStream();
+        canvas.SaveAsJpeg(ms);
+        return ms.ToArray();
     }
 
     #endregion
@@ -466,7 +572,7 @@ public class AiInferenceService : IAiInferenceService
             .FirstOrDefaultAsync(s => EF.Functions.Like(s.ScientificName, scientificName) && s.IsActive);
     }
 
-    private async Task<List<SnakeCandidateDto>> BuildOtherCandidateDtos(List<YoloPrediction> predictions)
+    private async Task<List<SnakeCandidateDto>> BuildOtherCandidateDtos(List<SpeciesPrediction> predictions)
     {
         var allSnakes = await _unitOfWork.Repository<Snake, Guid>().GetAllAsync(tracked: false);
         var snakeDict = allSnakes.Where(s => s.IsActive).ToDictionary(s => s.ScientificName, StringComparer.OrdinalIgnoreCase);
@@ -502,31 +608,6 @@ public class AiInferenceService : IAiInferenceService
             contentType.Equals(t, StringComparison.OrdinalIgnoreCase));
     }
 
-    /// <summary>
-    /// Build AI chat initial message with incident context summary.
-    /// This message appears first in the chatbox after AI analysis completes.
-    /// </summary>
-    private static string BuildAiChatInitialMessage(Snake snake, double confidence)
-    {
-        var dangerSummary = GetDangerSummary(snake.ToxicityLevel);
-        return $"Kết quả nhận diện: {snake.CommonName} ({snake.ScientificName})\n" +
-               $"Độ tin cậy: {(Math.Round(confidence, 4) * 100).ToString("0.##")}%\n" +
-               $"Mức độ: {dangerSummary}\n" +
-               $"Nhóm độc: {snake.ToxinGroup.ToString()}\n\n" +
-               $"Sơ cứu đã được hướng dẫn ở trên.\n" +
-               $"Hãy theo dõi và báo lại nếu xuất hiện triệu chứng mới.";
-    }
-
-    /// <summary>
-    /// Build AI chat initial message when the user skips photo capture.
-    /// </summary>
-    private static string BuildAiChatSkippedMessage()
-    {
-        return $"Hệ thống ghi nhận bạn đã bỏ qua bước chụp ảnh.\n" +
-               $"Để bảo đảm an toàn tối đa, ca cứu hộ này được xếp vào khẩn cấp vô danh (Rắn Chưa Rõ Loài).\n" +
-               $"Vui lòng tuyệt đối tuân thủ hướng dẫn Sơ cứu BẤT ĐỘNG ở mặt trước màn hình.\n" +
-               $"Nếu có bất kỳ triệu chứng nào (khó thở, sưng nhanh...), hãy nhập vào đây để AI cập nhật sơ cứu.";
-    }
 
     #endregion
 
@@ -555,32 +636,63 @@ public class AiInferenceService : IAiInferenceService
         await imageStream.CopyToAsync(bufferStream);
         var imageBytes = bufferStream.ToArray();
 
-        var geminiDetection = await _geminiService.DetectSnakeInImageAsync(imageBytes, contentType);
+        // Stage 1: YOLO Detection
+        var detection = await _detectionService.DetectAsync(imageBytes);
 
-        if (!geminiDetection.IsSnake)
+        if (!detection.IsDetected || detection.Box == null)
         {
             return new ServiceResult(
                 ResultCodeConst.AI_Success0001,
-                "AI nhận định không có rắn trong ảnh.",
+                AiInferenceConstants.MsgIdentifyDone,
                 new SnakeIdentificationResponseDto
                 {
-                    Note = "Hình ảnh được AI đánh giá là KHÔNG PHẢI RẮN. Vui lòng thử lại với ảnh rõ hơn."
+                    Note = AiInferenceConstants.NoteIdentifyNotSnake
                 }
             );
         }
 
-        using var yoloStream = new MemoryStream(imageBytes);
-        var speciesPredictions = await _yoloService.InferSpeciesOnlyAsync(yoloStream, topK: 3);
-        var yoloPredictions = speciesPredictions.ToList();
+        // Stage 1.5: Crop & Pad
+        byte[] processedImageBytes;
+        try
+        {
+            var yoloOpt = _yoloOptions.Value;
+            processedImageBytes = CropAndPad(imageBytes, detection.Box, yoloOpt.MarginRatio);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to crop image. Using original image.");
+            processedImageBytes = imageBytes;
+        }
 
-        if (!yoloPredictions.Any())
+        // Stage 2: EfficientNetV2 Classification
+        using var speciesStream = new MemoryStream(processedImageBytes);
+        var speciesPredictions = await _classificationService.InferSpeciesOnlyAsync(speciesStream, topK: 3);
+        var classificationPredictions = speciesPredictions.ToList();
+
+        var top1 = classificationPredictions.FirstOrDefault();
+        var maxConfidence = top1?.Confidence ?? 0;
+
+        // Check for not_snake class
+        if (top1 != null && string.Equals(top1.ClassName, NotSnakeClassName, StringComparison.OrdinalIgnoreCase))
         {
             return new ServiceResult(
                 ResultCodeConst.AI_Success0001,
-                "AI chưa thể xác định chính xác loài rắn từ ảnh này.",
+                AiInferenceConstants.MsgIdentifyDone,
                 new SnakeIdentificationResponseDto
                 {
-                    Note = "AI chưa thể phân loại chính xác giống rắn. Bạn có thể thử chụp lại ảnh rõ hơn (toàn thân rắn, ánh sáng đủ)."
+                    Note = AiInferenceConstants.NoteIdentifyNotSnake
+                }
+            );
+        }
+
+        if (!classificationPredictions.Any() || maxConfidence < 0.50f)
+        {
+            return new ServiceResult(
+                ResultCodeConst.AI_Success0001,
+                AiInferenceConstants.MsgIdentifyDone,
+                new SnakeIdentificationResponseDto
+                {
+                    Note = AiInferenceConstants.NoteIdentifyLowConf
                 }
             );
         }
@@ -599,7 +711,7 @@ public class AiInferenceService : IAiInferenceService
         IdentifiedSnakeDetailDto? primaryDetail = null;
 
         var first = true;
-        foreach (var p in yoloPredictions)
+        foreach (var p in classificationPredictions)
         {
             var s = FindSnakeLocal(p.ClassName);
             if (s != null)
@@ -645,25 +757,25 @@ public class AiInferenceService : IAiInferenceService
         {
             response.PrimarySnake = primaryDetail;
             response.OtherCandidates = candidates;
-            response.Note = "Kết quả nhận diện do AI đưa ra và chỉ mang tính tham khảo.";
+            response.Note = AiInferenceConstants.NoteIdentifyResult;
         }
         else
         {
-            response.Note = "AI nhận diện được rắn nhưng không tìm thấy thông tin khoa học tương ứng trong hệ thống.";
+            response.Note = AiInferenceConstants.NoteIdentifyNotFound;
         }
 
         string finalMessage;
         if (response.PrimarySnake != null)
         {
             finalMessage = string.Format(
-                await _msgService.GetMessageAsync(ResultCodeConst.AI_Success0001),
+                AiInferenceConstants.SuccessIdentifyFormat,
                 response.PrimarySnake.CommonName,
                 (response.PrimarySnake.Confidence * 100).ToString("0.##")
             );
         }
         else
         {
-            finalMessage = "Hoàn tất nhận diện ảnh.";
+            finalMessage = AiInferenceConstants.MsgIdentifyDone;
         }
 
         return new ServiceResult(
