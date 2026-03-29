@@ -26,7 +26,7 @@ public class EfficientNetClassificationService : ISpeciesClassificationService, 
     private readonly Dictionary<int, string> _speciesClassMapping;
 
     // Resolved at startup from ONNX metadata
-    private string _resolvedInputName;
+    private string _resolvedInputName = string.Empty;
     private bool _isChannelsLast; // true = NHWC [1,H,W,C], false = NCHW [1,C,H,W]
 
     public EfficientNetClassificationService(
