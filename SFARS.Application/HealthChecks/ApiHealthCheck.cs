@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
@@ -25,9 +25,10 @@ namespace SFARS.Application.HealthChecks
                 var addresses = _server.Features.Get<IServerAddressesFeature>()?.Addresses;
                 var baseAddress = addresses?.FirstOrDefault() ?? "http://localhost:5000";
 
-                // Normalize: replace 0.0.0.0 or + with localhost
+                // Normalize: replace 0.0.0.0, +, or [::] with localhost
                 baseAddress = baseAddress
                     .Replace("://0.0.0.0", "://localhost")
+                    .Replace("://[::]", "://localhost")
                     .Replace("://+", "://localhost");
 
                 var url = $"{baseAddress.TrimEnd('/')}/api";
