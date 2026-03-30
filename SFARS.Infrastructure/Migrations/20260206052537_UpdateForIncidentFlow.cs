@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -11,6 +11,11 @@ namespace SFARS.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // Use raw SQL to drop tables if they exist from previous messy migrations
+            // This avoids EF Core's KeyNotFoundException during migration SQL generation
+            migrationBuilder.Sql("IF OBJECT_ID('dbo.IncidentStatusHistory', 'U') IS NOT NULL DROP TABLE dbo.IncidentStatusHistory;");
+            migrationBuilder.Sql("IF OBJECT_ID('dbo.NotificationLog', 'U') IS NOT NULL DROP TABLE dbo.NotificationLog;");
+
             // ==================== IncidentStatusHistory ====================
             migrationBuilder.CreateTable(
                 name: "IncidentStatusHistory",
@@ -87,13 +92,14 @@ namespace SFARS.Infrastructure.Migrations
                 column: "sent_at");
 
             // ==================== Create SQL SEQUENCE ====================
-            migrationBuilder.Sql("CREATE SEQUENCE dbo.IncidentCodeSeq START WITH 1 INCREMENT BY 1;");
+            // Removed duplicate CREATE SEQUENCE dbo.IncidentCodeSeq because it's already in 20260206041000_AddIncidentCodeSequence
+            // migrationBuilder.Sql("CREATE SEQUENCE dbo.IncidentCodeSeq START WITH 1 INCREMENT BY 1;");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql("DROP SEQUENCE IF EXISTS dbo.IncidentCodeSeq;");
+            // Cannot reverse the recreation easily, but we'll try to drop them since they were recreated.
             migrationBuilder.DropTable(name: "NotificationLog");
             migrationBuilder.DropTable(name: "IncidentStatusHistory");
         }

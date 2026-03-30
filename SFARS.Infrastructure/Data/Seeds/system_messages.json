@@ -852,12 +852,6 @@
     "Vi": "Rất tiếc, hiện tại không có nhân viên cứu hộ nào ở gần. Hệ thống đang chuyển về chế độ chờ..."
   },
   {
-    "MsgId": "Incident.Reason0008",
-    "MsgContent": "Victim resolved the incident via external emergency services.",
-    "En": "Victim resolved the incident via external emergency services.",
-    "Vi": "Nạn nhân tự giải quyết ca cấp cứu (gọi 115 hoặc cơ sở y tế)."
-  },
-  {
     "MsgId": "Incident.Success0007",
     "MsgContent": "Voice symptom uploaded successfully.",
     "En": "Voice symptom uploaded successfully.",
