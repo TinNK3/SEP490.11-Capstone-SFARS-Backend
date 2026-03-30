@@ -1,0 +1,158 @@
+# ============================================
+# SFARS - Docker Compose
+# ============================================
+# Usage:
+#   1. Copy .env.example -> .env and fill in your real values
+#   2. docker-compose up -d
+#   3. Access API at http://localhost:8080
+# ============================================
+
+services:
+  # ---- SFARS API ----
+  sfars.api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sfars-api
+    ports:
+      - "8080:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # --- Core ---
+      - ASPNETCORE_ENVIRONMENT=Development
+      - DatabaseProvider=SqlServer
+
+      # --- Connection Strings ---
+      # Docker internal network: service name = hostname
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=SFARSDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True
+      - ConnectionStrings__Redis=redis:6379,password=${REDIS_PASSWORD},abortConnect=false,connectTimeout=5000
+
+      # --- JWT / WebToken ---
+      - WebTokenSettings__ValidateIssuerSigningKey=true
+      - WebTokenSettings__IssuerSigningKey=${JWT_SIGNING_KEY}
+      - WebTokenSettings__ValidateIssuer=true
+      - WebTokenSettings__ValidIssuer=SFARS.API
+      - WebTokenSettings__ValidateAudience=true
+      - WebTokenSettings__ValidAudience=SFARS.Client
+      - WebTokenSettings__RequireExpirationTime=true
+      - WebTokenSettings__ValidateLifetime=true
+      - WebTokenSettings__TokenLifeTimeInMinutes=${JWT_TOKEN_LIFETIME:-60}
+      - WebTokenSettings__MaxRefreshTokenLifeSpan=${JWT_MAX_REFRESH_LIFESPAN:-7}
+      - WebTokenSettings__RefreshTokenLifeTimeInMinutes=${JWT_REFRESH_TOKEN_LIFETIME:-10080}
+      - WebTokenSettings__RecoveryPasswordLifeTimeInMinutes=15
+      - WebTokenSettings__MfaTokenLifeTimeInMinutes=5
+      - WebTokenSettings__PaymentTokenLifeTimeInMinutes=30
+
+      # --- Google OAuth ---
+      - GoogleAuthSettings__ClientId=${GOOGLE_CLIENT_ID}
+
+      # --- Email / SMTP ---
+      - EmailSettings__SmtpHost=${SMTP_HOST:-smtp-relay.brevo.com}
+      - EmailSettings__SmtpPort=${SMTP_PORT:-587}
+      - EmailSettings__SmtpCredential__UserName=${SMTP_USERNAME}
+      - EmailSettings__SmtpCredential__Password=${SMTP_PASSWORD}
+      - EmailSettings__From=${EMAIL_FROM}
+      - EmailSettings__FromName=SFARS
+      - EmailSettings__OtpSubject=SFARS OTP Verification
+
+      # --- Cloudinary ---
+      - CloudinarySettings__CloudName=${CLOUDINARY_CLOUD_NAME}
+      - CloudinarySettings__ApiKey=${CLOUDINARY_API_KEY}
+      - CloudinarySettings__ApiSecret=${CLOUDINARY_API_SECRET}
+
+      # --- Storage ---
+      - Storage__MaxUploadBytes=10485760
+
+      # --- Gemini AI ---
+      - Gemini__ApiKey=${GEMINI_API_KEY}
+      - Gemini__Model=${GEMINI_MODEL:-gemini-2.5-flash-lite}
+      - Gemini__BaseUrl=https://generativelanguage.googleapis.com/v1beta
+      - Gemini__Temperature=0.7
+      - Gemini__MaxRetries=2
+      - Gemini__TimeoutSeconds=30
+
+      # --- YOLO / ONNX Model ---
+      - YoloModel__ModelPath=wwwroot/models/snake-detection-v1.onnx
+      - YoloModel__ModelName=snake-cls-v1
+      - YoloModel__ModelVersion=1.0.0
+      - YoloModel__InputWidth=640
+      - YoloModel__InputHeight=640
+      - YoloModel__TopK=3
+
+      # --- PayOS ---
+      - PayOSSettings__ClientId=${PAYOS_CLIENT_ID}
+      - PayOSSettings__ApiKey=${PAYOS_API_KEY}
+      - PayOSSettings__ChecksumKey=${PAYOS_CHECKSUM_KEY}
+      - PayOSSettings__ReturnUrl=${PAYOS_RETURN_URL}
+      - PayOSSettings__CancelUrl=${PAYOS_CANCEL_URL}
+      - PayOSSettings__WebhookUrl=${PAYOS_WEBHOOK_URL}
+      - PayOSSettings__AllowSkipSignature=${PAYOS_ALLOW_SKIP_SIGNATURE:-false}
+
+      # --- Payment ---
+      - PaymentSettings__TransactionExpiredInMinutes=${PAYMENT_TX_EXPIRE:-30}
+
+      # --- Firebase ---
+      - Firebase__CredentialsPath=/app/secrets/firebase-adminsdk.json
+      - Firebase__ProjectId=${FIREBASE_PROJECT_ID}
+    volumes:
+      # Mount Firebase credentials (read-only)
+      - ./firebase-adminsdk.json:/app/secrets/firebase-adminsdk.json:ro
+    networks:
+      - sfars-network
+    restart: unless-stopped
+
+  # ---- SQL Server 2022 ----
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sfars-sqlserver
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${SA_PASSWORD}
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -C -Q "SELECT 1" -b || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - sfars-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: sfars-redis
+    ports:
+      - "6379:6379"
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: redis-cli -a $$REDIS_PASSWORD ping | grep PONG
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - sfars-network
+    restart: unless-stopped
+
+# ---- Volumes ----
+volumes:
+  sqlserver-data:
+    driver: local
+  redis-data:
+    driver: local
+
+# ---- Network ----
+networks:
+  sfars-network:
+    driver: bridge

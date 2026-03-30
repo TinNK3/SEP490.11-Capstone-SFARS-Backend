@@ -1,0 +1,55 @@
+# ============================================
+# SFARS - Docker Ignore
+# ============================================
+
+# Git
+.git
+.gitignore
+
+# IDE / Editor
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Build output
+**/bin/
+**/obj/
+**/out/
+
+# Sensitive config files (real secrets must NOT be baked into image)
+**/appsettings.json
+**/appsettings.Development.json
+**/appsettings.Production.json
+**/appsettings.Staging.json
+# Keep example files (they are used as base config in Dockerfile)
+!**/appsettings.example.json
+!**/appsettings.*.example.json
+
+# Environment files
+.env
+*.env
+!.env.example
+
+# Firebase credentials
+firebase-adminsdk.json
+
+# Test project (not needed in production image)
+SFARS.Tests/
+
+# Documentation & tooling
+README.md
+LICENSE
+ARCHITECTURE.md
+PROJECT_RULES.md
+PromptSystem/
+.agent/
+.github/
+Data/
+scripts/
+
+# Docker files (avoid recursive context)
+Dockerfile
+docker-compose.yml
+docker-compose.*.yml
+launchSettings.json

@@ -17,6 +17,7 @@ PromptSystem/
 *.userosscache
 *.sln.docstates
 *.env
+.env
 
 # Configuration files with sensitive data
 appsettings.Development.json
