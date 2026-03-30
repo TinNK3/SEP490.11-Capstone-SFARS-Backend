@@ -4,6 +4,7 @@ using SFARS.Domain.Interfaces;
 using SFARS.Infrastructure.Data.Context;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Common.Enum;
+using System.Linq;
 
 namespace SFARS.Infrastructure.Data
 {
@@ -28,26 +29,14 @@ namespace SFARS.Infrastructure.Data
         {
             try
             {
-                if (!await _context.Database.CanConnectAsync())
-                {
-                    _logger.LogWarning("Database cannot be connected to.");
-                    return;
-                }
-
-                var pendingMigrations = await _context.Database.GetPendingMigrationsAsync();
-                if (pendingMigrations.Any())
-                {
-                    await _context.Database.MigrateAsync();
-                    _logger.LogInformation("Database initialized successfully (migrations applied).");
-                }
-                else
-                {
-                    _logger.LogInformation("Database is up to date. No pending migrations.");
-                }
+                _logger.LogInformation("Applying migrations...");
+                await _context.Database.MigrateAsync();
+                _logger.LogInformation("Database initialized successfully (migrations applied).");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "An error occurred while initializing the database.");
+                throw; // Re-throw so startup stops on migration error
             }
         }
 
@@ -252,13 +241,16 @@ namespace SFARS.Infrastructure.Data
                     ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip
                 };
 
-                var seedMessages = System.Text.Json.JsonSerializer.Deserialize<List<SystemMessage>>(jsonData, options);
+                var seedMessagesRaw = System.Text.Json.JsonSerializer.Deserialize<List<SystemMessage>>(jsonData, options);
 
-                if (seedMessages == null || !seedMessages.Any())
+                if (seedMessagesRaw == null || !seedMessagesRaw.Any())
                 {
                     _logger.LogWarning("[Seeding] Message list is empty or null after deserialization.");
                     return;
                 }
+
+                // Ensure MsgId is distinct to avoid unique constraint violations
+                var seedMessages = seedMessagesRaw.DistinctBy(m => m.MsgId).ToList();
 
                 // 1. Get existing messages Keyed by MsgId (Batch Query)
                 var existingMessages = await _context.SystemMessages
@@ -340,13 +332,16 @@ namespace SFARS.Infrastructure.Data
                     Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
                 };
 
-                var seedSnakes = System.Text.Json.JsonSerializer.Deserialize<List<Snake>>(jsonData, options);
+                var seedSnakesRaw = System.Text.Json.JsonSerializer.Deserialize<List<Snake>>(jsonData, options);
 
-                if (seedSnakes == null || !seedSnakes.Any())
+                if (seedSnakesRaw == null || !seedSnakesRaw.Any())
                 {
                     _logger.LogWarning("[Seeding] Snake list is empty or null after deserialization.");
                     return;
                 }
+
+                // Ensure ScientificName is distinct
+                var seedSnakes = seedSnakesRaw.DistinctBy(s => s.ScientificName).ToList();
 
                 // 1. Get existing snakes keyed by ScientificName (natural key)
                 var existingSnakes = await _context.Snakes
@@ -455,13 +450,16 @@ namespace SFARS.Infrastructure.Data
                     Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
                 };
 
-                var seedItems = System.Text.Json.JsonSerializer.Deserialize<List<FirstAidDetail>>(jsonData, options);
+                var seedItemsRaw = System.Text.Json.JsonSerializer.Deserialize<List<FirstAidDetail>>(jsonData, options);
 
-                if (seedItems == null || !seedItems.Any())
+                if (seedItemsRaw == null || !seedItemsRaw.Any())
                 {
                     _logger.LogWarning("[Seeding] FirstAid list is empty or null after deserialization.");
                     return;
                 }
+
+                // Ensure uniqueness by composite key (ToxinGroup + LanguageCode + StepOrder + SnakeId)
+                var seedItems = seedItemsRaw.DistinctBy(f => new { f.ToxinGroup, f.LanguageCode, f.StepOrder, f.SnakeId }).ToList();
 
                 // 1. Get existing records keyed by composite key (ToxinGroup, StepOrder, LanguageCode)
                 var existingItems = await _context.FirstAidDetails
