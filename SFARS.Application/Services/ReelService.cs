@@ -2,21 +2,23 @@ using Microsoft.EntityFrameworkCore;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos.Reels;
 using SFARS.Domain.Entities;
+using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
-using SFARS.Infrastructure.Data.Context;
+using SFARS.Domain.Specifications;
+using SFARS.Domain.Specifications.Reels;
 
 namespace SFARS.Application.Services;
 
 public class ReelService : IReelService
 {
-    private readonly SFARSDbContext _context;
+    private readonly IUnitOfWork _uow;
     private readonly IFileStorageService _fileStorageService;
 
-    public ReelService(SFARSDbContext context, IFileStorageService fileStorageService)
+    public ReelService(IUnitOfWork uow, IFileStorageService fileStorageService)
     {
-        _context = context;
+        _uow = uow;
         _fileStorageService = fileStorageService;
     }
 
@@ -49,8 +51,8 @@ public class ReelService : IReelService
                 CreatedAt = DateTime.UtcNow
             };
 
-            await _context.Reels.AddAsync(newReel);
-            await _context.SaveChangesAsync();
+            await _uow.Repository<Reel, Guid>().AddAsync(newReel);
+            await _uow.SaveChangesAsync();
 
             var responseDto = await MapToReelResponseDtoAsync(newReel, currentUserId);
             return new ServiceResult(ResultCodeConst.SYS_Success0001, "Reel created successfully", responseDto);
@@ -61,17 +63,20 @@ public class ReelService : IReelService
         }
     }
 
-    public async Task<IServiceResult> GetReelsFeedAsync(Guid currentUserId, int pageNumber, int pageSize)
+    public async Task<IServiceResult> GetReelsFeedAsync(Guid? currentUserId, int pageNumber, int pageSize)
     {
-        var query = _context.Reels
-            .Include(r => r.User)
-            .Where(r => !r.IsHidden)
-            .OrderByDescending(r => r.CreatedAt);
+        var repo = _uow.Repository<Reel, Guid>();
+        
+        var totalCount = await repo.CountAsync(ReelSpecification.ForCount());
+        var reels = await repo.GetAllWithSpecAsync(ReelSpecification.Feed(currentUserId, (pageNumber - 1) * pageSize, pageSize), tracked: false);
 
-        var reels = await query
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .Select(r => new ReelResponseDto
+        var likeRepo = _uow.Repository<ReelLike, object>();
+        var reelList = new List<ReelResponseDto>();
+
+        foreach (var r in reels)
+        {
+            var isLiked = currentUserId.HasValue && await likeRepo.AnyAsync(l => l.ReelId == r.Id && l.UserId == currentUserId.Value);
+            reelList.Add(new ReelResponseDto
             {
                 Id = r.Id,
                 UserId = r.UserId,
@@ -82,20 +87,56 @@ public class ReelService : IReelService
                 CreatedAt = r.CreatedAt,
                 LikeCount = r.LikeCount,
                 CommentCount = r.CommentCount,
-                IsLikedByCurrentUser = _context.ReelLikes.Any(l => l.ReelId == r.Id && l.UserId == currentUserId)
-            })
-            .ToListAsync();
+                IsLikedByCurrentUser = isLiked
+            });
+        }
 
-        return new ServiceResult(ResultCodeConst.SYS_Success0001, "Success", reels);
+        var response = new ReelListResponse(reelList, totalCount, pageNumber, pageSize);
+        return new ServiceResult(ResultCodeConst.SYS_Success0001, "Success", response);
     }
 
-    public async Task<IServiceResult> GetReelByIdAsync(Guid currentUserId, Guid reelId)
+    public async Task<IServiceResult> GetReelsByUserIdAsync(Guid? currentUserId, Guid targetUserId, int pageNumber, int pageSize)
     {
-        var reel = await _context.Reels
-            .Include(r => r.User)
-            .FirstOrDefaultAsync(r => r.Id == reelId && !r.IsHidden);
+        var repo = _uow.Repository<Reel, Guid>();
+
+        var totalCount = await repo.CountAsync(ReelSpecification.ForCount(targetUserId));
+        var reels = await repo.GetAllWithSpecAsync(ReelSpecification.ByUserId(targetUserId, (pageNumber - 1) * pageSize, pageSize), tracked: false);
+
+        var likeRepo = _uow.Repository<ReelLike, object>();
+        var reelList = new List<ReelResponseDto>();
+
+        foreach (var r in reels)
+        {
+            var isLiked = currentUserId.HasValue && await likeRepo.AnyAsync(l => l.ReelId == r.Id && l.UserId == currentUserId.Value);
+            reelList.Add(new ReelResponseDto
+            {
+                Id = r.Id,
+                UserId = r.UserId,
+                UserFullName = r.User.FullName,
+                UserAvatar = r.User.Avatar,
+                VideoUrl = r.VideoUrl,
+                Caption = r.Caption,
+                CreatedAt = r.CreatedAt,
+                LikeCount = r.LikeCount,
+                CommentCount = r.CommentCount,
+                IsLikedByCurrentUser = isLiked
+            });
+        }
+
+        var response = new ReelListResponse(reelList, totalCount, pageNumber, pageSize);
+        return new ServiceResult(ResultCodeConst.SYS_Success0001, "Success", response);
+    }
+
+    public async Task<IServiceResult> GetReelByIdAsync(Guid? currentUserId, Guid reelId)
+    {
+        var spec = new BaseSpecification<Reel>(r => r.Id == reelId && !r.IsHidden);
+        spec.ApplyInclude(q => q.Include(r => r.User));
+
+        var reel = await _uow.Repository<Reel, Guid>().GetWithSpecAsync(spec, tracked: false);
 
         if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel not found");
+
+        var isLiked = currentUserId.HasValue && await _uow.Repository<ReelLike, object>().AnyAsync(l => l.ReelId == reel.Id && l.UserId == currentUserId.Value);
 
         var responseDto = new ReelResponseDto
         {
@@ -108,7 +149,7 @@ public class ReelService : IReelService
             CreatedAt = reel.CreatedAt,
             LikeCount = reel.LikeCount,
             CommentCount = reel.CommentCount,
-            IsLikedByCurrentUser = await _context.ReelLikes.AnyAsync(l => l.ReelId == reel.Id && l.UserId == currentUserId)
+            IsLikedByCurrentUser = isLiked
         };
 
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Success", responseDto);
@@ -116,22 +157,24 @@ public class ReelService : IReelService
 
     public async Task<IServiceResult> HideReelAsync(Guid currentUserId, Guid reelId)
     {
-        var reel = await _context.Reels.FindAsync(reelId);
+        var repo = _uow.Repository<Reel, Guid>();
+        var reel = await repo.GetByIdAsync(reelId);
         if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel not found");
 
         if (reel.UserId != currentUserId)
             return new ServiceResult(ResultCodeConst.SYS_Warning0007, "Not authorized to hide this reel");
 
         reel.IsHidden = true;
-        _context.Reels.Update(reel);
-        await _context.SaveChangesAsync();
+        repo.Update(reel);
+        await _uow.SaveChangesAsync();
 
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Reel hidden successfully");
     }
 
     public async Task<IServiceResult> DeleteReelAsync(Guid currentUserId, Guid reelId)
     {
-        var reel = await _context.Reels.FindAsync(reelId);
+        var repo = _uow.Repository<Reel, Guid>();
+        var reel = await repo.GetByIdAsync(reelId);
         if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel not found");
 
         if (reel.UserId != currentUserId)
@@ -140,153 +183,192 @@ public class ReelService : IReelService
         // Delete from Cloudinary
         await _fileStorageService.DeleteAsync(reel.CloudinaryPublicId);
 
-        _context.Reels.Remove(reel);
-        await _context.SaveChangesAsync();
+        await repo.DeleteAsync(reelId);
+        await _uow.SaveChangesAsync();
 
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Reel deleted successfully");
     }
 
     public async Task<IServiceResult> ToggleLikeAsync(Guid currentUserId, Guid reelId)
     {
-        var reel = await _context.Reels.FindAsync(reelId);
+        var reelRepo = _uow.Repository<Reel, Guid>();
+        var reel = await reelRepo.GetByIdAsync(reelId);
         if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel not found");
 
-        var existingLike = await _context.ReelLikes
-            .FirstOrDefaultAsync(l => l.ReelId == reelId && l.UserId == currentUserId);
+        var likeRepo = _uow.Repository<ReelLike, object>();
+        var spec = new BaseSpecification<ReelLike>(l => l.ReelId == reelId && l.UserId == currentUserId);
+        var existingLike = await likeRepo.GetWithSpecAsync(spec, tracked: true);
 
         bool isLiked;
         if (existingLike != null)
         {
-            _context.ReelLikes.Remove(existingLike);
+            // GenericRepository.DeleteAsync(TKey) won't work for composite key easily
+            // We use the context directly or a specialized delete if available
+            // but since we have tracked entity, we can maybe use a Remove method if added to Repo
+            // Since GenericRepository doesn't have a plain Remove(entity), I'll use DeleteWithSpec
+            await likeRepo.DeleteWithSpecAsync(spec);
             reel.LikeCount = Math.Max(0, reel.LikeCount - 1);
             isLiked = false;
         }
         else
         {
-            await _context.ReelLikes.AddAsync(new ReelLike { ReelId = reelId, UserId = currentUserId });
+            await likeRepo.AddAsync(new ReelLike { ReelId = reelId, UserId = currentUserId });
             reel.LikeCount++;
             isLiked = true;
         }
 
-        _context.Reels.Update(reel);
-        await _context.SaveChangesAsync();
+        reelRepo.Update(reel);
+        await _uow.SaveChangesAsync();
 
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Toggle like success", new { isLiked });
     }
 
     public async Task<IServiceResult> AddCommentAsync(Guid currentUserId, Guid reelId, string content, Guid? parentCommentId)
     {
-        var reel = await _context.Reels.FindAsync(reelId);
-        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel not found");
+        var reelRepo = _uow.Repository<Reel, Guid>();
+        var reel = await reelRepo.GetByIdAsync(reelId);
+        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel không tồn tại.");
+
+        var commentRepo = _uow.Repository<ReelComment, Guid>();
+        Guid? actualParentId = parentCommentId;
 
         if (parentCommentId.HasValue)
         {
-            var parentExists = await _context.ReelComments.AnyAsync(c => c.Id == parentCommentId.Value);
-            if (!parentExists) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Parent comment not found");
+            var parentSpec = new BaseSpecification<ReelComment>(c => c.Id == parentCommentId.Value);
+            parentSpec.ApplyInclude(q => q.Include(c => c.ParentComment!).ThenInclude(p => p.ParentComment!).ThenInclude(p => p.ParentComment!));
+            
+            var parent = await commentRepo.GetWithSpecAsync(parentSpec, tracked: false);
+            if (parent == null || parent.ReelId != reelId) 
+                return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Comment cha không hợp lệ.");
+
+            // Tính toán depth (0: Root, 1, 2, 3...)
+            int depth = 0;
+            var temp = parent;
+            while (temp.ParentCommentId != null)
+            {
+                depth++;
+                if (temp.ParentComment != null) temp = temp.ParentComment;
+                else break;
+            }
+
+            // Nếu depth >= 3 (cấp 4), ép về cùng cấp với cha
+            if (depth >= 3)
+            {
+                actualParentId = parent.ParentCommentId;
+            }
         }
 
         var newComment = new ReelComment
         {
             ReelId = reelId,
             UserId = currentUserId,
-            ParentCommentId = parentCommentId,
+            ParentCommentId = actualParentId,
             Content = content,
             CreatedAt = DateTime.UtcNow
         };
 
-        await _context.ReelComments.AddAsync(newComment);
+        await commentRepo.AddAsync(newComment);
         
-        // Update comment count on Reel
         reel.CommentCount++;
-        _context.Reels.Update(reel);
+        reelRepo.Update(reel);
+        await _uow.SaveChangesAsync();
 
-        await _context.SaveChangesAsync();
-
-        return new ServiceResult(ResultCodeConst.SYS_Success0001, "Comment added successfully");
+        return new ServiceResult(ResultCodeConst.SYS_Success0001, "Thêm bình luận thành công");
     }
 
     public async Task<IServiceResult> GetCommentsAsync(Guid reelId, int pageNumber, int pageSize)
     {
-        var query = _context.ReelComments
-            .Include(c => c.User)
-            .Where(c => c.ReelId == reelId && c.ParentCommentId == null)
-            .OrderByDescending(c => c.CreatedAt);
+        var repo = _uow.Repository<ReelComment, Guid>();
+        var totalCount = await repo.CountAsync(ReelCommentSpecification.ForCount(reelId));
+        
+        if (totalCount == 0)
+        {
+            return new ServiceResult(ResultCodeConst.SYS_Success0001, "Thành công", 
+                new ReelCommentListResponse(new List<ReelCommentResponseDto>(), 0, pageNumber, pageSize));
+        }
 
-        var comments = await query
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .Select(c => new ReelCommentResponseDto
-            {
-                Id = c.Id,
-                ReelId = c.ReelId,
-                UserId = c.UserId,
-                UserFullName = c.User.FullName,
-                UserAvatar = c.User.Avatar,
-                Content = c.Content,
-                CreatedAt = c.CreatedAt,
-                ParentCommentId = c.ParentCommentId,
-                SubCommentCount = c.SubComments.Count()
-            })
-            .ToListAsync();
+        var skip = (pageNumber - 1) * pageSize;
+        var spec = ReelCommentSpecification.ParentComments(reelId, skip, pageSize);
+        var comments = await repo.GetAllWithSpecAsync(spec, tracked: false);
 
-        return new ServiceResult(ResultCodeConst.SYS_Success0001, "Success", comments);
+        var dtos = comments.Select(c => new ReelCommentResponseDto
+        {
+            Id = c.Id,
+            ReelId = c.ReelId,
+            UserId = c.UserId,
+            UserFullName = c.User.FullName,
+            UserAvatar = c.User.Avatar,
+            Content = c.Content,
+            CreatedAt = c.CreatedAt,
+            ParentCommentId = c.ParentCommentId,
+            SubCommentCount = c.SubComments.Count()
+        }).ToList();
+
+        var response = new ReelCommentListResponse(dtos, totalCount, pageNumber, pageSize);
+        return new ServiceResult(ResultCodeConst.SYS_Success0001, "Thành công", response);
     }
 
     public async Task<IServiceResult> GetSubCommentsAsync(Guid parentCommentId, int pageNumber, int pageSize)
     {
-        var query = _context.ReelComments
-            .Include(c => c.User)
-            .Where(c => c.ParentCommentId == parentCommentId)
-            .OrderBy(c => c.CreatedAt);
+        var repo = _uow.Repository<ReelComment, Guid>();
+        var totalCount = await repo.CountAsync(ReelCommentSpecification.ForSubCount(parentCommentId));
 
-        var comments = await query
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .Select(c => new ReelCommentResponseDto
-            {
-                Id = c.Id,
-                ReelId = c.ReelId,
-                UserId = c.UserId,
-                UserFullName = c.User.FullName,
-                UserAvatar = c.User.Avatar,
-                Content = c.Content,
-                CreatedAt = c.CreatedAt,
-                ParentCommentId = c.ParentCommentId,
-                SubCommentCount = 0
-            })
-            .ToListAsync();
+        if (totalCount == 0)
+        {
+            return new ServiceResult(ResultCodeConst.SYS_Success0001, "Thành công", 
+                new ReelCommentListResponse(new List<ReelCommentResponseDto>(), 0, pageNumber, pageSize));
+        }
 
-        return new ServiceResult(ResultCodeConst.SYS_Success0001, "Success", comments);
+        var skip = (pageNumber - 1) * pageSize;
+        var spec = ReelCommentSpecification.SubComments(parentCommentId, skip, pageSize);
+        var comments = await repo.GetAllWithSpecAsync(spec, tracked: false);
+
+        var dtos = comments.Select(c => new ReelCommentResponseDto
+        {
+            Id = c.Id,
+            ReelId = c.ReelId,
+            UserId = c.UserId,
+            UserFullName = c.User.FullName,
+            UserAvatar = c.User.Avatar,
+            Content = c.Content,
+            CreatedAt = c.CreatedAt,
+            ParentCommentId = c.ParentCommentId,
+            SubCommentCount = c.SubComments.Count() // Hỗ trợ nếu tiếp tục có cấp sâu hơn (đã ép về cùng cấp)
+        }).ToList();
+
+        var response = new ReelCommentListResponse(dtos, totalCount, pageNumber, pageSize);
+        return new ServiceResult(ResultCodeConst.SYS_Success0001, "Thành công", response);
     }
 
     public async Task<IServiceResult> DeleteCommentAsync(Guid currentUserId, Guid commentId)
     {
-        var comment = await _context.ReelComments.FindAsync(commentId);
+        var repo = _uow.Repository<ReelComment, Guid>();
+        var comment = await repo.GetByIdAsync(commentId);
         if (comment == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Comment not found");
 
         if (comment.UserId != currentUserId)
             return new ServiceResult(ResultCodeConst.SYS_Warning0007, "Not authorized to delete this comment");
 
-        var reel = await _context.Reels.FindAsync(comment.ReelId);
+        var reelRepo = _uow.Repository<Reel, Guid>();
+        var reel = await reelRepo.GetByIdAsync(comment.ReelId);
         if (reel != null)
         {
             reel.CommentCount = Math.Max(0, reel.CommentCount - 1);
-            _context.Reels.Update(reel);
+            reelRepo.Update(reel);
         }
 
-        _context.ReelComments.Remove(comment);
-        await _context.SaveChangesAsync();
+        await repo.DeleteAsync(commentId);
+        await _uow.SaveChangesAsync();
 
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Comment deleted successfully");
     }
 
     private async Task<ReelResponseDto> MapToReelResponseDtoAsync(Reel reel, Guid currentUserId)
     {
-        // Require explicit User load before calling or check if it's there
         string userFullName = "Unknown";
         string? userAvatar = null;
 
-        var user = await _context.Users.FindAsync(reel.UserId);
+        var user = await _uow.Repository<User, Guid>().GetByIdAsync(reel.UserId);
         if(user != null)
         {
             userFullName = user.FullName;

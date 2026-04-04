@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SFARS.Application.Common;
+using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Community;
 using SFARS.Application.Services;
 using SFARS.Domain.Common.Enum;
@@ -122,23 +123,36 @@ public class CommunityPostServiceTests
 
         var mockPosts = new List<ContentPost>
         {
-            new ContentPost { Id = Guid.NewGuid(), Type = PostType.Community, Author = new User { Id = authorId, FirstName = "Test", LastName = "A" }, Medias = new List<PostMedia>(), Likes = new List<PostLike>() },
-new ContentPost { Id = Guid.NewGuid(), Type = PostType.Community, Author = new User { Id = authorId, FirstName = "Test", LastName = "B" }, Medias = new List<PostMedia>(), Likes = new List<PostLike>() }
+            new ContentPost 
+            { 
+                Id = Guid.NewGuid(), 
+                Type = PostType.Community, 
+                Author = new User { Id = authorId, FirstName = "Test", LastName = "A" }, 
+                Medias = new List<PostMedia> 
+                { 
+                    new PostMedia { Id = Guid.NewGuid() }, 
+                    new PostMedia { Id = Guid.NewGuid() },
+                    new PostMedia { Id = Guid.NewGuid() },
+                    new PostMedia { Id = Guid.NewGuid() },
+                    new PostMedia { Id = Guid.NewGuid() },
+                    new PostMedia { Id = Guid.NewGuid() }
+                }, 
+                Likes = new List<PostLike>() 
+            }
         };
 
-        _postRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<ContentPost>>())).ReturnsAsync(2);
+        _postRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<ContentPost>>())).ReturnsAsync(1);
         _postRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<ContentPost>>(), false))
             .ReturnsAsync(mockPosts);
 
         // Act
-        var result = await _sut.GetPostsAsync(new CommunityPostSpecParams { Page = 1, PageSize = 10 }, currentUserId);
+        var result = await _sut.GetPostsAsync(new CommunityPostSpecParams { Page = 1, PageSize = 10 }, (Guid?)currentUserId);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
-        var data = result.Data as SFARS.Application.Dtos.PaginatedResultDto<CommunityPostDto>;
+        var data = result.Data as PaginatedResultDto<CommunityPostDto>;
         data.Should().NotBeNull();
-        data!.Pagination.TotalItems.Should().Be(2);
-        data.Items.Should().HaveCount(2);
+        data!.Items.First().Medias.Should().HaveCount(4); // Giới hạn đúng 4 ảnh
     }
 
     [Fact]
@@ -379,6 +393,125 @@ new ContentPost { Id = Guid.NewGuid(), Type = PostType.Community, Author = new U
 
         // Đảm bảo event LikeUpdated đã được ban phát qua Broadcast PostGroup(postId)
         _hubMock.Verify(h => h.Clients.Group(CommunityHub.PostGroup(postId)), Times.Once);
+    }
+    #endregion
+
+    #region Tests cho GetCommentsAsync
+    [Fact]
+    public async Task GetCommentsAsync_TraVePhanTrangVaTotalReplies()
+    {
+        // Arrange
+        var postId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var comments = new List<PostComment>
+        {
+            new PostComment 
+            { 
+                Id = Guid.NewGuid(), 
+                PostId = postId, 
+                AuthorId = authorId,
+                Author = new User { Id = authorId, FirstName = "Cmt", LastName = "Author" },
+                Content = "Root comment",
+                Replies = new List<PostComment> 
+                { 
+                    new PostComment { Id = Guid.NewGuid(), IsDeleted = false },
+                    new PostComment { Id = Guid.NewGuid(), IsDeleted = false }
+                }
+            }
+        };
+
+        _commentRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<PostComment>>())).ReturnsAsync(1);
+        _commentRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<PostComment>>(), false))
+            .ReturnsAsync(comments);
+
+        // Act
+        var result = await _sut.GetCommentsAsync(postId, 1, 10);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
+        var data = result.Data as PaginatedResultDto<PostCommentDto>;
+        data.Should().NotBeNull();
+        data!.Items.Should().HaveCount(1);
+        data.Items.First().TotalReplies.Should().Be(2); // Đếm đúng 2 replies
+        data.Pagination.TotalItems.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetSubCommentsAsync_TraVePhanTrang()
+    {
+        // Arrange
+        var parentId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var replies = new List<PostComment>
+        {
+            new PostComment 
+            { 
+                Id = Guid.NewGuid(), 
+                ParentId = parentId,
+                AuthorId = authorId,
+                Author = new User { Id = authorId, FirstName = "Sub", LastName = "Cmt" },
+                Content = "Reply content",
+                Replies = new List<PostComment>()
+            }
+        };
+
+        _commentRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<PostComment>>())).ReturnsAsync(1);
+        _commentRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<PostComment>>(), false))
+            .ReturnsAsync(replies);
+
+        // Act
+        var result = await _sut.GetSubCommentsAsync(parentId, 1, 10);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
+        var data = result.Data as PaginatedResultDto<PostCommentDto>;
+        data.Should().NotBeNull();
+        data!.Items.Should().HaveCount(1);
+        data.Pagination.TotalItems.Should().Be(1);
+    }
+    [Fact]
+    public async Task AddCommentAsync_ReplyVaoCmtCap4_SeBiEpVeCap4()
+    {
+        // Arrange
+        var postId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var rootId = Guid.NewGuid();
+        var level1Id = Guid.NewGuid();
+        var level2Id = Guid.NewGuid();
+        var level3Id = Guid.NewGuid();
+
+        var mockAuthor = new User { Id = authorId, FirstName = "Test", LastName = "Author" };
+        var level3Cmt = new PostComment 
+        { 
+            Id = level3Id, PostId = postId, ParentId = level2Id,
+            Author = mockAuthor,
+            Parent = new PostComment 
+            { 
+                Id = level2Id, ParentId = level1Id,
+                Parent = new PostComment 
+                { 
+                    Id = level1Id, ParentId = rootId,
+                    Parent = new PostComment { Id = rootId, ParentId = null }
+                }
+            }
+        };
+
+        _postRepoMock.Setup(r => r.GetByIdAsync(postId)).ReturnsAsync(new ContentPost { Id = postId, Type = PostType.Community });
+        
+        // Setup lần 1: Lấy parent để tính level
+        _commentRepoMock.SetupSequence(r => r.GetWithSpecAsync(It.IsAny<ISpecification<PostComment>>(), false))
+            .ReturnsAsync(level3Cmt) // Lần 1 trả về cmt cha
+            .ReturnsAsync(new PostComment { Id = Guid.NewGuid(), Author = mockAuthor, Content = "New", CreatedAt = DateTime.UtcNow }); // Lần 2 trả về cmt vừa tạo
+
+        _commentRepoMock.Setup(r => r.AddAsync(It.IsAny<PostComment>())).Returns(Task.CompletedTask);
+        _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Act
+        var result = await _sut.AddCommentAsync(postId, authorId, "Reply to level 4", level3Id);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
+        _commentRepoMock.Verify(r => r.AddAsync(It.Is<PostComment>(c => c.ParentId == level2Id)), Times.Once); 
     }
     #endregion
 }

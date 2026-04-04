@@ -33,16 +33,26 @@ public class ReelController : ControllerBase
 
     /// <summary>Lấy danh sách Feed Reel (Vuốt đến đâu load đến đó)</summary>
     [HttpGet(APIRoute.Reels.GetFeed, Name = nameof(GetReelsFeedAsync))]
+    [AllowAnonymous]
     public async Task<IActionResult> GetReelsFeedAsync([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 5)
     {
-        return this.ToIActionResult(await _svc.GetReelsFeedAsync(User.GetUserId(), pageNumber, pageSize));
+        return this.ToIActionResult(await _svc.GetReelsFeedAsync(User.GetUserIdOrNull(), pageNumber, pageSize));
+    }
+
+    /// <summary>Lấy danh sách Reel của một User cụ thể</summary>
+    [HttpGet(APIRoute.Reels.GetByUser, Name = nameof(GetReelsByUserIdAsync))]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetReelsByUserIdAsync(Guid userId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 5)
+    {
+        return this.ToIActionResult(await _svc.GetReelsByUserIdAsync(User.GetUserIdOrNull(), userId, pageNumber, pageSize));
     }
 
     /// <summary>Lấy thông tin chi tiết 1 Reel (Nếu có URL chia sẻ)</summary>
     [HttpGet(APIRoute.Reels.GetById, Name = nameof(GetReelByIdAsync))]
+    [AllowAnonymous]
     public async Task<IActionResult> GetReelByIdAsync(Guid id)
     {
-        return this.ToIActionResult(await _svc.GetReelByIdAsync(User.GetUserId(), id));
+        return this.ToIActionResult(await _svc.GetReelByIdAsync(User.GetUserIdOrNull(), id));
     }
 
     /// <summary>Ẩn 1 Reel (Chỉ tác giả)</summary>
@@ -75,6 +85,7 @@ public class ReelController : ControllerBase
 
     /// <summary>Lấy danh sách bình luận cha của 1 Reel (Vuốt đến đâu load đến đó)</summary>
     [HttpGet(APIRoute.Reels.GetComments, Name = nameof(GetReelCommentsAsync))]
+    [AllowAnonymous]
     public async Task<IActionResult> GetReelCommentsAsync(Guid id, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
     {
         return this.ToIActionResult(await _svc.GetCommentsAsync(id, pageNumber, pageSize));
@@ -82,6 +93,7 @@ public class ReelController : ControllerBase
 
     /// <summary>Lấy danh sách các sub-comment (phản hồi) của một bình luận gốc</summary>
     [HttpGet(APIRoute.Reels.GetSubComments, Name = nameof(GetReelSubCommentsAsync))]
+    [AllowAnonymous]
     public async Task<IActionResult> GetReelSubCommentsAsync(Guid id, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 5)
     {
         return this.ToIActionResult(await _svc.GetSubCommentsAsync(id, pageNumber, pageSize));

@@ -13,9 +13,9 @@ namespace SFARS.Domain.Specifications.Community
         {
         }
 
-        public static CommunityPostSpecification List(CommunityPostSpecParams p, Guid currentUserId)
+        public static CommunityPostSpecification List(CommunityPostSpecParams p, Guid? currentUserId)
         {
-            var spec = new CommunityPostSpecification(post => post.Type == PostType.Community && (post.IsPublished || post.AuthorId == currentUserId));
+            var spec = new CommunityPostSpecification(post => post.Type == PostType.Community && (post.IsPublished || (currentUserId.HasValue && post.AuthorId == currentUserId.Value)));
 
             ApplySearchFilter(spec, p.Search);
             ApplySort(spec, p.Sort);
@@ -23,16 +23,21 @@ namespace SFARS.Domain.Specifications.Community
 
             spec.ApplyInclude(q => q
                 .Include(post => post.Author)
-                .Include(post => post.Medias)
-                .Include(post => post.Likes.Where(l => l.UserId == currentUserId)));
+                .Include(post => post.Medias));
+
+            if (currentUserId.HasValue)
+            {
+                spec.ApplyInclude(q => q.Include(post => post.Likes.Where(l => l.UserId == currentUserId.Value)));
+            }
+
             spec.EnableSplitQuery();
 
             return spec;
         }
 
-        public static CommunityPostSpecification Count(CommunityPostSpecParams p, Guid currentUserId)
+        public static CommunityPostSpecification Count(CommunityPostSpecParams p, Guid? currentUserId)
         {
-            var spec = new CommunityPostSpecification(post => post.Type == PostType.Community && (post.IsPublished || post.AuthorId == currentUserId));
+            var spec = new CommunityPostSpecification(post => post.Type == PostType.Community && (post.IsPublished || (currentUserId.HasValue && post.AuthorId == currentUserId.Value)));
             ApplySearchFilter(spec, p.Search);
             return spec;
         }
