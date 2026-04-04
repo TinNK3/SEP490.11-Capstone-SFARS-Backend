@@ -22,6 +22,10 @@ using SFARS.Domain.Specifications.Users;
 using SFARS.Infrastructure.Helpers;
 using System.Text.Json;
 using SFARS.Domain.Interfaces.Infrastructure;
+using Hangfire;
+using Hangfire.Common;
+using Hangfire.States;
+using SFARS.Application.Interfaces.Services;
 
 namespace SFARS.Application.Services
 {
@@ -30,6 +34,7 @@ namespace SFARS.Application.Services
         private readonly IPublisher _publisher;
         private readonly IAdminAuditLogService _auditLogService;
         private readonly IFileStorageService _fileStorageService;
+        private readonly IBackgroundJobClient _backgroundJobClient;
 
         public UserService(
             ISystemMessageService msgService,
@@ -38,11 +43,13 @@ namespace SFARS.Application.Services
             ILogger<UserService> logger,
             IPublisher publisher,
             IFileStorageService fileStorageService,
+            IBackgroundJobClient backgroundJobClient,
             IAdminAuditLogService auditLogService) : base(msgService, unitOfWork, mapper, logger)
         {
             _publisher = publisher;
             _auditLogService = auditLogService;
             _fileStorageService = fileStorageService;
+            _backgroundJobClient = backgroundJobClient;
         }
 
         /// <summary>
@@ -812,6 +819,8 @@ namespace SFARS.Application.Services
                         Status    = newUser.Status.ToString()
                     }));
 
+                await SendRoleAssignmentNotificationIfNeededAsync(newUser, roleEntity.RoleName, dto.Password!);
+
                 return new ServiceResult(
                     ResultCodeConst.SYS_Success0001,
                     await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0001),
@@ -821,6 +830,29 @@ namespace SFARS.Application.Services
             return new ServiceResult(
                 ResultCodeConst.SYS_Fail0001,
                 await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
+        }
+
+        private Task SendRoleAssignmentNotificationIfNeededAsync(User user, string roleName, string password)
+        {
+            if (!ShouldNotifyRescuerRole(roleName) || string.IsNullOrWhiteSpace(user.Email))
+            {
+                return Task.CompletedTask;
+            }
+
+            _backgroundJobClient.Create(
+                Job.FromExpression<IEmailJobService>(emailJobService =>
+                    emailJobService.SendRescuerRoleAssignedEmailAsync(user.Email, user.FirstName, user.LastName, password)),
+                new EnqueuedState("dispatch"));
+
+            return Task.CompletedTask;
+        }
+
+        private static bool ShouldNotifyRescuerRole(string roleName)
+        {
+            return string.Equals(
+                roleName,
+                RoleType.Rescuer.ToString(),
+                StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>

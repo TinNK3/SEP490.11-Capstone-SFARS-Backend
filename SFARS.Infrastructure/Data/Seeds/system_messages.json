@@ -180,6 +180,18 @@
     "Vi": "Đăng xuất thành công."
   },
   {
+    "MsgId": "Auth.Success0010",
+    "MsgContent": "OTP verified successfully.",
+    "En": "OTP verified successfully.",
+    "Vi": "Mã OTP đã được xác thực thành công."
+  },
+  {
+    "MsgId": "Auth.Success0011",
+    "MsgContent": "You previously signed in with Google. Please continue with Google or verify via OTP.",
+    "En": "You previously signed in with Google. Please continue with Google or verify via OTP.",
+    "Vi": "Bạn đã từng đăng nhập bằng Google. Vui lòng tiếp tục đăng nhập bằng Google hoặc xác thực qua OTP."
+  },
+  {
     "MsgId": "Auth.Warning0001",
     "MsgContent": "Account is banned or inactive.",
     "En": "Account is banned or inactive.",
