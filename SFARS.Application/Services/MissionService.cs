@@ -72,11 +72,13 @@ public class MissionService : IMissionService
         try 
         {
             rowsAffected = await _unitOfWork.ExecuteSqlRawAsync(
-                @"UPDATE Incidents SET current_status = {0}, updated_at = {1}
+                @"UPDATE Incident SET current_status = {0}, updated_at = {1}
                   WHERE id = {2} AND current_status IN ({3}, {4}, {5}, {6})",
-                (int)IncidentStatus.EnRoute, DateTime.UtcNow, incidentId,
-                (int)IncidentStatus.Dispatching_Tier1, (int)IncidentStatus.Dispatching_Tier2,
-                (int)IncidentStatus.Dispatching_Tier3, (int)IncidentStatus.Unassigned);
+                IncidentStatus.EnRoute.ToString(), DateTime.UtcNow, incidentId,
+                IncidentStatus.Dispatching_Tier1.ToString(),
+                IncidentStatus.Dispatching_Tier2.ToString(),
+                IncidentStatus.Dispatching_Tier3.ToString(),
+                IncidentStatus.Unassigned.ToString());
         }
         catch (Exception ex)
         {
