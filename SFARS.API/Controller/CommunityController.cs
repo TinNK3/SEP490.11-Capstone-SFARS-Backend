@@ -21,13 +21,15 @@ public class CommunityController : ControllerBase
 
     /// <summary>Danh sách bài đăng cộng đồng (phân trang)</summary>
     [HttpGet(APIRoute.Community.GetPosts, Name = nameof(GetPostsAsync))]
+    [AllowAnonymous]
     public async Task<IActionResult> GetPostsAsync([FromQuery] CommunityPostSpecParams specParams)
-        => this.ToIActionResult(await _svc.GetPostsAsync(specParams, User.GetUserId()));
+        => this.ToIActionResult(await _svc.GetPostsAsync(specParams, User.GetUserIdOrNull()));
 
     /// <summary>Chi tiết bài đăng</summary>
     [HttpGet(APIRoute.Community.GetPostById, Name = nameof(GetPostByIdAsync))]
+    [AllowAnonymous]
     public async Task<IActionResult> GetPostByIdAsync(Guid id)
-        => this.ToIActionResult(await _svc.GetPostByIdAsync(id, User.GetUserId()));
+        => this.ToIActionResult(await _svc.GetPostByIdAsync(id, User.GetUserIdOrNull()));
 
     /// <summary>Tạo bài đăng mới (hiển thị ngay, không cần duyệt)</summary>
     [HttpPost(APIRoute.Community.CreatePost, Name = nameof(CreatePostAsync))]
@@ -65,10 +67,16 @@ public class CommunityController : ControllerBase
     public async Task<IActionResult> ToggleLikeAsync(Guid id)
         => this.ToIActionResult(await _svc.ToggleLikeAsync(id, User.GetUserId()));
 
-    /// <summary>Danh sách comment của bài đăng</summary>
     [HttpGet(APIRoute.Community.GetComments, Name = nameof(GetCommentsAsync))]
-    public async Task<IActionResult> GetCommentsAsync(Guid id)
-        => this.ToIActionResult(await _svc.GetCommentsAsync(id));
+    [AllowAnonymous]
+    public async Task<IActionResult> GetCommentsAsync(Guid id, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        => this.ToIActionResult(await _svc.GetCommentsAsync(id, pageNumber, pageSize));
+
+    /// <summary>Danh sách phản hồi của một comment</summary>
+    [HttpGet(APIRoute.Community.GetSubComments, Name = nameof(GetSubCommentsAsync))]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetSubCommentsAsync(Guid id, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        => this.ToIActionResult(await _svc.GetSubCommentsAsync(id, pageNumber, pageSize));
 
     /// <summary>Thêm comment hoặc reply</summary>
     [HttpPost(APIRoute.Community.AddComment, Name = nameof(AddCommentAsync))]

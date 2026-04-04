@@ -6,8 +6,9 @@ namespace SFARS.Domain.Interfaces.Services;
 public interface IReelService
 {
     // Feed
-    Task<IServiceResult> GetReelsFeedAsync(Guid currentUserId, int pageNumber, int pageSize);
-    Task<IServiceResult> GetReelByIdAsync(Guid currentUserId, Guid reelId);
+    Task<IServiceResult> GetReelsFeedAsync(Guid? currentUserId, int pageNumber, int pageSize);
+    Task<IServiceResult> GetReelsByUserIdAsync(Guid? currentUserId, Guid targetUserId, int pageNumber, int pageSize);
+    Task<IServiceResult> GetReelByIdAsync(Guid? currentUserId, Guid reelId);
 
     // CRUD
     Task<IServiceResult> CreateReelAsync(Guid currentUserId, string? caption, Stream videoStream, string fileName, string contentType, long contentLength);

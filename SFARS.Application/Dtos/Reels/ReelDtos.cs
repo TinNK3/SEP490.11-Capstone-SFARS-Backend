@@ -36,3 +36,8 @@ public class ReelCommentResponseDto
     public Guid? ParentCommentId { get; set; }
     public int SubCommentCount { get; set; }
 }
+
+
+public record ReelListResponse(List<ReelResponseDto> Items, int TotalCount, int PageNumber, int PageSize);
+
+public record ReelCommentListResponse(List<ReelCommentResponseDto> Items, int TotalCount, int PageNumber, int PageSize);
