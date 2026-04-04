@@ -76,6 +76,7 @@ namespace SFARS.API.Payloads
             public const string GetPosts = Base + "/posts";
             public const string GetPostById = Base + "/posts/{id}";
             public const string GetComments = Base + "/posts/{id}/comments";
+            public const string GetSubComments = Base + "/comments/{id}/replies";
 
             // [POST]
             public const string CreatePost = Base + "/posts";
@@ -106,6 +107,7 @@ namespace SFARS.API.Payloads
             public const string GetById = Base + "/{id}";
             public const string GetComments = Base + "/{id}/comments";
             public const string GetSubComments = Base + "/comments/{id}/sub-comments";
+            public const string GetByUser = Base + "/user/{userId}";
 
             // [POST]
             public const string Create = Base;

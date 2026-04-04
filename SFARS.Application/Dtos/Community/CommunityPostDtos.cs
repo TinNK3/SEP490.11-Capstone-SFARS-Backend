@@ -22,7 +22,7 @@ public record PostCommentDto(
     string Content,
     Guid? ParentId,
     DateTime CreatedAt,
-    List<PostCommentDto> Replies
+    int TotalReplies
 );
 
 public record CommunityPostDto(

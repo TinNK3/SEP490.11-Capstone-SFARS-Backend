@@ -37,7 +37,7 @@ public class CommunityPostService : ICommunityPostService
         _fileStorage = fileStorage;
     }
 
-    public async Task<IServiceResult> GetPostsAsync(CommunityPostSpecParams specParams, Guid currentUserId)
+    public async Task<IServiceResult> GetPostsAsync(CommunityPostSpecParams specParams, Guid? currentUserId)
     {
         specParams ??= new CommunityPostSpecParams();
         var page = specParams.GetPage();
@@ -64,7 +64,7 @@ public class CommunityPostService : ICommunityPostService
 
         var posts = await repo.GetAllWithSpecAsync(spec, tracked: false);
 
-        var dtos = posts.Select(p => MapToDto(p, currentUserId)).ToList();
+        var dtos = posts.Select(p => MapToDto(p, currentUserId, limitMedia: true)).ToList();
         var totalPages = (int)Math.Ceiling((double)total / limit);
 
         return new ServiceResult(
@@ -73,9 +73,9 @@ public class CommunityPostService : ICommunityPostService
             new PaginatedResultDto<CommunityPostDto>(dtos, page, limit, totalPages, total));
     }
 
-    public async Task<IServiceResult> GetPostByIdAsync(Guid postId, Guid currentUserId)
+    public async Task<IServiceResult> GetPostByIdAsync(Guid postId, Guid? currentUserId)
     {
-        var spec = new BaseSpecification<ContentPost>(p => p.Id == postId && p.Type == PostType.Community && (p.IsPublished || p.AuthorId == currentUserId));
+        var spec = new BaseSpecification<ContentPost>(p => p.Id == postId && p.Type == PostType.Community && (p.IsPublished || (currentUserId.HasValue && p.AuthorId == currentUserId.Value)));
         spec.ApplyInclude(q => q.Include(p => p.Author).Include(p => p.Medias).Include(p => p.Likes));
 
         var post = await _uow.Repository<ContentPost, Guid>().GetWithSpecAsync(spec, tracked: false);
@@ -83,7 +83,7 @@ public class CommunityPostService : ICommunityPostService
         if (post is null)
             return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Bài đăng không tồn tại.");
 
-        return new ServiceResult(ResultCodeConst.SYS_Success0002, "Lấy bài đăng thành công", MapToDto(post, currentUserId));
+        return new ServiceResult(ResultCodeConst.SYS_Success0002, "Lấy bài đăng thành công", MapToDto(post, currentUserId, limitMedia: false));
     }
 
     public async Task<IServiceResult> CreatePostAsync(Guid authorId, string? content, List<MediaUploadInfo>? mediaFiles)
@@ -131,7 +131,7 @@ public class CommunityPostService : ICommunityPostService
         spec.ApplyInclude(q => q.Include(p => p.Author).Include(p => p.Medias).Include(p => p.Likes));
 
         var created = await _uow.Repository<ContentPost, Guid>().GetWithSpecAsync(spec, tracked: false);
-        var dto = MapToDto(created!, authorId);
+        var dto = MapToDto(created!, authorId, limitMedia: false);
 
         await _hub.Clients.Group(CommunityHub.FeedGroup).SendAsync("NewPost", new NewPostPayload(
             dto.Id, dto.Author, TruncateContent(dto.Content, 100), dto.Medias.Count, dto.CreatedAt));
@@ -219,7 +219,7 @@ public class CommunityPostService : ICommunityPostService
         returnSpec.ApplyInclude(q => q.Include(p => p.Author).Include(p => p.Medias).Include(p => p.Likes));
 
         var updated = await _uow.Repository<ContentPost, Guid>().GetWithSpecAsync(returnSpec, tracked: false);
-        var dto = MapToDto(updated!, authorId);
+        var dto = MapToDto(updated!, authorId, limitMedia: false);
 
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Sửa bài đăng thành công", dto);
     }
@@ -317,11 +317,34 @@ public class CommunityPostService : ICommunityPostService
         if (post is null || post.Type != PostType.Community)
             return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Bài đăng không tồn tại.");
 
+        Guid? actualParentId = parentId;
+
         if (parentId.HasValue)
         {
-            var parent = await _uow.Repository<PostComment, Guid>().GetByIdAsync(parentId.Value);
+            // Truy vấn comment cha kèm theo hierarchy để tính toán Level
+            var parentSpec = new BaseSpecification<PostComment>(c => c.Id == parentId.Value);
+            parentSpec.ApplyInclude(q => q.Include(c => c.Parent!).ThenInclude(p => p.Parent!).ThenInclude(p => p.Parent!));
+            
+            var parent = await _uow.Repository<PostComment, Guid>().GetWithSpecAsync(parentSpec, tracked: false);
             if (parent is null || parent.PostId != postId)
                 return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Comment cha không hợp lệ.");
+
+            // Tính toán depth (0: Root, 1, 2, 3...)
+            int depth = 0;
+            var current = parent;
+            while (current.ParentId != null)
+            {
+                depth++;
+                if (current.Parent != null) current = current.Parent;
+                else break;
+            }
+
+            // Nếu đang reply vào một comment ở cấp 4 (depth = 3), ta ép comment mới cũng ở cấp 4
+            // bằng cách gán ParentId của nó giống hệt ParentId của comment cha này.
+            if (depth >= 3)
+            {
+                actualParentId = parent.ParentId;
+            }
         }
 
         var comment = new PostComment
@@ -329,7 +352,7 @@ public class CommunityPostService : ICommunityPostService
             PostId = postId,
             AuthorId = authorId,
             Content = content,
-            ParentId = parentId,
+            ParentId = actualParentId, // Sử dụng actualParentId đã qua xử lý
             CreatedBy = authorId
         };
 
@@ -343,7 +366,7 @@ public class CommunityPostService : ICommunityPostService
         spec.ApplyInclude(q => q.Include(c => c.Author));
         var saved = await _uow.Repository<PostComment, Guid>().GetWithSpecAsync(spec, tracked: false);
 
-        var dto = MapCommentToDto(saved!);
+        var dto = MapCommentToDto(saved!, 0);
 
         await _hub.Clients.Group(CommunityHub.PostGroup(postId)).SendAsync("NewComment", new NewCommentPayload(
             dto.Id, postId, dto.Author, dto.Content, dto.ParentId, dto.CreatedAt));
@@ -351,16 +374,60 @@ public class CommunityPostService : ICommunityPostService
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Thành công", dto);
     }
 
-    public async Task<IServiceResult> GetCommentsAsync(Guid postId)
+    public async Task<IServiceResult> GetCommentsAsync(Guid postId, int pageNumber, int pageSize)
     {
+        var repo = _uow.Repository<PostComment, Guid>();
+        
+        // Chỉ lấy comment cấp 1 (ParentId == null)
+        var countSpec = new BaseSpecification<PostComment>(c => c.PostId == postId && c.ParentId == null && !c.IsDeleted);
+        var totalItems = await repo.CountAsync(countSpec);
+
+        if (totalItems == 0)
+        {
+            return new ServiceResult(ResultCodeConst.SYS_Success0002, "Thành công", 
+                new PaginatedResultDto<PostCommentDto>(Enumerable.Empty<PostCommentDto>(), pageNumber, pageSize, 0, 0));
+        }
+
         var spec = new BaseSpecification<PostComment>(c => c.PostId == postId && c.ParentId == null && !c.IsDeleted);
+        spec.ApplyPaging(pageSize, (pageNumber - 1) * pageSize);
         spec.AddOrderBy(c => c.CreatedAt);
-        spec.ApplyInclude(q => q.Include(c => c.Author).Include(c => c.Replies).ThenInclude(r => r.Author));
+        spec.ApplyInclude(q => q.Include(c => c.Author).Include(c => c.Replies));
 
-        var comments = await _uow.Repository<PostComment, Guid>().GetAllWithSpecAsync(spec, tracked: false);
-        var dtos = comments.Select(MapCommentToDto).ToList();
+        var comments = await repo.GetAllWithSpecAsync(spec, tracked: false);
+        var dtos = comments.Select(c => MapCommentToDto(c, c.Replies.Count(r => !r.IsDeleted))).ToList();
 
-        return new ServiceResult(ResultCodeConst.SYS_Success0002, "Thành công", dtos);
+        var totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+        var result = new PaginatedResultDto<PostCommentDto>(dtos, pageNumber, pageSize, totalPages, totalItems);
+
+        return new ServiceResult(ResultCodeConst.SYS_Success0002, "Thành công", result);
+    }
+
+    public async Task<IServiceResult> GetSubCommentsAsync(Guid parentCommentId, int pageNumber, int pageSize)
+    {
+        var repo = _uow.Repository<PostComment, Guid>();
+
+        // Lấy tất cả các comment có ParentId là parentCommentId
+        var countSpec = new BaseSpecification<PostComment>(c => c.ParentId == parentCommentId && !c.IsDeleted);
+        var totalItems = await repo.CountAsync(countSpec);
+
+        if (totalItems == 0)
+        {
+            return new ServiceResult(ResultCodeConst.SYS_Success0002, "Thành công",
+                new PaginatedResultDto<PostCommentDto>(Enumerable.Empty<PostCommentDto>(), pageNumber, pageSize, 0, 0));
+        }
+
+        var spec = new BaseSpecification<PostComment>(c => c.ParentId == parentCommentId && !c.IsDeleted);
+        spec.ApplyPaging(pageSize, (pageNumber - 1) * pageSize);
+        spec.AddOrderBy(c => c.CreatedAt);
+        spec.ApplyInclude(q => q.Include(c => c.Author).Include(c => c.Replies));
+
+        var comments = await repo.GetAllWithSpecAsync(spec, tracked: false);
+        var dtos = comments.Select(c => MapCommentToDto(c, c.Replies.Count(r => !r.IsDeleted))).ToList();
+
+        var totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+        var result = new PaginatedResultDto<PostCommentDto>(dtos, pageNumber, pageSize, totalPages, totalItems);
+
+        return new ServiceResult(ResultCodeConst.SYS_Success0002, "Thành công", result);
     }
 
     public async Task<IServiceResult> DeleteCommentAsync(Guid commentId, Guid requesterId)
@@ -380,25 +447,31 @@ public class CommunityPostService : ICommunityPostService
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Xóa thành công", true);
     }
 
-    private static CommunityPostDto MapToDto(ContentPost p, Guid viewerId) => new(
-        p.Id,
-        new PostAuthorDto(p.Author.Id, p.Author.FullName ?? "Unknown", p.Author.Avatar),
-        p.BodyContent,
-        p.Medias.OrderBy(m => m.Order).Select(m => new PostMediaDto(m.Id, m.Url, m.ContentType, m.Order)).ToList(),
-        p.LikeCount,
-        p.CommentCount,
-        p.Likes.Any(l => l.UserId == viewerId),
-        p.CreatedAt
-    );
+    private static CommunityPostDto MapToDto(ContentPost p, Guid? viewerId, bool limitMedia = false)
+    {
+        var mediaList = p.Medias.OrderBy(m => m.Order).AsEnumerable();
+        if (limitMedia) mediaList = mediaList.Take(4);
 
-    private static PostCommentDto MapCommentToDto(PostComment c) => new(
+        return new(
+            p.Id,
+            new PostAuthorDto(p.Author.Id, p.Author.FullName ?? "Unknown", p.Author.Avatar),
+            p.BodyContent,
+            mediaList.Select(m => new PostMediaDto(m.Id, m.Url, m.ContentType, m.Order)).ToList(),
+            p.LikeCount,
+            p.CommentCount,
+            viewerId.HasValue && p.Likes.Any(l => l.UserId == viewerId.Value),
+            p.CreatedAt
+        );
+    }
+
+    private static PostCommentDto MapCommentToDto(PostComment c, int totalReplies) => new(
         c.Id,
         c.PostId,
         new PostAuthorDto(c.Author.Id, c.Author.FullName ?? "Unknown", c.Author.Avatar),
         c.IsDeleted ? "[Đã xóa]" : c.Content,
         c.ParentId,
         c.CreatedAt,
-        c.Replies.Where(r => !r.IsDeleted).OrderBy(r => r.CreatedAt).Select(MapCommentToDto).ToList()
+        totalReplies
     );
 
     private static string TruncateContent(string? s, int max) => s?.Length > max ? s[..max] + "…" : s ?? string.Empty;
