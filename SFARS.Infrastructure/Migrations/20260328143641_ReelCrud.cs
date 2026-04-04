@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -99,12 +99,6 @@ namespace SFARS.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Faqs_Order",
-                table: "Faqs",
-                column: "Order",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
                 name: "IX_ReelComments_ParentCommentId",
                 table: "ReelComments",
                 column: "ParentCommentId");
@@ -141,10 +135,6 @@ namespace SFARS.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Reels");
-
-            migrationBuilder.DropIndex(
-                name: "IX_Faqs_Order",
-                table: "Faqs");
         }
     }
 }
