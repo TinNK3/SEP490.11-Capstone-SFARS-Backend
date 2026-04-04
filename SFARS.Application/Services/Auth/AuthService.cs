@@ -23,6 +23,10 @@ using SFARS.Domain.Models;
 using SFARS.Domain.Specifications;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.EntityFrameworkCore;
+using Hangfire;
+using Hangfire.Common;
+using Hangfire.States;
+using SFARS.Application.Interfaces.Services;
 
 namespace SFARS.Application.Services.Auth
 {
@@ -38,6 +42,7 @@ namespace SFARS.Application.Services.Auth
         private readonly IExternalAuthService _externalAuthService;
         private readonly ILogger<AuthService> _logger;
         private readonly IEmailService _emailService;
+        private readonly IBackgroundJobClient _backgroundJobClient;
         private readonly ITokenBlacklistService _tokenBlacklistService;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
@@ -52,6 +57,7 @@ namespace SFARS.Application.Services.Auth
             ILogger<AuthService> logger,
             IExternalAuthService externalAuthService,
             IEmailService emailService,
+            IBackgroundJobClient backgroundJobClient,
             ITokenBlacklistService tokenBlacklistService,
             IHttpContextAccessor httpContextAccessor)
         {
@@ -65,6 +71,7 @@ namespace SFARS.Application.Services.Auth
             _logger = logger;
             _externalAuthService = externalAuthService;
             _emailService = emailService;
+            _backgroundJobClient = backgroundJobClient;
             _tokenBlacklistService = tokenBlacklistService;
             _httpContextAccessor = httpContextAccessor;
         }
@@ -103,41 +110,33 @@ namespace SFARS.Application.Services.Auth
                     : UserTypeConstants.User //Regular user
                 };
 
-                //Check account haven't password yet
-                var hasPassword = !string.IsNullOrEmpty(authUser.PasswordHash);
-
-                // Check account status
+                // Check account status first
                 if (authUser.Status != UserStatus.Active)
                 {
                     return new ServiceResult(ResultCodeConst.Auth_Warning0001,
                             await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0001));
                 }
 
-                //Response to keep on sign-in with username/password
-                if (hasPassword) //Existing user with password
-                {
-                    return new ServiceResult(ResultCodeConst.Auth_Success0001,
-                        await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0001),
-                        new SignInMethodDto { Method = "password" });
-                }
+                // Determine if user has a local password set.
+                // Users who registered via Google (external providers) will have a null/empty PasswordHash.
+                // Normalize: treat both null and empty string as "no password".
+                var hasPassword = !string.IsNullOrWhiteSpace(authUser.PasswordHash);
 
-                // Response to keep on sign-in with OTP
-                // since user sign-up with external provider
-                else
-                {
-                    // Use unified SendOtpAsync with SignIn type
-                    var sendResult = await SendOtpAsync(email, OtpType.SignIn);
-                    if (sendResult.ResultCode == ResultCodeConst.Auth_Success0005)
-                    {
-                        return new ServiceResult(ResultCodeConst.Auth_Success0005,
-                            await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0005),
-                            new SignInMethodDto { Method = "otp" });
-                    }
-                    else
-                    {
-                        return sendResult;
-                    }
-                }
+                // ──────────────────────────────────────────────────────────────────────────
+                // IMPORTANT: This endpoint is purely a "check login method" step.
+                //   - "password" → UI shows password input field.
+                //   - "otp"      → UI informs the user and lets THEM trigger
+                //                  POST /api/auth/send-otp explicitly.
+                //
+                // Do NOT call SendOtpAsync here. Triggering an email send without the user's
+                // explicit confirmation would spam their inbox as an unwanted side-effect.
+                // ──────────────────────────────────────────────────────────────────────────
+                var method = hasPassword ? "password" : "otp";
+                var resultCode = hasPassword ? ResultCodeConst.Auth_Success0001 : ResultCodeConst.Auth_Success0011;
+
+                return new ServiceResult(resultCode,
+                    await _msgService.GetMessageAsync(resultCode),
+                    new SignInMethodDto { Method = method });
             }
 
             // Unknown error
@@ -573,23 +572,15 @@ namespace SFARS.Application.Services.Auth
             // 10. Send confirmation email
             try
             {
-                var emailMessageDto = new EmailMessageDto
-                {
-                    To = user.Email,
-                    Subject = "Password Changed Successfully",
-                    Body = $"Your password was changed at {DateTime.UtcNow:O}. If you didn't make this change, please reset your password immediately."
-                };
-
-                var sent = await _emailService.SendEmailAsync(emailMessageDto, isBodyHtml: false);
-                if (!sent)
-                {
-                    _logger.LogWarning("Failed to send password changed confirmation email to {Email}", user.Email);
-                }
+                _backgroundJobClient.Create(
+                    Job.FromExpression<IEmailJobService>(emailJobService =>
+                        emailJobService.SendPasswordChangedEmailAsync(user.Email, DateTime.UtcNow)),
+                    new EnqueuedState("dispatch"));
             }
             catch (Exception ex)
             {
-                // Log but don't fail - email is non-critical
-                _logger.LogWarning(ex, "Failed to send password change email to {Email}", user.Email);
+                // Log but don't fail - notification email is non-critical
+                _logger.LogWarning(ex, "Failed to enqueue password change email for {Email}", user.Email);
             }
 
             _logger.LogInformation("Password changed successfully for User {UserId} ({Email})", userId, user.Email);
@@ -1144,78 +1135,12 @@ namespace SFARS.Application.Services.Auth
             // Map to AuthUserDto for email
             var authUser = userDto.ToAuthUserDto();
 
-            // Build email template based on type
-            string emailSubject;
-            string emailBody;
-
-            if (type == OtpType.ResetPassword || type == OtpType.ChangePassword)
-            {
-                bool isChangePassword = type == OtpType.ChangePassword;
-                bool isSetPassword = !isChangePassword && string.IsNullOrEmpty(userDto.PasswordHash);
-                string title = isChangePassword
-                    ? "Đổi Mật Khẩu"
-                    : (isSetPassword ? "Thiết Lập Mật Khẩu" : "Đặt Lại Mật Khẩu");
-                string actionText = isChangePassword
-                    ? "đổi mật khẩu"
-                    : (isSetPassword ? "thiết lập mật khẩu" : "đặt lại mật khẩu");
-                string warningActionText = isChangePassword
-                    ? "đổi mật khẩu"
-                    : (isSetPassword ? "thiết lập mật khẩu" : "tác vụ này");
-                string warningSuffix = (isSetPassword || isChangePassword)
-                    ? "."
-                    : " và đổi mật khẩu ngay lập tức.";
-
-                emailSubject = isChangePassword
-                    ? "Change Password OTP for SFARS"
-                    : (isSetPassword ? "Set Password OTP for SFARS" : "Password Reset OTP for SFARS");
-                emailBody = $@"
-                    <div style='font-family: Arial, sans-serif; background:#f6f7fb; padding:24px;'>
-                        <div style='max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;'>
-                            <div style='background:#C0392B;color:#fff;padding:16px 24px;'>
-                                <h2 style='margin:0;font-size:20px;'>⚠️ SFARS - Yêu Cầu {title}</h2>
-                            </div>
-                            <div style='padding:24px;color:#333;line-height:1.6;'>
-                                <p>Xin chào <strong>{authUser.FirstName} {authUser.LastName}</strong>,</p>
-                                <p>Chúng tôi nhận được yêu cầu <strong>{actionText}</strong> cho tài khoản của bạn. Đây là mã OTP:</p>
-                                <div style='text-align:center;margin:20px 0;'>
-                                    <span style='display:inline-block;background:#fdf2f2;color:#C0392B;
-                                        font-size:28px;letter-spacing:6px;padding:12px 18px;border-radius:10px;border:2px solid #C0392B;'>
-                                        {otpCode}
-                                    </span>
-                                </div>
-                                <p>Mã có hiệu lực trong <strong>{OtpConstants.OtpExpirationMinutes} phút</strong>. Vui lòng không chia sẻ mã này với bất kỳ ai.</p>
-                                <div style='background:#fdf2f2;border-left:4px solid #C0392B;padding:12px;margin:16px 0;border-radius:4px;'>
-                                    <p style='margin:0;color:#C0392B;'><strong>⚠️ Cảnh báo bảo mật:</strong> Nếu bạn không yêu cầu {warningActionText}, vui lòng bỏ qua email này{warningSuffix}</p>
-                                </div>
-                                <p style='margin-top:24px;'>Cảm ơn bạn đã sử dụng SFARS.</p>
-                            </div>
-                        </div>
-                    </div>";
-            }
-            else // SIGN_IN
-            {
-                emailSubject = "Your One-Time Password (OTP) for SFARS Sign-In";
-                emailBody = $@"
-                    <div style='font-family: Arial, sans-serif; background:#f6f7fb; padding:24px;'>
-                        <div style='max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;'>
-                            <div style='background:#2C3E50;color:#fff;padding:16px 24px;'>
-                                <h2 style='margin:0;font-size:20px;'>SFARS Verification</h2>
-                            </div>
-                            <div style='padding:24px;color:#333;line-height:1.6;'>
-                                <p>Xin chào <strong>{authUser.FirstName} {authUser.LastName}</strong>,</p>
-                                <p>Đây là mã OTP để đăng nhập:</p>
-                                <div style='text-align:center;margin:20px 0;'>
-                                    <span style='display:inline-block;background:#f0f2f7;color:#2C3E50;
-                                        font-size:28px;letter-spacing:6px;padding:12px 18px;border-radius:10px;'>
-                                        {otpCode}
-                                    </span>
-                                </div>
-                                <p>Mã có hiệu lực trong <strong>{OtpConstants.OtpExpirationMinutes} phút</strong>. Vui lòng không chia sẻ mã này.</p>
-                                <p style='margin-top:24px;'>Cảm ơn bạn đã sử dụng SFARS.</p>
-                            </div>
-                        </div>
-                    </div>";
-            }
+            var hasPassword = !string.IsNullOrWhiteSpace(userDto.PasswordHash);
+            var (emailSubject, emailBody) = EmailTemplateFactory.BuildOtpEmail(
+                authUser,
+                hasPassword,
+                otpCode,
+                type);
 
             // Send OTP email
             var isOtpSent = await SendAndSaveOtpAsync(otpCode, authUser, emailSubject, emailBody);

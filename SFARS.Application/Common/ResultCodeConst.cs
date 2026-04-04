@@ -52,6 +52,7 @@ namespace SFARS.Application.Common
         public const string Auth_Fail0002 = "Auth.Fail0002";
 
         public const string Auth_Success0010 = "Auth.Success0010"; // OTP verified successfully
+        public const string Auth_Success0011 = "Auth.Success0011"; // Please continue with OTP sign-in
         #endregion
 
         #region User

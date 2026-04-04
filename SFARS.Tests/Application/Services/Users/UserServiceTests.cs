@@ -3,6 +3,7 @@ using MapsterMapper;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Hangfire;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.User;
@@ -38,6 +39,7 @@ namespace SFARS.Tests.Application.Services.Users
         private readonly Mock<ILogger<UserService>> _loggerMock;
         private readonly Mock<IPublisher> _publisherMock;
         private readonly Mock<IFileStorageService> _fileStorageServiceMock;
+        private readonly Mock<IBackgroundJobClient> _backgroundJobClientMock;
         private readonly Mock<IAdminAuditLogService> _auditLogServiceMock;
 
         private readonly UserService _sut;
@@ -53,6 +55,7 @@ namespace SFARS.Tests.Application.Services.Users
             _loggerMock     = new Mock<ILogger<UserService>>();
             _publisherMock  = new Mock<IPublisher>();
             _fileStorageServiceMock = new Mock<IFileStorageService>();
+            _backgroundJobClientMock = new Mock<IBackgroundJobClient>();
             _auditLogServiceMock = new Mock<IAdminAuditLogService>();
 
             _unitOfWorkMock
@@ -70,6 +73,7 @@ namespace SFARS.Tests.Application.Services.Users
                 _loggerMock.Object,
                 _publisherMock.Object,
                 _fileStorageServiceMock.Object,
+                _backgroundJobClientMock.Object,
                 _auditLogServiceMock.Object
             );
         }
@@ -1102,6 +1106,21 @@ namespace SFARS.Tests.Application.Services.Users
             _userRepoMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Once);
             userRoleRepoMock.Verify(r => r.AddAsync(It.IsAny<UserRole>()), Times.Once);
             _unitOfWorkMock.Verify(u => u.SaveChangesWithTransactionAsync(), Times.Once);
+
+            if (roleType == RoleType.Rescuer)
+            {
+                _backgroundJobClientMock.Verify(b => b.Create(
+                    It.IsAny<Hangfire.Common.Job>(),
+                    It.IsAny<Hangfire.States.IState>()),
+                    Times.Once);
+            }
+            else
+            {
+                _backgroundJobClientMock.Verify(b => b.Create(
+                    It.IsAny<Hangfire.Common.Job>(),
+                    It.IsAny<Hangfire.States.IState>()),
+                    Times.Never);
+            }
         }
 
         #endregion
