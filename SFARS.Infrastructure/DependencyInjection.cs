@@ -46,6 +46,10 @@ public static class DependencyInjection
             services.Configure<YoloDetectionOptions>(
                 configuration.GetSection(YoloDetectionOptions.SectionName));
 
+            // Configure Wound Detection options
+            services.Configure<WoundDetectionOptions>(
+                configuration.GetSection(WoundDetectionOptions.SectionName));
+
             // Configure PayOS
             services.Configure<PayOSSettings>(
                 configuration.GetSection(PayOSSettings.SectionName));
@@ -75,9 +79,10 @@ public static class DependencyInjection
             services.AddScoped<IFileStorageService, CloudinaryStorageService>();
             services.AddScoped<IPayOSService, PayOSService>();
             
-            // AI Services — 2-Stage Pipeline
+            // AI Services — 2-Stage Pipeline + Wound Detection
             services.AddSingleton<ISnakeDetectionService, YoloSnakeDetectionService>();
             services.AddSingleton<ISpeciesClassificationService, EfficientNetClassificationService>();
+            services.AddSingleton<IWoundDetectionService, WoundDetectionService>();
             services.AddHttpClient<IGeminiAiService, GeminiAiService>();
             services.AddScoped<ISpeechToTextService, GeminiSpeechToTextService>();
             

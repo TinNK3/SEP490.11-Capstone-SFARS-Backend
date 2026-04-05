@@ -30,9 +30,11 @@ public class AiInferenceServiceTests
     private readonly Mock<ILogger<AiInferenceService>> _loggerMock;
     private readonly Mock<ISnakeDetectionService> _detectionServiceMock;
     private readonly Mock<ISpeciesClassificationService> _classificationServiceMock;
+    private readonly Mock<IWoundDetectionService> _woundDetectionServiceMock;
     private readonly Mock<IFileStorageService> _storageServiceMock;
     private readonly Mock<IOptions<StorageOptions>> _storageOptionsMock;
     private readonly Mock<IOptions<YoloDetectionOptions>> _yoloOptionsMock;
+    private readonly Mock<IOptions<WoundDetectionOptions>> _woundOptionsMock;
     private readonly Mock<IGenericRepository<Incident, Guid>> _incidentRepoMock;
     private readonly Mock<IGenericRepository<IncidentMedia, Guid>> _mediaRepoMock;
     private readonly Mock<IGenericRepository<AiInferenceEntity, Guid>> _inferenceRepoMock;
@@ -56,9 +58,11 @@ public class AiInferenceServiceTests
         _loggerMock = new Mock<ILogger<AiInferenceService>>();
         _detectionServiceMock = new Mock<ISnakeDetectionService>();
         _classificationServiceMock = new Mock<ISpeciesClassificationService>();
+        _woundDetectionServiceMock = new Mock<IWoundDetectionService>();
         _storageServiceMock = new Mock<IFileStorageService>();
         _storageOptionsMock = new Mock<IOptions<StorageOptions>>();
         _yoloOptionsMock = new Mock<IOptions<YoloDetectionOptions>>();
+        _woundOptionsMock = new Mock<IOptions<WoundDetectionOptions>>();
         _incidentRepoMock = new Mock<IGenericRepository<Incident, Guid>>();
         _mediaRepoMock = new Mock<IGenericRepository<IncidentMedia, Guid>>();
         _inferenceRepoMock = new Mock<IGenericRepository<AiInferenceEntity, Guid>>();
@@ -88,6 +92,9 @@ public class AiInferenceServiceTests
         var yoloOptions = new YoloDetectionOptions { MarginRatio = 0.15f };
         _yoloOptionsMock.Setup(x => x.Value).Returns(yoloOptions);
 
+        var woundOptions = new WoundDetectionOptions { ModelName = "wound-cascade-v1", ModelVersion = "1.0.0", MarginRatio = 0.15f };
+        _woundOptionsMock.Setup(x => x.Value).Returns(woundOptions);
+
         _msgServiceMock
             .Setup(x => x.GetMessageAsync(It.IsAny<string>()))
             .ReturnsAsync((string code) => $"Message for {code}");
@@ -106,9 +113,11 @@ public class AiInferenceServiceTests
             _loggerMock.Object,
             _detectionServiceMock.Object,
             _classificationServiceMock.Object,
+            _woundDetectionServiceMock.Object,
             _storageServiceMock.Object,
             _storageOptionsMock.Object,
             _yoloOptionsMock.Object,
+            _woundOptionsMock.Object,
             _backgroundJobClientMock.Object
         );
     }

@@ -9,10 +9,14 @@ namespace SFARS.Domain.Interfaces.Services;
 public interface IRetrainOrchestrationService
 {
     /// <summary>
-    /// Triggers the full MLOps retrain pipeline asynchronously.
-    /// Returns the ID of the created RetrainHistory record (which tracks the background job).
+    /// Triggers the full snake species MLOps retrain pipeline asynchronously.
     /// </summary>
     Task<IServiceResult> TriggerRetrainAsync(DateTime? since = null);
+
+    /// <summary>
+    /// Triggers the wound classification MLOps retrain pipeline asynchronously.
+    /// </summary>
+    Task<IServiceResult> TriggerWoundRetrainAsync(DateTime? since = null);
     
     /// <summary>
     /// Gets the most recent retrain history records.

@@ -33,6 +33,13 @@ namespace SFARS.Infrastructure.Data.Configurations
             builder.Property(e => e.IsPromoted)
                 .HasColumnName("is_promoted");
 
+            builder.Property(e => e.PipelineType)
+                .HasColumnName("pipeline_type")
+                .HasDefaultValue(SFARS.Domain.Common.Enum.RetrainPipelineType.SnakeSpecies);
+
+            builder.HasIndex(e => new { e.PipelineType, e.Status })
+                .HasDatabaseName("IX_RetrainHistory_PipelineType_Status");
+
             builder.Property(e => e.Status)
                 .HasColumnName("status");
 
