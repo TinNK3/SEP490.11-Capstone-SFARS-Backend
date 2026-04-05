@@ -700,6 +700,77 @@ public class AiInferenceService : IAiInferenceService
     #endregion
 
     /// <inheritdoc />
+    public async Task<IServiceResult> ClassifyWoundAsync(Stream? imageStream, string? contentType, long? fileSize)
+    {
+        if (imageStream == null || fileSize == null || fileSize <= 0 || string.IsNullOrEmpty(contentType))
+        {
+            return new ServiceResult(
+                ResultCodeConst.SYS_Warning0008,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0008) // Invalid file
+            );
+        }
+
+        var storageOpt = _storageOptions.Value;
+        
+        if (!IsAllowedImageType(contentType, storageOpt))
+        {
+            return new ServiceResult(
+                ResultCodeConst.AI_Warning0004,
+                await _msgService.GetMessageAsync(ResultCodeConst.AI_Warning0004)
+            );
+        }
+
+        using var bufferStream = new MemoryStream();
+        await imageStream.CopyToAsync(bufferStream);
+        var imageBytes = bufferStream.ToArray();
+
+        // Stage 1: Detect wound bounding box
+        var woundDetection = await _woundDetectionService.DetectWoundAsync(imageBytes);
+
+        if (!woundDetection.IsDetected || woundDetection.Box == null)
+        {
+            return new ServiceResult(
+                ResultCodeConst.AI_Success0001,
+                AiInferenceConstants.MsgIdentifyDone,
+                new WoundClassificationResponseDto
+                {
+                    IsWoundDetected = false,
+                    IsSnakeBite = false,
+                    Confidence = 0,
+                    Note = AiInferenceConstants.NoteIdentifyWoundNoDetection
+                }
+            );
+        }
+
+        // Stage 1.5: Crop & Pad
+        byte[] processedImageBytes;
+        try
+        {
+            processedImageBytes = CropAndPad(imageBytes, woundDetection.Box, _woundOptions.Value.MarginRatio);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to crop wound image. Using original image.");
+            processedImageBytes = imageBytes;
+        }
+
+        // Stage 2: Classify Wound
+        var classResult = await _woundDetectionService.ClassifyWoundAsync(processedImageBytes);
+
+        return new ServiceResult(
+            ResultCodeConst.AI_Success0001,
+            AiInferenceConstants.MsgIdentifyDone,
+            new WoundClassificationResponseDto
+            {
+                IsWoundDetected = true,
+                IsSnakeBite = classResult.IsSnakeBite,
+                Confidence = classResult.Confidence,
+                Note = AiInferenceConstants.NoteIdentifyWoundResult
+            }
+        );
+    }
+
+    /// <inheritdoc />
     public async Task<IServiceResult> IdentifySnakeAsync(Stream? imageStream, string? contentType, long? fileSize)
     {
         if (imageStream == null || fileSize == null || fileSize <= 0 || string.IsNullOrEmpty(contentType))

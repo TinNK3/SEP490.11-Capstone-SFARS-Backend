@@ -220,7 +220,7 @@ public class IncidentServiceTests
     public async Task GetMyIncidentsAsync_EmptyUserId_ReturnsAuthWarning()
     {
         // Act
-        var result = await _sut.GetMyIncidentsAsync(Guid.Empty);
+        var result = await _sut.GetMyIncidentsAsync(Guid.Empty, new SFARS.Domain.Specifications.Params.IncidentSpecParams());
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0013);
@@ -244,11 +244,12 @@ public class IncidentServiceTests
             .ReturnsAsync(incidents);
 
         // Act
-        var result = await _sut.GetMyIncidentsAsync(userId);
+        var result = await _sut.GetMyIncidentsAsync(userId, new SFARS.Domain.Specifications.Params.IncidentSpecParams());
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
-        result.Data.Should().BeEquivalentTo(incidents);
+        var pagedResult = result.Data as SFARS.Application.Dtos.PaginatedResultDto<IncidentDto>;
+        pagedResult.Items.Should().BeEquivalentTo(incidents);
     }
 
     [Fact]
@@ -265,11 +266,12 @@ public class IncidentServiceTests
             .ReturnsAsync(emptyList);
 
         // Act
-        var result = await _sut.GetMyIncidentsAsync(userId);
+        var result = await _sut.GetMyIncidentsAsync(userId, new SFARS.Domain.Specifications.Params.IncidentSpecParams());
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
-        result.Data.Should().BeEquivalentTo(emptyList);
+        var pagedResult = result.Data as SFARS.Application.Dtos.PaginatedResultDto<IncidentDto>;
+        pagedResult.Items.Should().BeEquivalentTo(emptyList);
     }
 
     [Fact]
@@ -290,11 +292,11 @@ public class IncidentServiceTests
             .ReturnsAsync(new List<IncidentDto>());
 
         // Act
-        await _sut.GetMyIncidentsAsync(userId, page, pageSize);
+        await _sut.GetMyIncidentsAsync(userId, new SFARS.Domain.Specifications.Params.IncidentSpecParams { Page = page, PageSize = pageSize });
 
         // Assert
         capturedSpec.Should().NotBeNull();
-        capturedSpec!.Skip.Should().Be(page * pageSize);
+        capturedSpec!.Skip.Should().Be((page - 1) * pageSize);
         capturedSpec.Take.Should().Be(pageSize);
     }
 

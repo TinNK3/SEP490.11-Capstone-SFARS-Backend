@@ -4,7 +4,9 @@ using SFARS.API.Extension;
 using SFARS.API.Extensions;
 using SFARS.API.Payloads;
 using SFARS.Application.Dtos.Mission;
+using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Domain.Specifications.Params;
 
 namespace SFARS.API.Controller
 {
@@ -19,6 +21,18 @@ namespace SFARS.API.Controller
         public MissionController(IMissionService missionService)
         {
             _missionService = missionService;
+        }
+
+        /// <summary>
+        /// Get current rescuer's mission history
+        /// </summary>
+        [Authorize(Roles = UserTypeConstants.Rescuer)]
+        [HttpGet(APIRoute.Mission.GetMyMissions, Name = nameof(GetMyMissionsAsync))]
+        public async Task<IActionResult> GetMyMissionsAsync([FromQuery] MissionSpecParams specParams)
+        {
+            var rescuerId = User.GetUserId();
+            var result = await _missionService.GetMyMissionsAsync(rescuerId, specParams);
+            return this.ToIActionResult(result);
         }
 
         /// <summary>

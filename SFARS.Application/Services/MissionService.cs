@@ -1,9 +1,12 @@
 using Hangfire;
+using MapsterMapper;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SFARS.Application.Common;
+using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Dispatch;
+using SFARS.Application.Dtos.Mission;
 using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
@@ -11,6 +14,7 @@ using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
+using SFARS.Domain.Specifications.Params;
 using SFARS.Infrastructure.Hubs;
 
 namespace SFARS.Application.Services;
@@ -23,6 +27,7 @@ public class MissionService : IMissionService
     private readonly ISystemMessageService _msgService;
     private readonly ILogger<MissionService> _logger;
     private readonly IFcmPushService _fcmService;
+    private readonly IMapper _mapper;
 
     public MissionService(
         IUnitOfWork unitOfWork,
@@ -30,7 +35,8 @@ public class MissionService : IMissionService
         IHubContext<LocationTrackingHub> locationHub,
         ISystemMessageService msgService,
         ILogger<MissionService> logger,
-        IFcmPushService fcmService)
+        IFcmPushService fcmService,
+        IMapper mapper)
     {
         _unitOfWork = unitOfWork;
         _jobs = jobs;
@@ -38,6 +44,44 @@ public class MissionService : IMissionService
         _msgService = msgService;
         _logger = logger;
         _fcmService = fcmService;
+        _mapper = mapper;
+    }
+
+    public async Task<IServiceResult> GetMyMissionsAsync(Guid rescuerId, MissionSpecParams specParams)
+    {
+        if (rescuerId == Guid.Empty)
+        {
+            return new ServiceResult(
+                ResultCodeConst.Auth_Warning0013,
+                await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0013)
+            );
+        }
+
+        var countSpec = new MissionSpecification(specParams, rescuerId, isCount: true);
+        var totalItems = await _unitOfWork.Repository<RescueMission, Guid>().CountAsync(countSpec);
+
+        var spec = new MissionSpecification(specParams, rescuerId, isCount: false);
+
+        var entities = await _unitOfWork.Repository<RescueMission, Guid>().GetAllWithSpecAsync(spec);
+        var dtos = _mapper.Map<IEnumerable<MissionDto>>(entities);
+
+        var limit = specParams.GetTake();
+        var page = specParams.GetPage();
+        var totalPages = limit > 0 ? (int)Math.Ceiling(totalItems / (double)limit) : 0;
+
+        var pagedResult = new PaginatedResultDto<MissionDto>(
+            dtos,
+            page,
+            limit,
+            totalPages,
+            totalItems
+        );
+
+        return new ServiceResult(
+            ResultCodeConst.SYS_Success0002,
+            await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+            pagedResult
+        );
     }
 
     public async Task<IServiceResult> AcceptMissionAsync(Guid incidentId, Guid rescuerId)
