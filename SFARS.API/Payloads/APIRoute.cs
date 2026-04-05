@@ -74,6 +74,7 @@ namespace SFARS.API.Payloads
 
             // [GET]
             public const string GetPosts = Base + "/posts";
+            public const string GetUserContent = Base + "/user/{userId}/content";
             public const string GetPostById = Base + "/posts/{id}";
             public const string GetComments = Base + "/posts/{id}/comments";
             public const string GetSubComments = Base + "/comments/{id}/replies";

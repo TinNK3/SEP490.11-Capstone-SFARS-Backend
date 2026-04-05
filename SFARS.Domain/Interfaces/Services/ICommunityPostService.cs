@@ -20,4 +20,7 @@ public interface ICommunityPostService
     Task<IServiceResult> GetCommentsAsync(Guid postId, int pageNumber, int pageSize);
     Task<IServiceResult> GetSubCommentsAsync(Guid parentCommentId, int pageNumber, int pageSize);
     Task<IServiceResult> DeleteCommentAsync(Guid commentId, Guid requesterId);
+
+    // Get both Reels and Posts
+    Task<IServiceResult> GetUserContentAsync(Guid targetUserId, Guid? currentUserId, int pageNumber, int pageSize);
 }

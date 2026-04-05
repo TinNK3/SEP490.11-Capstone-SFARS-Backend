@@ -447,6 +447,104 @@ public class CommunityPostService : ICommunityPostService
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Xóa thành công", true);
     }
 
+    public async Task<IServiceResult> GetUserContentAsync(Guid targetUserId, Guid? currentUserId, int pageNumber, int pageSize)
+    {
+        var postRepo = _uow.Repository<ContentPost, Guid>();
+        var reelRepo = _uow.Repository<Reel, Guid>();
+
+        var user = await _uow.Repository<User, Guid>().GetByIdAsync(targetUserId);
+        if (user == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Người dùng không tồn tại.");
+
+        var authorDto = new PostAuthorDto(user.Id, user.FullName ?? "Unknown", user.Avatar);
+
+        // 1. Unified query for IDs and Types only for efficient DB-side pagination
+        var postBase = postRepo.GetQueryable(tracked: false)
+            .Where(p => p.AuthorId == targetUserId && p.Type == PostType.Community && p.IsPublished)
+            .Select(p => new { Id = p.Id, Type = "Post", CreatedAt = p.CreatedAt });
+
+        var reelBase = reelRepo.GetQueryable(tracked: false)
+            .Where(r => r.UserId == targetUserId && !r.IsHidden)
+            .Select(r => new { Id = r.Id, Type = "Reel", CreatedAt = r.CreatedAt });
+
+        var combinedQuery = postBase.Union(reelBase);
+        var totalItems = await combinedQuery.CountAsync();
+
+        if (totalItems == 0)
+        {
+            return new ServiceResult(ResultCodeConst.SYS_Success0002, "Thành công",
+                new PaginatedResultDto<UnifiedContentDto>(Enumerable.Empty<UnifiedContentDto>(), pageNumber, pageSize, 0, 0));
+        }
+
+        // Apply paging on the combined set
+        var pagedResults = await combinedQuery
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var postIds = pagedResults.Where(x => x.Type == "Post").Select(x => x.Id).ToList();
+        var reelIds = pagedResults.Where(x => x.Type == "Reel").Select(x => x.Id).ToList();
+
+        // 2. Fetch full details for the specific IDs found in this page
+        var postsData = await postRepo.GetQueryable(tracked: false)
+            .Include(p => p.Medias)
+            .Include(p => p.Likes)
+            .Where(p => postIds.Contains(p.Id))
+            .ToListAsync();
+
+        var reelsData = await reelRepo.GetQueryable(tracked: false)
+            .Include(r => r.Likes)
+            .Where(r => reelIds.Contains(r.Id))
+            .ToListAsync();
+
+        // 3. Map back to DTO while preserving the interleaved order
+        var finalItems = new List<UnifiedContentDto>();
+        foreach (var res in pagedResults)
+        {
+            if (res.Type == "Post")
+            {
+                var p = postsData.FirstOrDefault(x => x.Id == res.Id);
+                if (p != null)
+                {
+                    finalItems.Add(new UnifiedContentDto(
+                        p.Id,
+                        "Post",
+                        authorDto,
+                        p.BodyContent,
+                        p.Medias.OrderBy(m => m.Order).Select(m => m.Url).ToList(),
+                        p.LikeCount,
+                        p.CommentCount,
+                        currentUserId.HasValue && p.Likes.Any(l => l.UserId == currentUserId.Value),
+                        p.CreatedAt
+                    ));
+                }
+            }
+            else
+            {
+                var r = reelsData.FirstOrDefault(x => x.Id == res.Id);
+                if (r != null)
+                {
+                    finalItems.Add(new UnifiedContentDto(
+                        r.Id,
+                        "Reel",
+                        authorDto,
+                        r.Caption,
+                        new List<string> { r.VideoUrl },
+                        r.LikeCount,
+                        r.CommentCount,
+                        currentUserId.HasValue && r.Likes.Any(l => l.UserId == currentUserId.Value),
+                        r.CreatedAt
+                    ));
+                }
+            }
+        }
+
+        var totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+        var result = new PaginatedResultDto<UnifiedContentDto>(finalItems, pageNumber, pageSize, totalPages, totalItems);
+
+        return new ServiceResult(ResultCodeConst.SYS_Success0002, "Thành công", result);
+    }
+
     private static CommunityPostDto MapToDto(ContentPost p, Guid? viewerId, bool limitMedia = false)
     {
         var mediaList = p.Medias.OrderBy(m => m.Order).AsEnumerable();

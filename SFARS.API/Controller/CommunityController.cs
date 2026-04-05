@@ -25,6 +25,12 @@ public class CommunityController : ControllerBase
     public async Task<IActionResult> GetPostsAsync([FromQuery] CommunityPostSpecParams specParams)
         => this.ToIActionResult(await _svc.GetPostsAsync(specParams, User.GetUserIdOrNull()));
 
+    /// <summary>Danh sách tất cả nội dung (Post & Reel) của một người cụ thể</summary>
+    [HttpGet(APIRoute.Community.GetUserContent, Name = nameof(GetUserContentAsync))]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetUserContentAsync(Guid userId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        => this.ToIActionResult(await _svc.GetUserContentAsync(userId, User.GetUserIdOrNull(), pageNumber, pageSize));
+
     /// <summary>Chi tiết bài đăng</summary>
     [HttpGet(APIRoute.Community.GetPostById, Name = nameof(GetPostByIdAsync))]
     [AllowAnonymous]

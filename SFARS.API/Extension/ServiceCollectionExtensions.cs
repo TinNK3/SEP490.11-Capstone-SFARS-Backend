@@ -23,6 +23,13 @@ namespace SFARS.API.Extension
                 options.JsonSerializerOptions.Converters.Add(
                     new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
             });
+
+            // Increase form-data upload limit
+            services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+            {
+                options.MultipartBodyLengthLimit = 209715200; // 200MB
+            });
+
             // Configures ApiExplorer
             services.AddEndpointsApiExplorer();
 

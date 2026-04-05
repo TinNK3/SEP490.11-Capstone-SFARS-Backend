@@ -65,7 +65,7 @@ services:
       - CloudinarySettings__ApiSecret=${CLOUDINARY_API_SECRET}
 
       # --- Storage ---
-      - Storage__MaxUploadBytes=10485760
+      - Storage__MaxUploadBytes=20971520
 
       # --- Gemini AI ---
       - Gemini__ApiKey=${GEMINI_API_KEY}

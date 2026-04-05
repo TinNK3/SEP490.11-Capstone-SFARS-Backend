@@ -24,9 +24,9 @@ public class ReelService : IReelService
 
     public async Task<IServiceResult> CreateReelAsync(Guid currentUserId, string? caption, Stream videoStream, string fileName, string contentType, long contentLength)
     {
-        if (contentLength > 10 * 1024 * 1024)
+        if (contentLength > 20 * 1024 * 1024)
         {
-            return new ServiceResult(ResultCodeConst.SYS_Warning0008, "Video size cannot exceed 10MB");
+            return new ServiceResult(ResultCodeConst.SYS_Warning0008, "Video size cannot exceed 20MB");
         }
 
         if (!contentType.StartsWith("video/"))
