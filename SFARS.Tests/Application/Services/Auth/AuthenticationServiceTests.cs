@@ -11,6 +11,7 @@ using SFARS.Application.Dtos.User;
 using SFARS.Application.Utils;
 using SFARS.Application.Services;
 using SFARS.Application.Services.Auth;
+using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
@@ -1336,4 +1337,3 @@ public class AuthenticationServiceTests
     #endregion
 
 }
-
