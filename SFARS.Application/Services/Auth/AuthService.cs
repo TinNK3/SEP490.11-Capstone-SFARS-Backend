@@ -210,7 +210,7 @@ namespace SFARS.Application.Services.Auth
             }
         }
 
-        public async Task<IServiceResult> SignInWithGoogleAsync(string googleIdToken)
+        public async Task<IServiceResult> SignInWithGoogleAsync(string googleIdToken, bool isAdminLogin = false)
         {
             var validator = new SignInWithGoogleValidator();
             var validation = await validator.ValidateAsync(googleIdToken);
@@ -238,12 +238,26 @@ namespace SFARS.Application.Services.Auth
                         await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0001));
                 }
 
+                if (isAdminLogin && userDto.Role != UserTypeConstants.Admin)
+                {
+                    _logger.LogWarning("Blocked Google admin login for {Email}: Role is {Role}.", externalUser.Email, userDto.Role);
+                    return new ServiceResult(ResultCodeConst.SYS_Warning0007,
+                        await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0007));
+                }
+
                 // Map to AuthUserDto
                 var authenticateUser = userDto.ToAuthUserDto();
                 return await AuthenticateUserAsync(authenticateUser);
             }
             else
             {
+                if (isAdminLogin)
+                {
+                    _logger.LogWarning("Blocked Google admin login for {Email}: Account does not exist.", externalUser.Email);
+                    return new ServiceResult(ResultCodeConst.SYS_Warning0007,
+                        await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0007));
+                }
+
                 // User does not exist: Auto Register
                 var newUser = new AuthUserDto
                 {
