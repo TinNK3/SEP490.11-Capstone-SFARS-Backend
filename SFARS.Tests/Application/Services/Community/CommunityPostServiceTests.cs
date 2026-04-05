@@ -28,6 +28,8 @@ public class CommunityPostServiceTests
     private readonly Mock<IGenericRepository<ContentPost, Guid>> _postRepoMock;
     private readonly Mock<IGenericRepository<PostComment, Guid>> _commentRepoMock;
     private readonly Mock<IGenericRepository<PostMedia, Guid>> _mediaRepoMock;
+    private readonly Mock<IGenericRepository<Reel, Guid>> _reelRepoMock;
+    private readonly Mock<IGenericRepository<User, Guid>> _userRepoMock;
     private readonly Mock<IFileStorageService> _fileStorageMock;
 
     private readonly CommunityPostService _sut; // System Under Test
@@ -42,11 +44,15 @@ public class CommunityPostServiceTests
         _postRepoMock = new Mock<IGenericRepository<ContentPost, Guid>>();
         _commentRepoMock = new Mock<IGenericRepository<PostComment, Guid>>();
         _mediaRepoMock = new Mock<IGenericRepository<PostMedia, Guid>>();
-
+        _reelRepoMock = new Mock<IGenericRepository<Reel, Guid>>();
+        _userRepoMock = new Mock<IGenericRepository<User, Guid>>();
+ 
         // Setup IUnitOfWork trả về các repository giả lập (mocked repos)
         _uowMock.Setup(u => u.Repository<ContentPost, Guid>()).Returns(_postRepoMock.Object);
         _uowMock.Setup(u => u.Repository<PostComment, Guid>()).Returns(_commentRepoMock.Object);
         _uowMock.Setup(u => u.Repository<PostMedia, Guid>()).Returns(_mediaRepoMock.Object);
+        _uowMock.Setup(u => u.Repository<Reel, Guid>()).Returns(_reelRepoMock.Object);
+        _uowMock.Setup(u => u.Repository<User, Guid>()).Returns(_userRepoMock.Object);
 
         // Setup giả lập cho SignalR (IHubContext)
         var mockClients = new Mock<IHubClients>();
@@ -512,6 +518,22 @@ public class CommunityPostServiceTests
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
         _commentRepoMock.Verify(r => r.AddAsync(It.Is<PostComment>(c => c.ParentId == level2Id)), Times.Once); 
+    }
+    #endregion
+ 
+    #region Tests cho GetUserContentAsync
+    [Fact]
+    public async Task GetUserContentAsync_UserKhongTonTai_TraVeCanhBao()
+    {
+        // Arrange
+        _userRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((User?)null);
+ 
+        // Act
+        var result = await _sut.GetUserContentAsync(Guid.NewGuid(), null, 1, 10);
+ 
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
+        result.Message.Should().Contain("Người dùng không tồn tại");
     }
     #endregion
 }

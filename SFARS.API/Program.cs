@@ -8,6 +8,11 @@ using SFARS.Application;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 209715200; // 200MB
+});
+
 builder.Services
     // Add HttpClient
     .AddHttpClient()

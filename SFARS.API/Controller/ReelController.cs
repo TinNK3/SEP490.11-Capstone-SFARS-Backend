@@ -18,7 +18,7 @@ public class ReelController : ControllerBase
 
     public ReelController(IReelService svc) => _svc = svc;
 
-    /// <summary>Tạo mới 1 Reel (Upload Video max 10MB)</summary>
+    /// <summary>Tạo mới 1 Reel (Upload Video max 20MB)</summary>
     [HttpPost(APIRoute.Reels.Create, Name = nameof(CreateReelAsync))]
     public async Task<IActionResult> CreateReelAsync([FromForm] CreateReelRequest request)
     {

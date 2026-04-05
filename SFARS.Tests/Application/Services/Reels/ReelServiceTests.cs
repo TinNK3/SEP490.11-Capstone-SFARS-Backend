@@ -117,11 +117,11 @@ public class ReelServiceTests
     public async Task CreateReelAsync_LargeFile_ReturnsWarning()
     {
         // Act
-        var result = await _sut.CreateReelAsync(Guid.NewGuid(), "Test", new MemoryStream(), "test.mp4", "video/mp4", 11 * 1024 * 1024);
+        var result = await _sut.CreateReelAsync(Guid.NewGuid(), "Test", new MemoryStream(), "test.mp4", "video/mp4", 21 * 1024 * 1024);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0008);
-        result.Message.Should().Contain("10MB");
+        result.Message.Should().Contain("20MB");
     }
 
     [Fact]
