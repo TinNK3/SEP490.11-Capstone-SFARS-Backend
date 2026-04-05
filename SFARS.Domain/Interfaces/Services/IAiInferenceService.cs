@@ -27,4 +27,10 @@ public interface IAiInferenceService
     /// Fast response for Pokedex-like features.
     /// </summary>
     Task<IServiceResult> IdentifySnakeAsync(Stream? imageStream, string? contentType, long? fileSize);
+
+    /// <summary>
+    /// Standalone wound classification. Does not upload image or save to DB.
+    /// Fast response for Wound Identification feature.
+    /// </summary>
+    Task<IServiceResult> ClassifyWoundAsync(Stream? imageStream, string? contentType, long? fileSize);
 }

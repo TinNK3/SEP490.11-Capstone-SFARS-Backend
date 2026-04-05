@@ -53,6 +53,7 @@ namespace SFARS.API.Payloads
             public const string History = Base + "/snakes/{id}/history";
             // [POST]
             public const string IdentifySpecies = Base + "/snakes/identify-species";
+            public const string ClassifyWound = Base + "/snakes/classify-wound";
             public const string Create = Base + "/snakes";
             public const string ImportPreview = Base + "/snakes/import/preview";
             public const string ImportApply = Base + "/snakes/import/apply";
@@ -130,6 +131,9 @@ namespace SFARS.API.Payloads
             // [GET]
             public const string GetById = Base + "/incidents/{id}";
             public const string GetMyIncidents = Base + "/incidents/me";
+            public const string GetRecentCommunity = Base + "/incidents/recent";
+            public const string GetAllAdmin = Base + "/admin/incidents";
+            public const string GetStatusHistoryAdmin = Base + "/admin/incidents/{id}/status-history";
             public const string Tracking = Base + "/incidents/{id}/tracking";
             public const string TrackingByCode = Base + "/tracking";
             public const string SosPreCheck = Base + "/sos-pre-check";
@@ -150,6 +154,8 @@ namespace SFARS.API.Payloads
         /// </summary>
         public static class Mission
         {
+            // [GET]
+            public const string GetMyMissions = Base + "/missions/me";
             // [POST]
             public const string Accept = Base + "/missions/{id}/accept";
             // [PATCH]

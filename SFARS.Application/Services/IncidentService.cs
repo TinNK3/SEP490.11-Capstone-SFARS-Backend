@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NetTopologySuite.Geometries;
 using SFARS.Application.Common;
+using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.AiInference;
 using SFARS.Application.Dtos.AiReview;
 using SFARS.Application.Dtos.Incident;
@@ -18,6 +19,7 @@ using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
+using SFARS.Domain.Specifications.Params;
 using SFARS.Infrastructure.Configurations;
 using SFARS.Infrastructure.Helpers;
 using System.Text.Json;
@@ -194,9 +196,9 @@ namespace SFARS.Application.Services
         }
 
         /// <summary>
-        /// Get incidents reported by the current user
+        /// Get incidents reported by the current user with standard pagination
         /// </summary>
-        public async Task<IServiceResult> GetMyIncidentsAsync(Guid userId, int page = 0, int pageSize = 10)
+        public async Task<IServiceResult> GetMyIncidentsAsync(Guid userId, IncidentSpecParams specParams)
         {
             if (userId == Guid.Empty)
             {
@@ -206,9 +208,10 @@ namespace SFARS.Application.Services
                 );
             }
 
-            var spec = new BaseSpecification<Incident>(i => i.VictimId == userId);
-            spec.AddOrderByDescending(i => i.CreatedAt);
-            spec.ApplyPaging(pageSize, page * pageSize);
+            var countSpec = new IncidentSpecification(specParams, userId, isCount: true);
+            var totalItems = await _unitOfWork.Repository<Incident, Guid>().CountAsync(countSpec);
+
+            var spec = new IncidentSpecification(specParams, userId, isCount: false);
 
             var dtos = await _unitOfWork.Repository<Incident, Guid>()
                 .GetAllWithSpecAndSelectorAsync(spec, i => new IncidentDto
@@ -233,10 +236,146 @@ namespace SFARS.Application.Services
                     ExtractedSymptoms = i.ExtractedSymptoms
                 }, tracked: false);
 
+            var limit = specParams.GetTake();
+            var page = specParams.GetPage();
+            var totalPages = limit > 0 ? (int)Math.Ceiling(totalItems / (double)limit) : 0;
+
+            var pagedResult = new PaginatedResultDto<IncidentDto>(
+                dtos,
+                page,
+                limit,
+                totalPages,
+                totalItems
+            );
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                pagedResult
+            );
+        }
+
+        public async Task<IServiceResult> GetAllIncidentsAsync(IncidentSpecParams specParams)
+        {
+            var countSpec = new IncidentSpecification(specParams, null, isCount: true);
+            var totalItems = await _unitOfWork.Repository<Incident, Guid>().CountAsync(countSpec);
+
+            var spec = new IncidentSpecification(specParams, null, isCount: false);
+
+            var dtos = await _unitOfWork.Repository<Incident, Guid>()
+                .GetAllWithSpecAndSelectorAsync(spec, i => new IncidentDto
+                {
+                    Id = i.Id,
+                    Code = i.Code,
+                    Latitude = i.Location.Y,
+                    Longitude = i.Location.X,
+                    AddressString = i.AddressString,
+                    Description = i.Description,
+                    CurrentStatus = i.CurrentStatus,
+                    PriorityLevel = i.PriorityLevel,
+                    AiPredictionResult = i.AiPredictionResult,
+                    AiConfidenceScore = i.AiConfidenceScore,
+                    SnakeId = i.SnakeId,
+                    VictimId = i.VictimId,
+                    VictimName = i.Victim.FullName,
+                    CreatedAt = i.CreatedAt,
+                    SymptomAudioUrl = i.SymptomAudioUrl,
+                    SymptomText = i.SymptomText,
+                    MinutesSinceBite = i.MinutesSinceBite,
+                    ExtractedSymptoms = i.ExtractedSymptoms
+                }, tracked: false);
+
+            var limit = specParams.GetTake();
+            var page = specParams.GetPage();
+            var totalPages = limit > 0 ? (int)Math.Ceiling(totalItems / (double)limit) : 0;
+
+            var pagedResult = new PaginatedResultDto<IncidentDto>(
+                dtos,
+                page,
+                limit,
+                totalPages,
+                totalItems
+            );
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                pagedResult
+            );
+        }
+
+        public async Task<IServiceResult> GetStatusHistoryAsync(Guid incidentId)
+        {
+            var histories = await _unitOfWork.Repository<IncidentStatusHistory, Guid>()
+                .GetQueryable(tracked: false)
+                .Where(h => h.IncidentId == incidentId)
+                .ToListAsync();
+
+            // Fetch users to map ChangedByName
+            var userIds = histories.Select(h => h.ChangedBy).Distinct();
+            var users = await _unitOfWork.Repository<User, Guid>()
+                .GetQueryable(tracked: false)
+                .Where(u => userIds.Contains(u.Id))
+                .ToListAsync();
+            var userDict = users.ToDictionary(u => u.Id, u => u.FullName);
+
+            var dtos = histories.OrderByDescending(h => h.CreatedAt).Select(h => new IncidentStatusHistoryDto
+            {
+                Id = h.Id,
+                IncidentId = h.IncidentId,
+                StatusFrom = h.StatusFrom,
+                StatusTo = h.StatusTo,
+                ChangeReason = h.ChangeReason,
+                CreatedAt = h.CreatedAt,
+                ChangedBy = h.ChangedBy,
+                ChangedByName = userDict.GetValueOrDefault(h.ChangedBy, "Unknown")
+            }).ToList();
+
             return new ServiceResult(
                 ResultCodeConst.SYS_Success0002,
                 await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
                 dtos
+            );
+        }
+
+        public async Task<IServiceResult> GetRecentCommunityIncidentsAsync(BaseSpecParams specParams)
+        {
+            var countSpec = new CommunityIncidentSpecification(specParams, isCount: true);
+            var totalItems = await _unitOfWork.Repository<Incident, Guid>().CountAsync(countSpec);
+
+            var spec = new CommunityIncidentSpecification(specParams, isCount: false);
+
+            var dtos = await _unitOfWork.Repository<Incident, Guid>()
+                .GetAllWithSpecAndSelectorAsync(spec, i => new CommunityIncidentDto
+                {
+                    Id = i.Id,
+                    Code = i.Code,
+                    // Round to 3 decimal places (~110m resolution) for privacy
+                    Latitude = Math.Round(i.Location.Y, 3),
+                    Longitude = Math.Round(i.Location.X, 3),
+                    CurrentStatus = i.CurrentStatus,
+                    PriorityLevel = i.PriorityLevel,
+                    CreatedAt = i.CreatedAt,
+                    SnakeId = (i.HumanReviewedSnakeId != null) ? i.HumanReviewedSnakeId : 
+                              (i.AiConfidenceScore > 0.85) ? i.SnakeId : null
+                }, tracked: false);
+
+            var limit = specParams.GetTake();
+            var page = specParams.GetPage();
+            var totalPages = limit > 0 ? (int)Math.Ceiling(totalItems / (double)limit) : 0;
+
+            var pagedResult = new PaginatedResultDto<CommunityIncidentDto>(
+                dtos,
+                page,
+                limit,
+                totalPages,
+                totalItems
+            );
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                pagedResult
             );
         }
 

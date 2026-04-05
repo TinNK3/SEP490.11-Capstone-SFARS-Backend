@@ -100,6 +100,8 @@ public static class AiInferenceConstants
     public const string NoteIdentifyNotFound = "Hệ thống phát hiện rắn nhưng chưa tìm được thông tin loài tương ứng. Vui lòng liên hệ cứu hộ viên để được hỗ trợ.";
     public const string NoteIdentifyNotSnake = "Hệ thống xác nhận vật thể trong ảnh không phải là rắn. Nếu bạn chắc chắn đã bị rắn cắn, hãy thử chụp lại ảnh rõ hơn hoặc liên hệ đường dây nóng.";
     public const string NoteIdentifyLowConf = "Hệ thống chưa đủ thông tin để nhận diện loài rắn. Bạn có thể thử chụp lại ảnh rõ nét hơn, lấy toàn thân rắn và đảm bảo đủ ánh sáng.";
+    public const string NoteIdentifyWoundResult = "Đây là kết quả phân tích vết thương sơ bộ và chỉ mang tính tham khảo. Nếu có dấu hiệu bất thường, vui lòng liên hệ ngay cơ sở y tế.";
+    public const string NoteIdentifyWoundNoDetection = "Hệ thống chưa phát hiện vùng vết thương rõ ràng trong ảnh bạn gửi. Vui lòng thử chụp lại ảnh gần hơn vào vùng bị thương và đảm bảo đủ ánh sáng.";
 
     public const string NoteSkip = "Bạn đã bỏ qua bước chụp ảnh. Để đảm bảo an toàn, hệ thống sẽ xử lý ca này như trường hợp rắn chưa rõ loài. Hãy áp dụng sơ cứu chung và chờ cứu hộ viên hỗ trợ.";
     public const string NoteNotSnake = "Hệ thống không phát hiện rắn trong ảnh bạn gửi. Dù vậy, ca cứu hộ vẫn được ghi nhận và cứu hộ viên sẽ liên hệ bạn sớm nhất.";

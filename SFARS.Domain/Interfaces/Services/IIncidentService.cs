@@ -1,6 +1,7 @@
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces.Services.Base;
+using SFARS.Domain.Specifications.Params;
 
 namespace SFARS.Domain.Interfaces.Services
 {
@@ -8,7 +9,10 @@ namespace SFARS.Domain.Interfaces.Services
         where TDto : class
     {
         Task<IServiceResult> CreateIncidentAsync(Guid userId, TDto dto);
-        Task<IServiceResult> GetMyIncidentsAsync(Guid userId, int page = 0, int pageSize = 10);
+        Task<IServiceResult> GetMyIncidentsAsync(Guid userId, IncidentSpecParams specParams);
+        Task<IServiceResult> GetAllIncidentsAsync(IncidentSpecParams specParams);
+        Task<IServiceResult> GetStatusHistoryAsync(Guid incidentId);
+        Task<IServiceResult> GetRecentCommunityIncidentsAsync(BaseSpecParams specParams);
         Task<IServiceResult> GetIncidentByIdAsync(Guid userId, Guid incidentId);
         
         /// <summary>
