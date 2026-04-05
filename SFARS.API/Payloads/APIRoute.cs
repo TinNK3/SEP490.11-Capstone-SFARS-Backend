@@ -255,12 +255,20 @@ namespace SFARS.API.Payloads
         /// </summary>
         public static class AdminMlops
         {
+            // Snake Species Pipeline
             // [GET]
-            public const string ExportData = Base + "/admin/mlops/export";
-            public const string ExportByKey = Base + "/admin/mlops/export-by-key";
-            public const string GetRetrainHistory = Base + "/admin/mlops/retrain-history";
+            public const string ExportData = Base + "/admin/mlops/snake/export";
+            public const string ExportByKey = Base + "/admin/mlops/snake/export-by-key";
+            public const string GetRetrainHistory = Base + "/admin/mlops/snake/retrain-history";
             // [POST]
-            public const string TriggerRetrain = Base + "/admin/mlops/trigger-retrain";
+            public const string TriggerRetrain = Base + "/admin/mlops/snake/trigger-retrain";
+
+            // Wound Classification Pipeline
+            // [GET]
+            public const string ExportWoundData = Base + "/admin/mlops/wound/export";
+            public const string ExportWoundByKey = Base + "/admin/mlops/wound/export-by-key";
+            // [POST]
+            public const string TriggerWoundRetrain = Base + "/admin/mlops/wound/trigger-retrain";
         }
 
         /// <summary>

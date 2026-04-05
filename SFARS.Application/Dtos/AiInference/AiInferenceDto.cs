@@ -12,6 +12,12 @@ public class AiInferenceResultDto
     public List<FirstAidStepDto> FirstAidSteps { get; set; } = new();
     public List<FirstAidStepDto> Prohibitions { get; set; } = new();
 
+    /// <summary>
+    /// Populated only if the user uploads a Wound Photo (MediaType = BiteWoundPhoto).
+    /// If this is populated, PrimarySnake will be null.
+    /// </summary>
+    public WoundAnalysisDto? WoundAnalysis { get; set; }
+
     public List<SnakeCandidateDto> OtherCandidates { get; set; } = new();
     public string? Note { get; set; }
 
@@ -23,6 +29,29 @@ public class AiInferenceResultDto
     /// Null if the incident is already past the cancellable window.
     /// </summary>
     public DateTime? CancelDeadline { get; set; }
+}
+
+/// <summary>
+/// Wound detection result for SOS case
+/// </summary>
+public class WoundAnalysisDto
+{
+    /// <summary>
+    /// Whether the detection model found a wound region in the image.
+    /// False means the image likely does not contain a visible wound.
+    /// </summary>
+    public bool IsWoundDetected { get; set; }
+
+    /// <summary>
+    /// Whether the classification model identified the wound as a snake bite.
+    /// Only meaningful when IsWoundDetected is true.
+    /// </summary>
+    public bool IsSnakeBite { get; set; }
+
+    /// <summary>
+    /// Confidence score from the classification model (0.0 - 1.0).
+    /// </summary>
+    public double Confidence { get; set; }
 }
 
 /// <summary>

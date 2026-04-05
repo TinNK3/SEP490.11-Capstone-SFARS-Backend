@@ -33,6 +33,8 @@ public class AiInferenceService : IAiInferenceService
     private readonly IOptions<YoloDetectionOptions> _yoloOptions;
     private readonly IBackgroundJobClient _backgroundJobClient;
     private readonly ISpeciesClassificationService _classificationService;
+    private readonly IWoundDetectionService _woundDetectionService;
+    private readonly IOptions<WoundDetectionOptions> _woundOptions;
 
     /// <summary>
     /// Class name used by the EfficientNetV2 classifier for non-snake objects.
@@ -51,9 +53,11 @@ public class AiInferenceService : IAiInferenceService
         ILogger<AiInferenceService> logger,
         ISnakeDetectionService detectionService,
         ISpeciesClassificationService classificationService,
+        IWoundDetectionService woundDetectionService,
         IFileStorageService storageService,
         IOptions<StorageOptions> storageOptions,
         IOptions<YoloDetectionOptions> yoloOptions,
+        IOptions<WoundDetectionOptions> woundOptions,
         IBackgroundJobClient backgroundJobClient)
     {
         _msgService = msgService;
@@ -61,9 +65,11 @@ public class AiInferenceService : IAiInferenceService
         _logger = logger;
         _detectionService = detectionService;
         _classificationService = classificationService;
+        _woundDetectionService = woundDetectionService;
         _storageService = storageService;
         _storageOptions = storageOptions;
         _yoloOptions = yoloOptions;
+        _woundOptions = woundOptions;
         _backgroundJobClient = backgroundJobClient;
     }
 
@@ -164,6 +170,11 @@ public class AiInferenceService : IAiInferenceService
                 return snakeDict.TryGetValue(sciName, out var s) ? s : null;
             }
 
+            bool isBiteWoundPhoto = mediaType == MediaType.BiteWoundPhoto;
+            bool? isSnakeBite = null;
+            float woundConfidence = 0;
+            bool isWoundDetected = false;
+
             if (!isSkip)
             {
                 using var bufferStream = new MemoryStream();
@@ -176,77 +187,115 @@ public class AiInferenceService : IAiInferenceService
                     uploadResult = await _storageService.UploadAsync(uploadStream, fileName!, folder, contentType!);
                 }
 
-                // ── Stage 1: YOLO Detection — detect snake & get bounding box ──
-                var detection = await _detectionService.DetectAsync(imageBytes);
-
-                _logger.LogInformation(
-                    "YOLO detection: IsDetected={IsDetected}, Confidence={Confidence:P}",
-                    detection.IsDetected, detection.Confidence);
-
-                if (detection.IsDetected && detection.Box != null)
+                // AI Inference Branching
+                if (isBiteWoundPhoto)
                 {
-                    // ── Stage 1.5: Crop & Pad (letterbox) ──
-                    var yoloOpt = _yoloOptions.Value;
-                    var croppedBytes = CropAndPad(imageBytes, detection.Box, yoloOpt.MarginRatio);
+                    _logger.LogInformation("Processing BiteWoundPhoto — 2-Stage Wound Pipeline");
 
-                    // ── Stage 2: EfficientNetV2 Species Classification ──
-                    using var speciesStream = new MemoryStream(croppedBytes);
-                    var classificationPredictions = await _classificationService.InferSpeciesOnlyAsync(speciesStream, topK: 3);
-                    speciesPredictions = classificationPredictions.ToList();
+                    // Stage 1: Detect wound bounding box
+                    var woundDetection = await _woundDetectionService.DetectWoundAsync(imageBytes);
+                    _logger.LogInformation(
+                        "Wound Detection: IsDetected={IsDetected}, Confidence={Confidence:P}",
+                        woundDetection.IsDetected, woundDetection.Confidence);
 
-                    var top1 = speciesPredictions.FirstOrDefault();
-                    var top2 = speciesPredictions.Skip(1).FirstOrDefault();
-                    var maxConfidence = top1?.Confidence ?? 0;
-
-                    // Case 1: Classifier says "Not_Snake"
-                    if (top1 != null && string.Equals(top1.ClassName, NotSnakeClassName, StringComparison.OrdinalIgnoreCase))
+                    if (woundDetection.IsDetected && woundDetection.Box != null)
                     {
-                        isSnakeClassified = false;
-                        _logger.LogInformation("Classifier identified object as Not Snake (confidence: {Conf:P})", maxConfidence);
+                        isWoundDetected = true;
+
+                        // Stage 1.5: Crop & Pad (reuse existing CropAndPad)
+                        var croppedBytes = CropAndPad(imageBytes, woundDetection.Box, _woundOptions.Value.MarginRatio);
+
+                        // Stage 2: Classify Snake Bite vs Non Snake Bite
+                        var classResult = await _woundDetectionService.ClassifyWoundAsync(croppedBytes);
+                        isSnakeBite = classResult.IsSnakeBite;
+                        woundConfidence = classResult.Confidence;
                     }
-                    // Case 2: Too low confidence (< 50%)
-                    else if (!speciesPredictions.Any() || maxConfidence < 0.50f)
-                    {
-                        isLowConfidence = true;
-                        isSnakeClassified = false;
-                        _logger.LogWarning("Classifier confidence below 50% threshold ({Confidence:P}). Marking as Unknown Snake.", maxConfidence);
-                    }
-                    // Case 3: Valid classification
                     else
                     {
-                        topConfidence = maxConfidence;
-                        primarySnake = FindSnakeLocal(top1!.ClassName);
-
-                        if (primarySnake == null)
-                        {
-                            _logger.LogWarning("Snake not found in DB for class: {ClassName}", top1.ClassName);
-                            return new ServiceResult(
-                                ResultCodeConst.AI_Warning0005,
-                                await _msgService.GetMessageAsync(ResultCodeConst.AI_Warning0005)
-                            );
-                        }
-
-                        // Gap check: if top-1 and top-2 have different toxicity and gap < 15%,
-                        // treat as venomous for safety (medical first-aid context)
-                        if (top2 != null
-                            && !string.Equals(top2.ClassName, NotSnakeClassName, StringComparison.OrdinalIgnoreCase)
-                            && (maxConfidence - top2.Confidence) < AmbiguousGapThreshold)
-                        {
-                            var secondSnake = FindSnakeLocal(top2.ClassName);
-                            if (secondSnake != null && primarySnake.ToxicityLevel != secondSnake.ToxicityLevel)
-                            {
-                                _logger.LogWarning(
-                                    "Ambiguous prediction: {Snake1} ({Conf1:P}) vs {Snake2} ({Conf2:P}), gap={Gap:P}. Treating as venomous.",
-                                    top1.ClassName, maxConfidence, top2.ClassName, top2.Confidence,
-                                    maxConfidence - top2.Confidence);
-                            }
-                        }
+                        // No wound detected — default to NotSnakeBite.
+                        // Still High priority since user explicitly chose "chụp vết cắn"
+                        _logger.LogWarning("No wound detected in BiteWoundPhoto. Defaulting to NotSnakeBite.");
+                        isSnakeBite = false;
+                        woundConfidence = 0;
                     }
+
+                    topConfidence = woundConfidence;
+                    isSnakeClassified = false;
+                    isLowConfidence = false;
                 }
                 else
                 {
-                    isSnakeClassified = false;
-                    _logger.LogInformation("YOLO: No snake detected in image.");
+                    // Stage 1: YOLO Detection — detect snake & get bounding box
+                    var detection = await _detectionService.DetectAsync(imageBytes);
+
+                    _logger.LogInformation(
+                        "YOLO detection: IsDetected={IsDetected}, Confidence={Confidence:P}",
+                        detection.IsDetected, detection.Confidence);
+
+                    if (detection.IsDetected && detection.Box != null)
+                    {
+                        // Stage 1.5: Crop & Pad (letterbox)
+                        var yoloOpt = _yoloOptions.Value;
+                        var croppedBytes = CropAndPad(imageBytes, detection.Box, yoloOpt.MarginRatio);
+
+                        // Stage 2: EfficientNetV2 Species Classification
+                        using var speciesStream = new MemoryStream(croppedBytes);
+                        var classificationPredictions = await _classificationService.InferSpeciesOnlyAsync(speciesStream, topK: 3);
+                        speciesPredictions = classificationPredictions.ToList();
+
+                        var top1 = speciesPredictions.FirstOrDefault();
+                        var top2 = speciesPredictions.Skip(1).FirstOrDefault();
+                        var maxConfidence = top1?.Confidence ?? 0;
+
+                        // Case 1: Classifier says "Not_Snake"
+                        if (top1 != null && string.Equals(top1.ClassName, NotSnakeClassName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            isSnakeClassified = false;
+                            _logger.LogInformation("Classifier identified object as Not Snake (confidence: {Conf:P})", maxConfidence);
+                        }
+                        // Case 2: Too low confidence (< 50%)
+                        else if (!speciesPredictions.Any() || maxConfidence < 0.50f)
+                        {
+                            isLowConfidence = true;
+                            isSnakeClassified = false;
+                            _logger.LogWarning("Classifier confidence below 50% threshold ({Confidence:P}). Marking as Unknown Snake.", maxConfidence);
+                        }
+                        // Case 3: Valid classification
+                        else
+                        {
+                            topConfidence = maxConfidence;
+                            primarySnake = FindSnakeLocal(top1!.ClassName);
+
+                            if (primarySnake == null)
+                            {
+                                _logger.LogWarning("Snake not found in DB for class: {ClassName}", top1.ClassName);
+                                return new ServiceResult(
+                                    ResultCodeConst.AI_Warning0005,
+                                    await _msgService.GetMessageAsync(ResultCodeConst.AI_Warning0005)
+                                );
+                            }
+
+                            // Gap check
+                            if (top2 != null
+                                && !string.Equals(top2.ClassName, NotSnakeClassName, StringComparison.OrdinalIgnoreCase)
+                                && (maxConfidence - top2.Confidence) < AmbiguousGapThreshold)
+                            {
+                                var secondSnake = FindSnakeLocal(top2.ClassName);
+                                if (secondSnake != null && primarySnake.ToxicityLevel != secondSnake.ToxicityLevel)
+                                {
+                                    _logger.LogWarning(
+                                        "Ambiguous prediction: {Snake1} ({Conf1:P}) vs {Snake2} ({Conf2:P}), gap={Gap:P}. Treating as venomous.",
+                                        top1.ClassName, maxConfidence, top2.ClassName, top2.Confidence,
+                                        maxConfidence - top2.Confidence);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        isSnakeClassified = false;
+                        _logger.LogInformation("YOLO: No snake detected in image.");
+                    }
                 }
             }
 
@@ -272,6 +321,8 @@ public class AiInferenceService : IAiInferenceService
             }
 
             string decisionRule = isSkip ? AiInferenceConstants.DecisionRuleSkipped 
+                                : isBiteWoundPhoto && !isWoundDetected ? AiInferenceConstants.DecisionRuleWoundNoDetection
+                                : isBiteWoundPhoto ? (isSnakeBite == true ? AiInferenceConstants.DecisionRuleWoundSnakeBite : AiInferenceConstants.DecisionRuleWoundNotSnakeBite)
                                 : isSnakeClassified ? AiInferenceConstants.DecisionRuleTop1 
                                 : "NotSnake";
 
@@ -280,13 +331,16 @@ public class AiInferenceService : IAiInferenceService
                 Id = Guid.NewGuid(),
                 IncidentId = incidentId,
                 IncidentMediaId = media?.Id, // null if skipped
-                ModelName = isSkip ? AiInferenceConstants.SkippedModelName : AiInferenceConstants.ModelName,
-                ModelVersion = isSkip ? AiInferenceConstants.SkippedModelVersion : AiInferenceConstants.ModelVersion,
-                TopK = isSkip ? 0 : AiInferenceConstants.DefaultTopK,
+                ModelName = isSkip ? AiInferenceConstants.SkippedModelName : 
+                            isBiteWoundPhoto ? _woundOptions.Value.ModelName : AiInferenceConstants.ModelName,
+                ModelVersion = isSkip ? AiInferenceConstants.SkippedModelVersion : 
+                            isBiteWoundPhoto ? _woundOptions.Value.ModelVersion : AiInferenceConstants.ModelVersion,
+                TopK = isSkip || isBiteWoundPhoto ? 0 : AiInferenceConstants.DefaultTopK,
                 SelectedSnakeId = primarySnake?.Id, // null if skipped or !isSnake
                 SelectedConfidence = isSkip ? 0 : topConfidence,
                 SelectedToxinGroup = toxinGroup,
                 DecisionRule = decisionRule,
+                IsSnakeBite = isBiteWoundPhoto ? isSnakeBite : null,
                 CreatedAt = now,
                 CreatedBy = userId
             };
@@ -318,15 +372,23 @@ public class AiInferenceService : IAiInferenceService
             incident.CurrentAiInferenceId = aiInference.Id;
             incident.SnakeId = primarySnake?.Id; // null if skipped or !isSnake
             incident.AiPredictionResult = isSkip ? AiInferenceConstants.UnknownSnake 
+                                        : isBiteWoundPhoto && !isWoundDetected ? AiInferenceConstants.PredictionWoundNoDetection
+                                        : isBiteWoundPhoto ? (isSnakeBite == true ? AiInferenceConstants.PredictionWoundSnakeBite : AiInferenceConstants.PredictionWoundNotSnakeBite)
                                         : !isSnakeClassified ? "Not Snake" 
                                         : primarySnake?.CommonName;
             
             incident.AiConfidenceScore = isSkip ? 0 : topConfidence;
             
-            // If it's explicitly NotSnake, priority is Low. Otherwise run existing logic.
-            if (!isSkip && !isSnakeClassified)
+            // Priority Assignment
+            if (isBiteWoundPhoto)
             {
-                incident.PriorityLevel = SeverityLevel.Low;
+                incident.PriorityLevel = isSnakeBite == true ? SeverityLevel.Critical : SeverityLevel.High;
+            }
+            else if (!isSkip && !isSnakeClassified)
+            {
+                // Updated per previous medical assessment: NotSnake from a SnakePhoto context 
+                // in an SOS flow implies snake is hiding -> High Priority
+                incident.PriorityLevel = SeverityLevel.High;
             }
             else
             {
@@ -344,19 +406,31 @@ public class AiInferenceService : IAiInferenceService
                 .GetAllAsync(tracked: true);
             var chat = existingChat.FirstOrDefault(c => c.IncidentId == incidentId);
 
-            bool shouldSendInitialChat = isSkip || isSnakeClassified;
+            bool shouldSendInitialChat = isSkip || isSnakeClassified || isBiteWoundPhoto;
 
             if (chat != null && shouldSendInitialChat)
             {
-                string chatContent = isSkip
-                    ? AiInferenceConstants.ChatSkipped
-                    : string.Format(
-                        AiInferenceConstants.ChatInitialFormat,
-                        primarySnake!.CommonName,
-                        primarySnake!.ScientificName,
-                        (Math.Round(topConfidence, 4) * 100).ToString("0.##"),
-                        GetDangerSummary(primarySnake!.ToxicityLevel),
-                        primarySnake!.ToxinGroup.ToString());
+                string chatContent;
+                if (isSkip)
+                {
+                    chatContent = AiInferenceConstants.ChatSkipped;
+                }
+                else if (isBiteWoundPhoto)
+                {
+                    chatContent = !isWoundDetected ? AiInferenceConstants.ChatWoundNoDetection
+                                : isSnakeBite == true ? AiInferenceConstants.ChatWoundSnakeBite 
+                                : AiInferenceConstants.ChatWoundNotSnakeBite;
+                }
+                else
+                {
+                    chatContent = string.Format(
+                            AiInferenceConstants.ChatInitialFormat,
+                            primarySnake!.CommonName,
+                            primarySnake!.ScientificName,
+                            (Math.Round(topConfidence, 4) * 100).ToString("0.##"),
+                            GetDangerSummary(primarySnake!.ToxicityLevel),
+                            primarySnake!.ToxinGroup.ToString());
+                }
 
                 var chatMessage = new IncidentChatMessage
                 {
@@ -366,7 +440,7 @@ public class AiInferenceService : IAiInferenceService
                     SenderId = null,
                     AiInferenceId = aiInference.Id,
                     Content = chatContent,
-                    ModelName = isSkip ? "System" : AiInferenceConstants.ModelName,
+                    ModelName = isSkip ? "System" : isBiteWoundPhoto ? _woundOptions.Value.ModelName : AiInferenceConstants.ModelName,
                     CreatedAt = now,
                     CreatedBy = userId
                 };
@@ -396,6 +470,10 @@ public class AiInferenceService : IAiInferenceService
 
             string noteMsg = isSkip 
                 ? AiInferenceConstants.NoteSkip
+                : isBiteWoundPhoto && !isWoundDetected
+                    ? AiInferenceConstants.NoteWoundNoDetection
+                : isBiteWoundPhoto 
+                    ? (isSnakeBite == true ? AiInferenceConstants.NoteWoundSnakeBite : AiInferenceConstants.NoteWoundNotSnakeBite)
                 : !isSnakeClassified 
                     ? AiInferenceConstants.NoteNotSnake
                 : isLowConfidence 
@@ -404,6 +482,10 @@ public class AiInferenceService : IAiInferenceService
 
             string actionMsg = isSkip 
                 ? AiInferenceConstants.MsgSkipAction
+                : isBiteWoundPhoto && !isWoundDetected
+                    ? AiInferenceConstants.MsgWoundNoDetectionAction
+                : isBiteWoundPhoto 
+                    ? (isSnakeBite == true ? AiInferenceConstants.MsgWoundSnakeBiteAction : AiInferenceConstants.MsgWoundNotSnakeBiteAction)
                 : !isSnakeClassified 
                     ? AiInferenceConstants.MsgNotSnakeAction
                 : isLowConfidence 
@@ -416,7 +498,7 @@ public class AiInferenceService : IAiInferenceService
             var resultDto = new AiInferenceResultDto
             {
                 InferenceId = aiInference.Id,
-                PrimarySnake = (isSkip || !isSnakeClassified || isLowConfidence) ? null : new SnakeCandidateDto
+                PrimarySnake = (isSkip || !isSnakeClassified || isLowConfidence || isBiteWoundPhoto) ? null : new SnakeCandidateDto
                 {
                     SnakeId = primarySnake!.Id,
                     ScientificName = primarySnake.ScientificName,
@@ -427,9 +509,15 @@ public class AiInferenceService : IAiInferenceService
                     DangerSummary = GetDangerSummary(primarySnake.ToxicityLevel),
                     TypicalSymptoms = primarySnake.TypicalSymptoms
                 },
+                WoundAnalysis = isBiteWoundPhoto ? new WoundAnalysisDto 
+                { 
+                    IsWoundDetected = isWoundDetected,
+                    IsSnakeBite = isSnakeBite ?? false, 
+                    Confidence = woundConfidence 
+                } : null,
                 FirstAidSteps = firstAidSteps,
                 Prohibitions = prohibitions,
-                OtherCandidates = (isSkip || !isSnakeClassified || isLowConfidence) ? new List<SnakeCandidateDto>() : await BuildOtherCandidateDtos(speciesPredictions!.Skip(1).ToList()),
+                OtherCandidates = (isSkip || !isSnakeClassified || isLowConfidence || isBiteWoundPhoto) ? new List<SnakeCandidateDto>() : await BuildOtherCandidateDtos(speciesPredictions!.Skip(1).ToList()),
                 Note = noteMsg,
                 AnalyzedAt = aiInference.CreatedAt,
                 // Server-authoritative: FE uses this to drive the 10-second cancel countdown.

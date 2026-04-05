@@ -127,6 +127,9 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("incident_media_id");
 
+                    b.Property<bool?>("IsSnakeBite")
+                        .HasColumnType("bit");
+
                     b.Property<string>("ModelName")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)")
@@ -1954,6 +1957,12 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("float")
                         .HasColumnName("old_accuracy");
 
+                    b.Property<int>("PipelineType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("pipeline_type");
+
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("started_at");
@@ -1976,6 +1985,9 @@ namespace SFARS.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("PK_RetrainHistory_Id");
+
+                    b.HasIndex("PipelineType", "Status")
+                        .HasDatabaseName("IX_RetrainHistory_PipelineType_Status");
 
                     b.ToTable("RetrainHistory", (string)null);
                 });

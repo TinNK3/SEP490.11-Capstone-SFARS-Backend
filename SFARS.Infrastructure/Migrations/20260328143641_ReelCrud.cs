@@ -98,6 +98,7 @@ namespace SFARS.Infrastructure.Migrations
                         principalColumn: "id");
                 });
 
+
             migrationBuilder.CreateIndex(
                 name: "IX_ReelComments_ParentCommentId",
                 table: "ReelComments",
@@ -135,6 +136,7 @@ namespace SFARS.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Reels");
+
         }
     }
 }
