@@ -393,6 +393,44 @@ public class MedicalFacilityService : GenericService<MedicalFacility, FacilityDt
             await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0003));
     }
 
+    /// <summary>
+    /// [Admin] Delete a facility permanently (hard delete).
+    /// </summary>
+    public async Task<IServiceResult> DeleteFacilityAsync(Guid id)
+    {
+        var facility = await _unitOfWork.Repository<MedicalFacility, Guid>().GetByIdAsync(id);
+        if (facility == null)
+        {
+            _logger.LogWarning("Delete facility failed: facility {FacilityId} not found", id);
+            return new ServiceResult(
+                ResultCodeConst.SYS_Warning0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002));
+        }
+
+        var result = await base.DeleteAsync(id);
+
+        if (result.ResultCode == ResultCodeConst.SYS_Success0004)
+        {
+            BustCache();
+            _logger.LogInformation("Deleted medical facility {FacilityId} '{FacilityName}'",
+                facility.Id, facility.Name);
+        }
+        else if (result.ResultCode == ResultCodeConst.SYS_Fail0007)
+        {
+            _logger.LogWarning(
+                "Delete facility blocked by FK constraint. FacilityId={FacilityId}, Name='{FacilityName}'",
+                facility.Id, facility.Name);
+        }
+        else
+        {
+            _logger.LogWarning(
+                "Delete facility finished with non-success result. FacilityId={FacilityId}, Code={ResultCode}",
+                facility.Id, result.ResultCode);
+        }
+
+        return result;
+    }
+
     #endregion
 
     #region Private Helpers

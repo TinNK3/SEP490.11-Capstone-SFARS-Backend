@@ -141,4 +141,15 @@ public class FacilityController : ControllerBase
         var result = await _facilityService.ActivateFacilityAsync(id);
         return this.ToIActionResult(result);
     }
+
+    /// <summary>
+    /// [Admin] Delete a facility permanently (hard delete).
+    /// </summary>
+    [Authorize(Roles = UserTypeConstants.Admin)]
+    [HttpDelete(APIRoute.AdminFacility.Delete, Name = nameof(DeleteFacilityAsync))]
+    public async Task<IActionResult> DeleteFacilityAsync(Guid id)
+    {
+        var result = await _facilityService.DeleteFacilityAsync(id);
+        return this.ToIActionResult(result);
+    }
 }
