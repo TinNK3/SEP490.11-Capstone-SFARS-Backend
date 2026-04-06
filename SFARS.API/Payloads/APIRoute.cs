@@ -255,6 +255,8 @@ namespace SFARS.API.Payloads
             public const string Antivenom = Base + "/admin/facilities/{id}/antivenom";
             public const string Deactivate = Base + "/admin/facilities/{id}/deactivate";
             public const string Activate = Base + "/admin/facilities/{id}/activate";
+            // [DELETE]
+            public const string Delete = Base + "/admin/facilities/{id}";
         }
 
         /// <summary>

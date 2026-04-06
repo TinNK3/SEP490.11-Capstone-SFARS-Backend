@@ -7,6 +7,7 @@ using NetTopologySuite.Geometries;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos.Facility;
 using SFARS.Application.Services;
+using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
@@ -550,6 +551,98 @@ namespace SFARS.Tests.Application.Services.Facilities
             // Assert
             result.ResultCode.Should().Be(ResultCodeConst.Medical_Success0006);
             facility.IsActive.Should().BeTrue();
+        }
+
+        #endregion
+
+        #region DELETE /admin/facilities/{id} — DeleteFacilityAsync
+
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: DeleteFacilityAsync when facility does not exist
+        /// Precondition: Valid GUID provided, but no matching facility in repository
+        /// Expected Result: Returns not found warning SYS_Warning0002 and does not call delete
+        /// </summary>
+        [Fact]
+        public async Task DeleteFacilityAsync_FacilityNotFound_ReturnsNotFoundWarning_AndDoesNotDelete()
+        {
+            // Arrange
+            var id = Guid.NewGuid();
+
+            _facilityRepoMock
+                .Setup(r => r.GetByIdAsync(id))
+                .ReturnsAsync((MedicalFacility?)null);
+
+            // Act
+            var result = await _sut.DeleteFacilityAsync(id);
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0002);
+            _facilityRepoMock.Verify(r => r.DeleteAsync(It.IsAny<Guid>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Test Type: NORMAL
+        /// Tests: DeleteFacilityAsync with existing facility and successful delete
+        /// Precondition: Facility exists, repository delete affects 1 row, cache contains active facilities
+        /// Expected Result: Returns SYS_Success0004 and clears facilities cache
+        /// </summary>
+        [Fact]
+        public async Task DeleteFacilityAsync_ValidFacility_DeleteSuccess_ReturnsSuccess_AndBustsCache()
+        {
+            // Arrange
+            var facility = CreateFacility();
+            _memoryCache.Set(LocationConstants.MemCacheFacilitiesActiveKey, new List<MedicalFacility> { facility });
+
+            _facilityRepoMock
+                .Setup(r => r.GetByIdAsync(facility.Id))
+                .ReturnsAsync(facility);
+
+            _facilityRepoMock
+                .Setup(r => r.DeleteAsync(facility.Id))
+                .ReturnsAsync(1);
+
+            // Act
+            var result = await _sut.DeleteFacilityAsync(facility.Id);
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0004);
+            _facilityRepoMock.Verify(r => r.DeleteAsync(facility.Id), Times.Once);
+
+            _memoryCache.TryGetValue(LocationConstants.MemCacheFacilitiesActiveKey, out _)
+                .Should().BeFalse();
+        }
+
+        /// <summary>
+        /// Test Type: ABNORMAL
+        /// Tests: DeleteFacilityAsync when delete affects 0 rows after pre-check
+        /// Precondition: Facility exists in pre-check, but repository delete returns 0 rows
+        /// Expected Result: Returns warning SYS_Warning0002 and does not clear facilities cache
+        /// </summary>
+        [Fact]
+        public async Task DeleteFacilityAsync_DeleteAffectsZeroRows_ReturnsWarning_AndKeepsCache()
+        {
+            // Arrange
+            var facility = CreateFacility();
+            _memoryCache.Set(LocationConstants.MemCacheFacilitiesActiveKey, new List<MedicalFacility> { facility });
+
+            _facilityRepoMock
+                .Setup(r => r.GetByIdAsync(facility.Id))
+                .ReturnsAsync(facility);
+
+            _facilityRepoMock
+                .Setup(r => r.DeleteAsync(facility.Id))
+                .ReturnsAsync(0);
+
+            // Act
+            var result = await _sut.DeleteFacilityAsync(facility.Id);
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0002);
+            _facilityRepoMock.Verify(r => r.DeleteAsync(facility.Id), Times.Once);
+
+            _memoryCache.TryGetValue(LocationConstants.MemCacheFacilitiesActiveKey, out _)
+                .Should().BeTrue();
         }
 
         #endregion

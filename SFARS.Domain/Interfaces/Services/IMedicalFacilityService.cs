@@ -53,4 +53,9 @@ public interface IMedicalFacilityService<TDto> : IGenericService<MedicalFacility
     /// [Admin] Reactivate a deactivated facility.
     /// </summary>
     Task<IServiceResult> ActivateFacilityAsync(Guid id);
+
+    /// <summary>
+    /// [Admin] Delete a facility permanently (hard delete).
+    /// </summary>
+    Task<IServiceResult> DeleteFacilityAsync(Guid id);
 }
