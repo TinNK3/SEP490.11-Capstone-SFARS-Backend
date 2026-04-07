@@ -276,28 +276,42 @@ namespace SFARS.Application.Services
             user.Avatar = uploadResult.Url;
             user.UpdatedAt = DateTime.UtcNow;
 
-            // Persist to database
-            await _unitOfWork.Repository<User, Guid>().UpdateAsync(user);
-            await _unitOfWork.SaveChangesAsync();
-
-            // Delete old avatar from Cloudinary (after DB save succeeds)
-            // Wrap in try-catch: deletion failure should not fail the overall operation
-            if (!string.IsNullOrEmpty(oldAvatarUrl))
+            try
             {
+                // Persist to database
+                await _unitOfWork.Repository<User, Guid>().UpdateAsync(user);
+                await _unitOfWork.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to save new avatar to DB. Rolling back Cloudinary upload for User {UserId}",
+                    userId);
+
                 try
                 {
-                    await _fileStorageService.DeleteByUrlAsync(oldAvatarUrl);
+                    await _fileStorageService.DeleteByUrlAsync(uploadResult.Url);
                 }
-                catch (Exception ex)
+                catch (Exception rollbackEx)
                 {
-                    // Log the failure but don't throw - old file deletion is non-critical
                     _logger.LogWarning(
-                        ex,
-                        "Failed to delete old avatar from Cloudinary for User {UserId}. URL: {OldAvatarUrl}",
+                        rollbackEx,
+                        "Failed to rollback uploaded avatar on Cloudinary for User {UserId}. URL: {UploadedAvatarUrl}",
                         userId,
-                        oldAvatarUrl
-                    );
+                        uploadResult.Url);
                 }
+
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Fail0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
+            }
+
+            // Enqueue old avatar cleanup so the response is not blocked by Cloudinary delete latency.
+            if (!string.IsNullOrEmpty(oldAvatarUrl))
+            {
+                _backgroundJobClient.Enqueue<IFileStorageService>(storage =>
+                    storage.DeleteByUrlAsync(oldAvatarUrl));
             }
 
             // Return updated user DTO

@@ -325,6 +325,161 @@ namespace SFARS.Tests.Application.Services.Users
 
         #endregion
 
+        #region PATCH /api/user/avatar - UpdateAvatarAsync Tests
+
+        [Fact]
+        public async Task UpdateAvatarAsync_InvalidInput_ReturnsWarning()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+
+            // Act
+            var result = await _sut.UpdateAvatarAsync(userId, null, null, null);
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0001);
+            result.Message.Should().Be("File stream, fileName, and contentType are required.");
+        }
+
+        [Fact]
+        public async Task UpdateAvatarAsync_UserEmptyId_ReturnsWarning()
+        {
+            // Arrange
+            var userId = Guid.Empty;
+            using var stream = new System.IO.MemoryStream(new byte[100]);
+            _msgServiceMock.Setup(m => m.GetMessageAsync(ResultCodeConst.Auth_Warning0007))
+                .ReturnsAsync("Auth Error");
+
+            // Act
+            var result = await _sut.UpdateAvatarAsync(userId, stream, "avatar.png", "image/png");
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0007);
+            result.Message.Should().Be("Auth Error");
+        }
+
+        [Fact]
+        public async Task UpdateAvatarAsync_FileTooLarge_ReturnsWarning()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var size = SFARS.Domain.Common.Constants.FileStorageConstants.MaxAvatarSizeBytes + 1;
+            using var largeStream = new System.IO.MemoryStream(new byte[size]);
+
+            // Act
+            var result = await _sut.UpdateAvatarAsync(userId, largeStream, "avatar.png", "image/png");
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0001);
+            result.Message.Should().Contain("File size cannot exceed");
+        }
+
+        [Fact]
+        public async Task UpdateAvatarAsync_InvalidMimeType_ReturnsWarning()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            using var stream = new System.IO.MemoryStream(new byte[100]);
+
+            // Act
+            var result = await _sut.UpdateAvatarAsync(userId, stream, "doc.pdf", "application/pdf");
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0001);
+            result.Message.Should().Contain("Invalid file type");
+        }
+
+        [Fact]
+        public async Task UpdateAvatarAsync_UserNotFound_ReturnsWarning()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            using var stream = new System.IO.MemoryStream(new byte[100]);
+            
+            _userRepoMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync((User?)null);
+            _msgServiceMock.Setup(m => m.GetMessageAsync(ResultCodeConst.SYS_Warning0004))
+                .ReturnsAsync("Not found");
+
+            // Act
+            var result = await _sut.UpdateAvatarAsync(userId, stream, "avatar.png", "image/png");
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
+            result.Message.Should().Be("Not found");
+        }
+
+        [Fact]
+        public async Task UpdateAvatarAsync_Success_UpdatesDb_And_EnqueuesCleanup()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            using var stream = new System.IO.MemoryStream(new byte[100]);
+            var oldAvatarUrl = "http://old.com/avatar.png";
+            var user = new User { Id = userId, Avatar = oldAvatarUrl };
+            var uploadResult = new FileUploadResult("http://new.com/avatar.png", "img1", 100, "png");
+            
+            _userRepoMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
+            _fileStorageServiceMock
+                .Setup(f => f.UploadAsync(stream, "avatar.png", SFARS.Domain.Common.Constants.FileStorageConstants.AvatarFolder, "image/png"))
+                .ReturnsAsync(uploadResult);
+            _userRepoMock.Setup(r => r.UpdateAsync(It.IsAny<User>())).Returns(Task.CompletedTask);
+            _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+            _msgServiceMock.Setup(m => m.GetMessageAsync(ResultCodeConst.SYS_Success0003))
+                .ReturnsAsync("Success");
+            _mapperMock.Setup(m => m.Map<UserDto>(user))
+                .Returns(new UserDto { Avatar = uploadResult.Url });
+
+            // Act
+            var result = await _sut.UpdateAvatarAsync(userId, stream, "avatar.png", "image/png");
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0003);
+            result.Message.Should().Be("Success");
+            user.Avatar.Should().Be("http://new.com/avatar.png");
+            
+            _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
+            
+            // Hangfire Enqueue verification
+            _backgroundJobClientMock.Verify(b => b.Create(
+                It.Is<Hangfire.Common.Job>(job => job.Type == typeof(IFileStorageService) && job.Method.Name == nameof(IFileStorageService.DeleteByUrlAsync) && job.Args[0].ToString() == oldAvatarUrl),
+                It.IsAny<Hangfire.States.EnqueuedState>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task UpdateAvatarAsync_DbSaveFails_RollsBackUpload_ReturnsError()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            using var stream = new System.IO.MemoryStream(new byte[100]);
+            var user = new User { Id = userId };
+            var uploadResult = new FileUploadResult("http://new.com/avatar.png", "img1", 100, "png");
+            
+            _userRepoMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
+            _fileStorageServiceMock
+                .Setup(f => f.UploadAsync(stream, "avatar.png", SFARS.Domain.Common.Constants.FileStorageConstants.AvatarFolder, "image/png"))
+                .ReturnsAsync(uploadResult);
+                
+            _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ThrowsAsync(new System.Exception("DB error"));
+            _msgServiceMock.Setup(m => m.GetMessageAsync(ResultCodeConst.SYS_Fail0001))
+                .ReturnsAsync("Fail");
+
+            // Act
+            var result = await _sut.UpdateAvatarAsync(userId, stream, "avatar.png", "image/png");
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Fail0001);
+            result.Message.Should().Be("Fail");
+            
+            // Verify Rollback
+            _fileStorageServiceMock.Verify(f => f.DeleteByUrlAsync("http://new.com/avatar.png"), Times.Once);
+            
+            // Verify No background job created
+            _backgroundJobClientMock.Verify(b => b.Create(It.IsAny<Hangfire.Common.Job>(), It.IsAny<Hangfire.States.EnqueuedState>()), Times.Never);
+        }
+
+        #endregion
+
         #region Helpers
 
         /// <summary>Creates a valid UserDto used as input for update profile tests.</summary>
