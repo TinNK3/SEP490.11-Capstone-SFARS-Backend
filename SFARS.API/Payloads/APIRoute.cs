@@ -338,5 +338,24 @@ namespace SFARS.API.Payloads
             public const string MarkAsRead = Base + "/notifications/{id}/read";
             public const string MarkAllAsRead = Base + "/notifications/read-all";
         }
+
+        /// <summary>
+        /// Reporting endpoints
+        /// </summary>
+        public static class Reports
+        {
+            private const string BaseUrl = Base + "/reports";
+            private const string AdminBase = Base + "/admin/reports";
+
+            // [GET]
+            public const string GetMyReports = BaseUrl + "/my";
+            public const string AdminGetAll = AdminBase;
+
+            // [POST]
+            public const string Create = BaseUrl;
+
+            // [PATCH]
+            public const string AdminUpdateStatus = AdminBase + "/{id}/status";
+        }
     }
 }

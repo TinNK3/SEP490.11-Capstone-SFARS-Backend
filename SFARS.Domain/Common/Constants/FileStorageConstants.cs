@@ -18,7 +18,7 @@ public static class FileStorageConstants
     /// <summary>
     /// Allowed MIME types for avatar uploads
     /// </summary>
-    public static readonly string[] AllowedAvatarMimeTypes = 
+    public static readonly string[] AllowedAvatarMimeTypes =
     {
         "image/jpeg",
         "image/png",

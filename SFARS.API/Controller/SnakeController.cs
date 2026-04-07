@@ -33,10 +33,10 @@ public class SnakeController : ControllerBase
         [FromForm] IdentifySnakeRequest request)
     {
         var result = await aiService.IdentifySnakeAsync(
-            request.Image.OpenReadStream(), 
-            request.Image.ContentType, 
+            request.Image.OpenReadStream(),
+            request.Image.ContentType,
             request.Image.Length);
-            
+
         return this.ToIActionResult(result);
     }
 

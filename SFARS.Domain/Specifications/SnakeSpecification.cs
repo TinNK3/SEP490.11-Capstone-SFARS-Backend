@@ -14,7 +14,7 @@ namespace SFARS.Domain.Specifications
             if (!string.IsNullOrEmpty(specParams.Search))
             {
                 var normalized = specParams.Search.Trim().ToLower();
-                AddFilter(s => s.CommonName.ToLower().Contains(normalized) 
+                AddFilter(s => s.CommonName.ToLower().Contains(normalized)
                             || s.ScientificName.ToLower().Contains(normalized));
             }
 
