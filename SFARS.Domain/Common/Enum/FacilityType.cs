@@ -11,6 +11,8 @@ namespace SFARS.Domain.Common.Enum
         [Description("Trung tâm y tế")]
         HealthCenter,
         [Description("Nhà thuốc")]
-        Pharmacy
+        Pharmacy,
+        [Description("Trạm y tế")]
+        MedicalStation
     }
 }
