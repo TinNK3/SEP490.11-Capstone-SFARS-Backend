@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SFARS.Infrastructure.Data.Context;
@@ -12,9 +13,11 @@ using SFARS.Infrastructure.Data.Context;
 namespace SFARS.Infrastructure.Migrations
 {
     [DbContext(typeof(SFARSDbContext))]
-    partial class SFARSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260407095652_AddReportingSystem")]
+    partial class AddReportingSystem
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -126,9 +129,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<Guid?>("IncidentMediaId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("incident_media_id");
-
-                    b.Property<bool?>("IsSnakeBite")
-                        .HasColumnType("bit");
 
                     b.Property<string>("ModelName")
                         .HasMaxLength(200)
@@ -2008,12 +2008,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("float")
                         .HasColumnName("old_accuracy");
 
-                    b.Property<int>("PipelineType")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("pipeline_type");
-
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("started_at");
@@ -2036,9 +2030,6 @@ namespace SFARS.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("PK_RetrainHistory_Id");
-
-                    b.HasIndex("PipelineType", "Status")
-                        .HasDatabaseName("IX_RetrainHistory_PipelineType_Status");
 
                     b.ToTable("RetrainHistory", (string)null);
                 });

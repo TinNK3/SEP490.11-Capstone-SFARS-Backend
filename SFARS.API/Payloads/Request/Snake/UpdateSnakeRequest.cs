@@ -1,4 +1,4 @@
-﻿using SFARS.Domain.Common.Enum;
+using SFARS.Domain.Common.Enum;
 
 namespace SFARS.API.Payloads.Request.Snake
 {

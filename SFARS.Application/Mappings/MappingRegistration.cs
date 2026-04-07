@@ -1,6 +1,7 @@
 using Mapster;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Admin;
+using SFARS.Application.Dtos.Report;
 using SFARS.Application.Dtos.Facility;
 using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Dtos.Rescuer;
@@ -63,6 +64,13 @@ namespace SFARS.Application.Mappings
             // Transaction mapping
             config.NewConfig<Transaction, TransactionDto>()
                 .Map(dest => dest.CheckoutUrl, src => (string?)null); // populated by service after PayOS call
+
+            // Report mapping
+            config.NewConfig<Report, ReportResponse>()
+                .Map(dest => dest.ReporterName,
+                     src => src.Reporter != null
+                         ? src.Reporter.FullName
+                         : "Unknown");
         }
     }
 }

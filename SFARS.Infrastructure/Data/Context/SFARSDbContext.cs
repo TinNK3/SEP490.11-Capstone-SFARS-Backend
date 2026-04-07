@@ -73,6 +73,10 @@ public partial class SFARSDbContext : DbContext
     public DbSet<ChatSession> ChatSessions { get; set; }
     public DbSet<ChatMessage> ChatMessages { get; set; }
 
+    // Reporting System
+    public DbSet<Report> Reports { get; set; }
+
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

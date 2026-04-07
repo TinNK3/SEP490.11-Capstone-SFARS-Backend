@@ -98,7 +98,7 @@ namespace SFARS.Application.Services
                     await _unitOfWork.SaveChangesAsync();
                 }
             }
-            
+
             return result;
         }
 
@@ -224,16 +224,16 @@ namespace SFARS.Application.Services
         {
             var spec = new SnakeSpecification(specParams, isCount: false);
             var result = await GetAllWithSpecAsync(spec);
-            
+
             var countSpec = new SnakeSpecification(specParams, isCount: true);
             var totalItems = await _unitOfWork.Repository<Snake, Guid>().CountAsync(countSpec);
-            
+
             var limit = specParams.GetTake();
             var page = specParams.GetPage();
             var totalPages = limit > 0 ? (int)Math.Ceiling(totalItems / (double)limit) : 0;
-            
+
             var dtos = result.Data as IEnumerable<SnakeDto> ?? Enumerable.Empty<SnakeDto>();
-            
+
             var pagedResult = new PaginatedResultDto<SnakeDto>(
                 dtos,
                 page,
@@ -241,7 +241,7 @@ namespace SFARS.Application.Services
                 totalPages,
                 totalItems
             );
-            
+
             result.Data = pagedResult;
             return result;
         }
@@ -417,10 +417,10 @@ namespace SFARS.Application.Services
 
             var totalPages = limit > 0 ? (int)Math.Ceiling(totalItems / (double)limit) : 0;
             var pagedResult = new PaginatedResultDto<SnakeChangeLogDto>(
-                dtos, 
-                page, 
-                limit, 
-                totalPages, 
+                dtos,
+                page,
+                limit,
+                totalPages,
                 totalItems
             );
 
