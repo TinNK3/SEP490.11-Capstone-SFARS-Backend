@@ -133,8 +133,7 @@ namespace SFARS.API.Controller
                 imageStream: stream,
                 fileName: req.File?.FileName,
                 contentType: req.File?.ContentType,
-                fileSize: req.File?.Length,
-                mediaType: req.MediaType);
+                fileSize: req.File?.Length);
 
             if (stream != null)
             {
@@ -295,6 +294,33 @@ namespace SFARS.API.Controller
                 audioFile?.FileName ?? string.Empty, 
                 audioFile?.ContentType ?? string.Empty);
 
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
+        /// Update victim's symptoms (Bottom Sheet UI).
+        /// First call includes MinutesSinceBite; subsequent calls send symptoms only.
+        /// Automatically notifies the assigned rescuer or broadcasts to available rescuers.
+        /// </summary>
+        /// <param name="id">Incident ID</param>
+        /// <param name="req">Symptom update payload</param>
+        [Authorize]
+        [HttpPatch(APIRoute.Incident.UpdateSymptoms)]
+        public async Task<IActionResult> UpdateSymptomsAsync(Guid id, [FromBody] UpdateSymptomRequest request)
+        {
+            var result = await _incidentService.UpdateSymptomsAsync(User.GetUserId(), id, request.MinutesSinceBite, request.Symptoms);
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
+        /// Retrieves the time-series history of symptom updates for a specific incident.
+        /// Only accessible by the victim or assigned rescuers.
+        /// </summary>
+        [Authorize]
+        [HttpGet(APIRoute.Incident.GetSymptomTimeline)]
+        public async Task<IActionResult> GetSymptomTimelineAsync(Guid id)
+        {
+            var result = await _incidentService.GetSymptomTimelineAsync(User.GetUserId(), id);
             return this.ToIActionResult(result);
         }
 

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SFARS.Infrastructure.Data.Context;
@@ -12,9 +13,11 @@ using SFARS.Infrastructure.Data.Context;
 namespace SFARS.Infrastructure.Migrations
 {
     [DbContext(typeof(SFARSDbContext))]
-    partial class SFARSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260407064741_AddLastSymptomUpdateAt_v2")]
+    partial class AddLastSymptomUpdateAt_v2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -731,8 +734,7 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnName("human_reviewed_toxin_group");
 
                     b.Property<DateTime?>("LastSymptomUpdateAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("last_symptom_update_at");
+                        .HasColumnType("datetime2");
 
                     b.Property<Point>("Location")
                         .IsRequired()
@@ -1753,57 +1755,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasDatabaseName("IX_RefreshToken_UserId");
 
                     b.ToTable("RefreshToken", (string)null);
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.Report", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("AdminId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("AdminNote")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<Guid>("ReporterId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("TargetId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("TargetType")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AdminId");
-
-                    b.HasIndex("ReporterId");
-
-                    b.ToTable("Reports", (string)null);
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.RescueMission", b =>
@@ -3300,24 +3251,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasConstraintName("FK_RefreshToken_UserId");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.Report", b =>
-                {
-                    b.HasOne("SFARS.Domain.Entities.User", "Admin")
-                        .WithMany()
-                        .HasForeignKey("AdminId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("SFARS.Domain.Entities.User", "Reporter")
-                        .WithMany()
-                        .HasForeignKey("ReporterId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Admin");
-
-                    b.Navigation("Reporter");
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.RescueMission", b =>

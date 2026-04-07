@@ -81,4 +81,11 @@ public static class DispatchConstants
     public const string PushTitlePrefix = "SOS Rắn Cắn!";
     public const string PushUnknownSnake = "Chưa rõ loài";
     public const string PushBodyTemplate = "{0}. Cách bạn {1}km. Chạm để xem và nhận ca!";
+
+    // Symptom Update — SignalR + FCM
+    /// <summary>Pushed to rescuers when the victim updates their symptoms mid-incident.</summary>
+    public const string EventSymptomUpdated = "sos:symptom_updated";
+    public const string FcmSymptomUpdateTitleKey = "sos_symptom_update";
+    public const string PushSymptomTitle = "Cập nhật triệu chứng!";
+    public const string PushSymptomBody = "Nạn nhân ca {0} vừa cập nhật triệu chứng mới. Chạm để xem chi tiết.";
 }

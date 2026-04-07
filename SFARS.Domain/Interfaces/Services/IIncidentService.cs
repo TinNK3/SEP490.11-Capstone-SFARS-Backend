@@ -44,6 +44,21 @@ namespace SFARS.Domain.Interfaces.Services
             string fileName, 
             string contentType);
 
+        /// <summary>
+        /// Update victim's symptoms via Bottom Sheet UI.
+        /// Saves a snapshot to IncidentSymptom and triggers notifications based on incident status.
+        /// </summary>
+        Task<IServiceResult> UpdateSymptomsAsync(
+            Guid userId,
+            Guid incidentId,
+            int? minutesSinceBite,
+            List<SymptomType> symptoms);
+
+        /// <summary>
+        /// Retrieves the time-series history of symptom updates for a specific incident.
+        /// </summary>
+        Task<IServiceResult> GetSymptomTimelineAsync(Guid userId, Guid incidentId);
+
         Task<IServiceResult> GetSosEligibilityAsync(Guid userId);
     }
 }

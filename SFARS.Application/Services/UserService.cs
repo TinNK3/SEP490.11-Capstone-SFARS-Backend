@@ -1,3 +1,7 @@
+using DocumentFormat.OpenXml.InkML;
+using Hangfire;
+using Hangfire.Common;
+using Hangfire.States;
 using MapsterMapper;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -8,12 +12,14 @@ using SFARS.Application.Common;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.User;
 using SFARS.Application.Events;
+using SFARS.Application.Interfaces.Services;
 using SFARS.Application.Utils;
 using SFARS.Application.Validations;
 using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
+using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
@@ -21,11 +27,6 @@ using SFARS.Domain.Specifications.Params;
 using SFARS.Domain.Specifications.Users;
 using SFARS.Infrastructure.Helpers;
 using System.Text.Json;
-using SFARS.Domain.Interfaces.Infrastructure;
-using Hangfire;
-using Hangfire.Common;
-using Hangfire.States;
-using SFARS.Application.Interfaces.Services;
 
 namespace SFARS.Application.Services
 {
@@ -809,6 +810,15 @@ namespace SFARS.Application.Services
                 UserId     = newUser.Id,
                 RoleId     = roleEntity.Id,
                 AssignedAt = DateTime.UtcNow
+            });
+
+            await _unitOfWork.Repository<RescuerProfile, Guid>().AddAsync(new RescuerProfile
+            {
+                UserId = newUser.Id,
+                IsVerified = true,
+                IsAvailable = true,
+                CoverageRadiusKM = 30,
+                VehicleType = VehicleType.Motorbike
             });
 
             // 5. Persist with transaction

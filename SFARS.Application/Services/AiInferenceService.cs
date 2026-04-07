@@ -83,8 +83,7 @@ public class AiInferenceService : IAiInferenceService
         Stream? imageStream,
         string? fileName,
         string? contentType,
-        long? fileSize,
-        MediaType? mediaType)
+        long? fileSize)
     {
         if (userId == Guid.Empty)
         {
@@ -170,10 +169,15 @@ public class AiInferenceService : IAiInferenceService
                 return snakeDict.TryGetValue(sciName, out var s) ? s : null;
             }
 
-            bool isBiteWoundPhoto = mediaType == MediaType.BiteWoundPhoto;
+            bool isBiteWoundPhoto = false;
             bool? isSnakeBite = null;
             float woundConfidence = 0;
             bool isWoundDetected = false;
+            MediaType? mediaType = null;
+
+            // Variables for Cascade Auto-Detection caching
+            SnakeDetectionResult? cachedSnakeDetection = null;
+            WoundDetectionResult? cachedWoundDetection = null;
 
             if (!isSkip)
             {
@@ -187,13 +191,43 @@ public class AiInferenceService : IAiInferenceService
                     uploadResult = await _storageService.UploadAsync(uploadStream, fileName!, folder, contentType!);
                 }
 
+                // CASCADE INFERENCE LOGIC (Auto-Detection)
+                _logger.LogInformation("Starting Auto Cascade Inference...");
+                mediaType = null;
+                
+                // Try Snake Detection
+                cachedSnakeDetection = await _detectionService.DetectAsync(imageBytes);
+                
+                if (cachedSnakeDetection.IsDetected && cachedSnakeDetection.Box != null)
+                {
+                    mediaType = MediaType.SnakePhoto;
+                }
+                else
+                {
+                    // Fallback to Wound Detection
+                    cachedWoundDetection = await _woundDetectionService.DetectWoundAsync(imageBytes);
+                    
+                    if (cachedWoundDetection.IsDetected && cachedWoundDetection.Box != null)
+                    {
+                        mediaType = MediaType.BiteWoundPhoto;
+                    }
+                    else
+                    {
+                        // Both failed — Default fallback to SnakePhoto
+                        mediaType = MediaType.SnakePhoto;
+                    }
+                }
+                
+                isBiteWoundPhoto = mediaType == MediaType.BiteWoundPhoto;
+                _logger.LogInformation("Cascade Inference Completed: Auto-resolved MediaType to {Type}", mediaType);
+
                 // AI Inference Branching
                 if (isBiteWoundPhoto)
                 {
                     _logger.LogInformation("Processing BiteWoundPhoto — 2-Stage Wound Pipeline");
 
-                    // Stage 1: Detect wound bounding box
-                    var woundDetection = await _woundDetectionService.DetectWoundAsync(imageBytes);
+                    // Stage 1: Detect wound bounding box (Reuse cache if available)
+                    var woundDetection = cachedWoundDetection ?? await _woundDetectionService.DetectWoundAsync(imageBytes);
                     _logger.LogInformation(
                         "Wound Detection: IsDetected={IsDetected}, Confidence={Confidence:P}",
                         woundDetection.IsDetected, woundDetection.Confidence);
@@ -225,8 +259,8 @@ public class AiInferenceService : IAiInferenceService
                 }
                 else
                 {
-                    // Stage 1: YOLO Detection — detect snake & get bounding box
-                    var detection = await _detectionService.DetectAsync(imageBytes);
+                    // Stage 1: YOLO Detection — detect snake & get bounding box (Reuse cache if available)
+                    var detection = cachedSnakeDetection ?? await _detectionService.DetectAsync(imageBytes);
 
                     _logger.LogInformation(
                         "YOLO detection: IsDetected={IsDetected}, Confidence={Confidence:P}",

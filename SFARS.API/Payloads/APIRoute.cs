@@ -146,6 +146,8 @@ namespace SFARS.API.Payloads
             public const string ResolveFallback = Base + "/incidents/{id}/resolve-fallback";
             // [PATCH]
             public const string VoiceSymptom = Base + "/incidents/{id}/voice-symptom";
+            public const string UpdateSymptoms = Base + "/incidents/{id}/symptoms";
+            public const string GetSymptomTimeline = Base + "/incidents/{id}/symptoms/timeline";
             public const string Cancel = Base + "/incidents/{id}/cancel";
             public const string Dispatch = Base + "/incidents/{id}/dispatch";
         }
