@@ -1230,6 +1230,7 @@ namespace SFARS.Tests.Application.Services.Users
 
             var roleRepoMock     = new Mock<IGenericRepository<Role, Guid>>();
             var userRoleRepoMock = new Mock<IGenericRepository<UserRole, Guid>>();
+            var rescuerProfileRepoMock = new Mock<IGenericRepository<RescuerProfile, Guid>>();
 
             roleRepoMock
                 .Setup(r => r.GetWithSpecAsync(It.IsAny<ISpecification<Role>>(), It.IsAny<bool>()))
@@ -1239,8 +1240,13 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(r => r.AddAsync(It.IsAny<UserRole>()))
                 .Returns(Task.CompletedTask);
 
+            rescuerProfileRepoMock
+                .Setup(r => r.AddAsync(It.IsAny<RescuerProfile>()))
+                .Returns(Task.CompletedTask);
+
             _unitOfWorkMock.Setup(u => u.Repository<Role, Guid>()).Returns(roleRepoMock.Object);
             _unitOfWorkMock.Setup(u => u.Repository<UserRole, Guid>()).Returns(userRoleRepoMock.Object);
+            _unitOfWorkMock.Setup(u => u.Repository<RescuerProfile, Guid>()).Returns(rescuerProfileRepoMock.Object);
             _unitOfWorkMock.Setup(u => u.SaveChangesWithTransactionAsync()).ReturnsAsync(1);
 
             _mapperMock

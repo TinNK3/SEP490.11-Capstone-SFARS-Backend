@@ -91,16 +91,16 @@ public class MissionService : IMissionService
             return new ServiceResult(ResultCodeConst.SYS_Fail0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
 
         // Refactor: Prevent rescuer spam accept / active mission overlap
-        var activeMissionsSpec = new BaseSpecification<RescueMission>(m => 
-            m.RescuerId == rescuerId && 
-            (m.Status == RescueStatus.Pending || m.Status == RescueStatus.Accepted));
-        var activeMissions = await _unitOfWork.Repository<RescueMission, Guid>().GetAllWithSpecAsync(activeMissionsSpec);
+        //var activeMissionsSpec = new BaseSpecification<RescueMission>(m => 
+        //    m.RescuerId == rescuerId && 
+        //    (m.Status == RescueStatus.Pending || m.Status == RescueStatus.Accepted));
+        //var activeMissions = await _unitOfWork.Repository<RescueMission, Guid>().GetAllWithSpecAsync(activeMissionsSpec);
         
-        if (activeMissions.Any())
-        {
-            _logger.LogWarning("AcceptMissionAsync: Rescuer {RescuerId} tried to accept but already has an active mission.", rescuerId);
-            return new ServiceResult(ResultCodeConst.Incident_Warning0007, await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0007)); // Or a new strict warning code like "Already on mission"
-        }
+        //if (activeMissions.Any())
+        //{
+        //    _logger.LogWarning("AcceptMissionAsync: Rescuer {RescuerId} tried to accept but already has an active mission.", rescuerId);
+        //    return new ServiceResult(ResultCodeConst.Incident_Warning0007, await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0007)); // Or a new strict warning code like "Already on mission"
+        //}
 
         var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
         if (incident == null)
@@ -241,6 +241,35 @@ public class MissionService : IMissionService
         await _locationHub.Clients
             .Group(LocationConstants.SignalRGroupPrefix + incidentId)
             .SendAsync(DispatchConstants.EventAssigned, dto);
+
+        // Case 4: Race Condition — detect if victim updated symptoms while rescuer was deciding
+        if (incident.LastSymptomUpdateAt.HasValue && incident.LastSymptomUpdateAt > incident.CreatedAt)
+        {
+            var symptomPayload = new
+            {
+                IncidentId = incidentId,
+                IncidentCode = incident.Code,
+                MinutesSinceBite = incident.MinutesSinceBite,
+                Symptoms = incident.ExtractedSymptoms,
+                UpdatedAt = incident.LastSymptomUpdateAt
+            };
+
+            await _locationHub.Clients
+                .Group(DispatchConstants.RescuerGroupPrefix + rescuerId)
+                .SendAsync(DispatchConstants.EventSymptomUpdated, symptomPayload);
+
+            var symptomBody = string.Format(DispatchConstants.PushSymptomBody, incident.Code);
+            var symptomData = new Dictionary<string, string>
+            {
+                { "incidentId", incidentId.ToString() },
+                { "type", DispatchConstants.FcmSymptomUpdateTitleKey }
+            };
+            await _fcmService.SendToUserAsync(rescuerId, DispatchConstants.PushSymptomTitle, symptomBody, symptomData);
+
+            _logger.LogInformation(
+                "Case4 Race Condition: Symptom update detected during accept. Rescuer={RescuerId}, Incident={IncidentId}, SymptomUpdate={T}",
+                rescuerId, incidentId, incident.LastSymptomUpdateAt);
+        }
 
         _logger.LogInformation("Mission {MissionId} successfully claimed by Rescuer {RescuerId} for Incident {IncidentId}", mission.Id, rescuerId, incidentId);
         

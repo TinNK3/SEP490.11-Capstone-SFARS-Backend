@@ -19,8 +19,7 @@ public interface IAiInferenceService
         Stream? imageStream,
         string? fileName,
         string? contentType,
-        long? fileSize,
-        MediaType? mediaType);
+        long? fileSize);
 
     /// <summary>
     /// Standalone snake identification. Does not upload image or save to DB.

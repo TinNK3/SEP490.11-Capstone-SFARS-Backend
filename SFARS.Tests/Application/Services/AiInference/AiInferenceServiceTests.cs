@@ -138,7 +138,7 @@ public class AiInferenceServiceTests
 
         // Act
         var result = await _sut.AnalyzeAsync(
-            Guid.Empty, incidentId, null, null, null, null, null);
+            Guid.Empty, incidentId, null, null, null, null);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0013);
@@ -158,7 +158,7 @@ public class AiInferenceServiceTests
 
         // Act
         var result = await _sut.AnalyzeAsync(
-            userId, Guid.Empty, null, null, null, null, null);
+            userId, Guid.Empty, null, null, null, null);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0001);
@@ -180,7 +180,7 @@ public class AiInferenceServiceTests
 
         // Act
         var result = await _sut.AnalyzeAsync(
-            userId, incidentId, null, null, null, null, null);
+            userId, incidentId, null, null, null, null);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0002);
@@ -210,7 +210,7 @@ public class AiInferenceServiceTests
 
         // Act
         var result = await _sut.AnalyzeAsync(
-            userId, incidentId, null, null, null, null, null);
+            userId, incidentId, null, null, null, null);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0007);
@@ -240,7 +240,7 @@ public class AiInferenceServiceTests
 
         // Act
         var result = await _sut.AnalyzeAsync(
-            userId, incidentId, null, null, null, null, null);
+            userId, incidentId, null, null, null, null);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Incident_Warning0003);
@@ -273,7 +273,7 @@ public class AiInferenceServiceTests
 
         // Act
         var result = await _sut.AnalyzeAsync(
-            userId, incidentId, imageStream, "test.jpg", "image/jpeg", fileSize, MediaType.SnakePhoto);
+            userId, incidentId, imageStream, "test.jpg", "image/jpeg", fileSize);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0008);
@@ -306,7 +306,7 @@ public class AiInferenceServiceTests
 
         // Act
         var result = await _sut.AnalyzeAsync(
-            userId, incidentId, imageStream, "test.pdf", "application/pdf", fileSize, MediaType.SnakePhoto);
+            userId, incidentId, imageStream, "test.pdf", "application/pdf", fileSize);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.AI_Warning0004);
@@ -346,9 +346,14 @@ public class AiInferenceServiceTests
             .Setup(d => d.DetectAsync(It.IsAny<byte[]>()))
             .ReturnsAsync(new SnakeDetectionResult(false, 0f, null));
 
+        // Fallback says NO wound (avoids NullReferenceException on line 210)
+        _woundDetectionServiceMock
+            .Setup(w => w.DetectWoundAsync(It.IsAny<byte[]>()))
+            .ReturnsAsync(new WoundDetectionResult(false, 0f, null));
+
         // Act
         var result = await _sut.AnalyzeAsync(
-            userId, incidentId, imageStream, "test.jpg", "image/jpeg", fileSize, MediaType.SnakePhoto);
+            userId, incidentId, imageStream, "test.jpg", "image/jpeg", fileSize);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.AI_Success0001);
@@ -400,7 +405,7 @@ public class AiInferenceServiceTests
 
         // Act
         var result = await _sut.AnalyzeAsync(
-            userId, incidentId, imageStream, "test.jpg", "image/jpeg", fileSize, MediaType.SnakePhoto);
+            userId, incidentId, imageStream, "test.jpg", "image/jpeg", fileSize);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.AI_Success0001);
@@ -455,7 +460,7 @@ public class AiInferenceServiceTests
 
         // Act
         var result = await _sut.AnalyzeAsync(
-            userId, incidentId, imageStream, "test.jpg", "image/jpeg", fileSize, MediaType.SnakePhoto);
+            userId, incidentId, imageStream, "test.jpg", "image/jpeg", fileSize);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.AI_Warning0005);
@@ -522,7 +527,7 @@ public class AiInferenceServiceTests
 
         // Act
         var result = await _sut.AnalyzeAsync(
-            userId, incidentId, imageStream, "test.jpg", "image/jpeg", fileSize, MediaType.SnakePhoto);
+            userId, incidentId, imageStream, "test.jpg", "image/jpeg", fileSize);
 
         // Assert
         result.Data.Should().NotBeNull();
@@ -557,7 +562,7 @@ public class AiInferenceServiceTests
 
         // Act
         var result = await _sut.AnalyzeAsync(
-            userId, incidentId, null, null, null, null, null); // Skip mode
+            userId, incidentId, null, null, null, null); // Skip mode
 
         // Assert
         result.Data.Should().NotBeNull();
@@ -623,7 +628,7 @@ public class AiInferenceServiceTests
 
         // Act
         var result = await _sut.AnalyzeAsync(
-            userId, incidentId, imageStream, "test.jpg", "image/jpeg", maxFileSize, MediaType.SnakePhoto);
+            userId, incidentId, imageStream, "test.jpg", "image/jpeg", maxFileSize);
 
         // Assert
         result.Data.Should().NotBeNull();
@@ -685,7 +690,7 @@ public class AiInferenceServiceTests
 
         // Act
         var result = await _sut.AnalyzeAsync(
-            userId, incidentId, imageStream, "test.jpg", "image/jpeg", fileSize, MediaType.SnakePhoto);
+            userId, incidentId, imageStream, "test.jpg", "image/jpeg", fileSize);
 
         // Assert
         result.Data.Should().NotBeNull();
@@ -738,7 +743,7 @@ public class AiInferenceServiceTests
 
         // Act
         var result = await _sut.AnalyzeAsync(
-            userId, incidentId, imageStream, "test.jpg", "image/jpeg", fileSize, MediaType.SnakePhoto);
+            userId, incidentId, imageStream, "test.jpg", "image/jpeg", fileSize);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.AI_Success0001);
