@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Specifications.Params;
 
@@ -66,6 +67,9 @@ namespace SFARS.Domain.Specifications
 
                 // Apply Pagination
                 ApplyPaging(specParams.GetTake(), specParams.GetSkip());
+                
+                // Load Images
+                ApplyInclude(q => q.Include(s => s.SnakeImages));
             }
         }
 
@@ -75,6 +79,7 @@ namespace SFARS.Domain.Specifications
         public SnakeSpecification() : base()
         {
             AddOrderBy(s => s.CommonName);
+            ApplyInclude(q => q.Include(s => s.SnakeImages));
         }
 
         /// <summary>
@@ -82,6 +87,7 @@ namespace SFARS.Domain.Specifications
         /// </summary>
         public SnakeSpecification(Guid id) : base(s => s.Id == id)
         {
+            ApplyInclude(q => q.Include(s => s.SnakeImages));
         }
     }
 }

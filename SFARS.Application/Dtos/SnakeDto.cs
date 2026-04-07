@@ -1,4 +1,4 @@
-﻿using SFARS.Domain.Common.Enum;
+using SFARS.Domain.Common.Enum;
 
 namespace SFARS.Application.Dtos
 {
@@ -16,5 +16,6 @@ namespace SFARS.Application.Dtos
         public string? DistributionNote { get; set; }
         public string? Note { get; set; }
         public bool IsActive { get; set; }
+        public List<SnakeImageDto> SnakeImages { get; set; } = new();
     }
 }

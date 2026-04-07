@@ -4,6 +4,7 @@ using SFARS.API.Extensions;
 using SFARS.API.Payloads;
 using SFARS.API.Payloads.Request.Snake;
 using SFARS.Application.Dtos;
+using SFARS.Application.Dtos.Snake;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Specifications.Params;
@@ -164,6 +165,28 @@ public class SnakeController : ControllerBase
     public async Task<IActionResult> RevertFieldAsync(Guid changeLogId)
     {
         return Ok(await _snakeService.RevertSnakeField(changeLogId));
+    }
+
+    /// <summary>
+    /// Update snake images (keep old, delete removed, upload new, manage primary).
+    /// </summary>
+    [Authorize(Roles = UserTypeConstants.Admin)]
+    [HttpPut(APIRoute.Snake.UpdateImages, Name = nameof(UpdateImagesAsync))]
+    public async Task<IActionResult> UpdateImagesAsync(Guid id, [FromForm] UpdateSnakeImagesRequest request)
+    {
+        // Map IFormFile to SnakeImageUploadInfo (Stream) for Domain layer compatibility
+        var newImages = request.NewImages?
+            .Select(f => new SnakeImageUploadInfo(f.OpenReadStream(), f.FileName, f.ContentType))
+            .ToList();
+
+        var result = await _snakeService.UpdateSnakeImagesAsync(
+            id, 
+            request.KeepImageIds, 
+            request.PrimaryExistingImageId, 
+            newImages, 
+            request.PrimaryNewImageIndex);
+
+        return this.ToIActionResult(result);
     }
 
     #endregion

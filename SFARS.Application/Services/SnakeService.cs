@@ -6,6 +6,7 @@ using SFARS.Application.Dtos;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
+using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
@@ -22,13 +23,17 @@ namespace SFARS.Application.Services
             nameof(Snake.ToxinGroup)
         };
 
+        private readonly IFileStorageService _storageService;
+
         public SnakeService(
             ISystemMessageService msgService,
             IUnitOfWork unitOfWork,
             IMapper mapper,
-            ILogger<SnakeService> logger)
+            ILogger<SnakeService> logger,
+            IFileStorageService storageService)
             : base(msgService, unitOfWork, mapper, logger)
         {
+            _storageService = storageService;
         }
 
         #region CRUD
@@ -385,6 +390,111 @@ namespace SFARS.Application.Services
             {
                 Data = new { Inserted = insertedCount, Updated = updatedCount, Skipped = skippedCount }
             };
+        }
+
+        /// <summary>
+        /// Update snake images (keep old, delete removed, upload new, manage primary).
+        /// </summary>
+        public async Task<IServiceResult> UpdateSnakeImagesAsync(
+            Guid snakeId, 
+            List<Guid>? keepImageIds, 
+            Guid? primaryExistingImageId, 
+            List<SnakeImageUploadInfo>? newImages, 
+            int? primaryNewImageIndex)
+        {
+            var spec = new SnakeSpecification(snakeId);
+            var snake = await _unitOfWork.Repository<Snake, Guid>().GetWithSpecAsync(spec);
+
+            if (snake == null)
+            {
+                return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Snake not found");
+            }
+
+            keepImageIds ??= new List<Guid>();
+
+            // 1. Identify and delete images to remove
+            var imagesToRemove = snake.SnakeImages
+                .Where(img => !keepImageIds.Contains(img.Id))
+                .ToList();
+
+            foreach (var img in imagesToRemove)
+            {
+                // Delete from Cloudinary
+                await _storageService.DeleteByUrlAsync(img.ImageUrl);
+                // Remove from collection
+                snake.SnakeImages.Remove(img);
+                // Explicitly delete from repository by ID
+                await _unitOfWork.Repository<SnakeImage, Guid>().DeleteAsync(img.Id);
+            }
+
+            // 2. Upload and add new images
+            if (newImages != null && newImages.Any())
+            {
+                foreach (var uploadInfo in newImages)
+                {
+                    var uploadResult = await _storageService.UploadAsync(
+                        uploadInfo.Stream, 
+                        uploadInfo.FileName, 
+                        "snakes", 
+                        uploadInfo.ContentType);
+                    
+                    var newImg = new SnakeImage
+                    {
+                        Id = Guid.NewGuid(),
+                        SnakeId = snakeId,
+                        ImageUrl = uploadResult.Url,
+                        IsPrimary = false
+                    };
+                    
+                    snake.SnakeImages.Add(newImg);
+                    await _unitOfWork.Repository<SnakeImage, Guid>().AddAsync(newImg);
+                }
+            }
+
+            // 3. Handle IsPrimary logic
+            // Reset all to false first
+            foreach (var img in snake.SnakeImages)
+            {
+                img.IsPrimary = false;
+            }
+
+            bool primarySet = false;
+
+            // Priority 1: Specified existing image
+            if (primaryExistingImageId.HasValue)
+            {
+                var existingPrimary = snake.SnakeImages.FirstOrDefault(img => img.Id == primaryExistingImageId.Value);
+                if (existingPrimary != null)
+                {
+                    existingPrimary.IsPrimary = true;
+                    primarySet = true;
+                }
+            }
+
+            // Priority 2: Specified new image index (if primary not set yet)
+            if (!primarySet && primaryNewImageIndex.HasValue && newImages != null)
+            {
+                // New images were added to snake.SnakeImages at the end.
+                // We uploaded them in order, so they are the last N items.
+                int newImageCount = newImages.Count;
+                if (primaryNewImageIndex >= 0 && primaryNewImageIndex < newImageCount)
+                {
+                    var newlyAddedImages = snake.SnakeImages.TakeLast(newImageCount).ToList();
+                    newlyAddedImages[primaryNewImageIndex.Value].IsPrimary = true;
+                    primarySet = true;
+                }
+            }
+
+            // Final fallback: Ensure at least one image is primary if any images exist
+            if (!primarySet && snake.SnakeImages.Any())
+            {
+                snake.SnakeImages.First().IsPrimary = true;
+            }
+
+            snake.UpdatedAt = DateTime.UtcNow;
+            await _unitOfWork.SaveChangesAsync();
+
+            return new ServiceResult(ResultCodeConst.SYS_Success0001, "Snake images updated successfully.");
         }
 
         #endregion

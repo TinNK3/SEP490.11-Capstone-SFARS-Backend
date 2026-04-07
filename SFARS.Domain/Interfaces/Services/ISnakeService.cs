@@ -4,6 +4,8 @@ using SFARS.Domain.Specifications.Params;
 
 namespace SFARS.Domain.Interfaces.Services
 {
+    public record SnakeImageUploadInfo(Stream Stream, string FileName, string ContentType);
+
     public interface ISnakeService<TDto> : IGenericService<Snake, TDto, Guid>
         where TDto : class
     {
@@ -18,14 +20,14 @@ namespace SFARS.Domain.Interfaces.Services
         Task<IServiceResult> UpdateSnakeAsync(Guid id, TDto dto, string? changeReason);
 
         /// <summary>
-        /// Preview a CSV import (parse + validate, no DB write).
+        /// Preview a CSV/Excel import.
         /// </summary>
-        Task<IServiceResult> PreviewImportAsync(Stream csvStream);
+        Task<IServiceResult> PreviewImportAsync(Stream excelStream);
 
         /// <summary>
-        /// Apply a CSV import (upsert by ScientificName with audit logging).
+        /// Apply an Excel import.
         /// </summary>
-        Task<IServiceResult> ApplyImportAsync(Stream csvStream, string? changeReason);
+        Task<IServiceResult> ApplyImportAsync(Stream excelStream, string? changeReason);
 
         /// <summary>
         /// Get change history for a specific snake with pagination.
@@ -36,5 +38,15 @@ namespace SFARS.Domain.Interfaces.Services
         /// Revert a specific field change using its ChangeLog entry ID.
         /// </summary>
         Task<IServiceResult> RevertSnakeField(Guid changeLogId);
+
+        /// <summary>
+        /// Update snake images management.
+        /// </summary>
+        Task<IServiceResult> UpdateSnakeImagesAsync(
+            Guid snakeId, 
+            List<Guid>? keepImageIds, 
+            Guid? primaryExistingImageId, 
+            List<SnakeImageUploadInfo>? newImages, 
+            int? primaryNewImageIndex);
     }
 }
