@@ -11,6 +11,7 @@ using SFARS.Application.Dtos.User;
 using SFARS.Application.Utils;
 using SFARS.Application.Services;
 using SFARS.Application.Services.Auth;
+using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
@@ -378,6 +379,107 @@ public class AuthenticationServiceTests
         // Assert
         await act.Should().ThrowAsync<UnauthorizedAccessException>()
             .WithMessage("Invalid Google Token.");
+    }
+
+    [Fact]
+    public async Task SignInWithGoogleAsync_AdminLogin_NonAdminUser_ReturnsForbiddenWarning()
+    {
+        // Arrange
+        var token = "valid-google-token-which-is-long-enough";
+        var externalUser = new ExternalAuthUser
+        {
+            Email = "user@example.com",
+            FirstName = "Normal",
+            LastName = "User",
+            ProviderId = "google-456"
+        };
+
+        _externalAuthServiceMock.Setup(x => x.VerifyGoogleTokenAsync(token))
+            .ReturnsAsync(externalUser);
+
+        var userDto = CreateValidUserDto();
+        userDto.Email = externalUser.Email;
+        userDto.Role = UserTypeConstants.User;
+
+        _userServiceMock.Setup(x => x.GetByEmailAsync(externalUser.Email))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, userDto));
+
+        // Act
+        var result = await _sut.SignInWithGoogleAsync(token, isAdminLogin: true);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0007);
+    }
+
+    [Fact]
+    public async Task SignInWithGoogleAsync_AdminLogin_AdminUser_ReturnsTokens()
+    {
+        // Arrange
+        var token = "valid-google-token-which-is-long-enough";
+        var externalUser = new ExternalAuthUser
+        {
+            Email = "admin@example.com",
+            FirstName = "Admin",
+            LastName = "User",
+            ProviderId = "google-admin-123"
+        };
+
+        _externalAuthServiceMock.Setup(x => x.VerifyGoogleTokenAsync(token))
+            .ReturnsAsync(externalUser);
+
+        var adminUserDto = CreateValidUserDto();
+        adminUserDto.Email = externalUser.Email;
+        adminUserDto.Role = UserTypeConstants.Admin;
+
+        _userServiceMock.Setup(x => x.GetByEmailAsync(externalUser.Email))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0002, null!, adminUserDto));
+
+        _refreshTokenServiceMock.Setup(x => x.GetByUserIdAsync(It.IsAny<Guid>()))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Warning0002, "Not found", null!));
+
+        _refreshTokenServiceMock.Setup(x => x.CreateAsync(It.IsAny<RefreshTokenDto>()))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Success0001, null!, new RefreshTokenDto
+            {
+                Id = 1,
+                UserId = adminUserDto.Id,
+                RefreshTokenId = "test-refresh-token",
+                TokenId = "token-id",
+                CreateDate = DateTime.UtcNow,
+                ExpiryDate = DateTime.UtcNow.AddDays(7)
+            }));
+
+        // Act
+        var result = await _sut.SignInWithGoogleAsync(token, isAdminLogin: true);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.Auth_Success0002);
+        result.Data.Should().BeOfType<AuthResultDto>();
+    }
+
+    [Fact]
+    public async Task SignInWithGoogleAsync_AdminLogin_UserNotFound_ReturnsForbiddenWarning()
+    {
+        // Arrange
+        var token = "valid-google-token-which-is-long-enough";
+        var externalUser = new ExternalAuthUser
+        {
+            Email = "missing-admin@example.com",
+            FirstName = "Missing",
+            LastName = "Admin",
+            ProviderId = "google-missing-1"
+        };
+
+        _externalAuthServiceMock.Setup(x => x.VerifyGoogleTokenAsync(token))
+            .ReturnsAsync(externalUser);
+
+        _userServiceMock.Setup(x => x.GetByEmailAsync(externalUser.Email))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Warning0002, "Not found", null!));
+
+        // Act
+        var result = await _sut.SignInWithGoogleAsync(token, isAdminLogin: true);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0007);
     }
 
     #endregion
@@ -1235,5 +1337,3 @@ public class AuthenticationServiceTests
     #endregion
 
 }
-
-

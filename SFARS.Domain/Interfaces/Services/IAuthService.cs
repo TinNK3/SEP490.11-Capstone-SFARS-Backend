@@ -8,7 +8,7 @@ namespace SFARS.Domain.Interfaces.Services
     {
         Task<IServiceResult> SignInAsync(string email);
         Task<IServiceResult> SignInWithPasswordAsync(TDto user);
-        Task<IServiceResult> SignInWithGoogleAsync(string googleIdToken);
+        Task<IServiceResult> SignInWithGoogleAsync(string googleIdToken, bool isAdminLogin = false);
         Task<IServiceResult> SignInWithOtpAsync(string otp, TDto user);
         Task<IServiceResult> SignUpAsync(TDto user);
         Task<IServiceResult> ForgotPasswordAsync(string email);
