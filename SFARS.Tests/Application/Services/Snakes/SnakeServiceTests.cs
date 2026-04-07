@@ -9,9 +9,11 @@ using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Repositories.Base;
+using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Specifications.Interfaces;
 using SFARS.Domain.Specifications.Params;
+using System.IO;
 
 namespace SFARS.Tests.Application.Services.Snakes;
 
@@ -34,7 +36,9 @@ public class SnakeServiceTests
     private readonly Mock<IMapper> _mapperMock;
     private readonly Mock<ILogger<SnakeService>> _loggerMock;
     private readonly Mock<IGenericRepository<Snake, Guid>> _snakeRepoMock;
+    private readonly Mock<IGenericRepository<SnakeImage, Guid>> _imageRepoMock;
     private readonly Mock<IGenericRepository<SnakeChangeLog, Guid>> _changeLogRepoMock;
+    private readonly Mock<IFileStorageService> _storageServiceMock;
 
     private readonly SnakeService _sut;
 
@@ -45,9 +49,12 @@ public class SnakeServiceTests
         _mapperMock = new Mock<IMapper>();
         _loggerMock = new Mock<ILogger<SnakeService>>();
         _snakeRepoMock = new Mock<IGenericRepository<Snake, Guid>>();
+        _imageRepoMock = new Mock<IGenericRepository<SnakeImage, Guid>>();
         _changeLogRepoMock = new Mock<IGenericRepository<SnakeChangeLog, Guid>>();
+        _storageServiceMock = new Mock<IFileStorageService>();
 
         _unitOfWorkMock.Setup(x => x.Repository<Snake, Guid>()).Returns(_snakeRepoMock.Object);
+        _unitOfWorkMock.Setup(x => x.Repository<SnakeImage, Guid>()).Returns(_imageRepoMock.Object);
         _unitOfWorkMock.Setup(x => x.Repository<SnakeChangeLog, Guid>()).Returns(_changeLogRepoMock.Object);
 
         _msgServiceMock
@@ -58,7 +65,8 @@ public class SnakeServiceTests
             _msgServiceMock.Object,
             _unitOfWorkMock.Object,
             _mapperMock.Object,
-            _loggerMock.Object
+            _loggerMock.Object,
+            _storageServiceMock.Object
         );
     }
 
@@ -90,9 +98,9 @@ public class SnakeServiceTests
 
     /// <summary>
     /// Test Type: NORMAL
-    /// Tests: GetSnakeById returns snake data
+    /// Tests: GetSnakeById returns snake data with images
     /// Precondition: Valid snake ID exists
-    /// Expected Result: Returns snake DTO with success
+    /// Expected Result: Returns snake DTO with success and images
     /// </summary>
     [Fact]
     public async Task GetSnakeById_ValidId_ReturnsSnake()
@@ -106,14 +114,22 @@ public class SnakeServiceTests
             CommonName = "Monocled cobra",
             ToxinGroup = ToxinGroup.Neurotoxin,
             ToxicityLevel = SnakeRiskLevel.Deadly,
-            IsActive = true
+            IsActive = true,
+            SnakeImages = new List<SnakeImage>
+            {
+                new SnakeImage { Id = Guid.NewGuid(), ImageUrl = "url1", IsPrimary = true }
+            }
         };
 
         var snakeDto = new SnakeDto
         {
             Id = snakeId,
             ScientificName = "Naja kaouthia",
-            CommonName = "Monocled cobra"
+            CommonName = "Monocled cobra",
+            SnakeImages = new List<SnakeImageDto>
+            {
+                new SnakeImageDto { ImageUrl = "url1", IsPrimary = true }
+            }
         };
 
         _snakeRepoMock
@@ -127,7 +143,9 @@ public class SnakeServiceTests
 
         // Assert
         result.ResultCode.Should().NotBe(ResultCodeConst.SYS_Warning0004);
-        result.Data.Should().NotBeNull();
+        var returnedDto = (SnakeDto)result.Data!;
+        returnedDto.SnakeImages.Should().NotBeEmpty();
+        returnedDto.SnakeImages.First().ImageUrl.Should().Be("url1");
     }
 
     #endregion
@@ -439,7 +457,7 @@ public class SnakeServiceTests
             ScientificName = "Naja kaouthia",
             CommonName = "Monocled cobra",
             ToxicityLevel = SnakeRiskLevel.Deadly, // Changed!
-            ToxinGroup = ToxinGroup.Mixed // Changed!
+            ToxinGroup = ToxinGroup.Neurotoxin
         };
 
         _snakeRepoMock.Setup(r => r.GetByIdAsync(snakeId)).ReturnsAsync(existingSnake);
@@ -529,7 +547,14 @@ public class SnakeServiceTests
         var specParams = new SnakeSpecParams { Search = "cobra" };
         var snakes = new List<Snake>
         {
-            new Snake { Id = Guid.NewGuid(), ScientificName = "Naja kaouthia", CommonName = "Monocled cobra", IsActive = true },
+            new Snake 
+            { 
+                Id = Guid.NewGuid(), 
+                ScientificName = "Naja kaouthia", 
+                CommonName = "Monocled cobra", 
+                IsActive = true,
+                SnakeImages = new List<SnakeImage> { new SnakeImage { ImageUrl = "url1" } }
+            },
             new Snake { Id = Guid.NewGuid(), ScientificName = "Ophiophagus hannah", CommonName = "King cobra", IsActive = true }
         };
 
@@ -537,14 +562,21 @@ public class SnakeServiceTests
             .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<Snake>>(), It.IsAny<bool>()))
             .ReturnsAsync(snakes);
 
-        _mapperMock.Setup(m => m.Map<List<SnakeDto>>(It.IsAny<List<Snake>>()))
-            .Returns(new List<SnakeDto> { new SnakeDto(), new SnakeDto() });
+        _mapperMock.Setup(m => m.Map<IEnumerable<SnakeDto>>(It.IsAny<IEnumerable<Snake>>()))
+            .Returns(new List<SnakeDto> 
+            { 
+                new SnakeDto { SnakeImages = new List<SnakeImageDto>{ new SnakeImageDto() } }, 
+                new SnakeDto() 
+            });
 
         // Act
         var result = await _sut.GetAllSnakesAsync(specParams);
 
         // Assert
         result.Data.Should().NotBeNull();
+        var pagedResult = (PaginatedResultDto<SnakeDto>)result.Data!;
+        pagedResult.Items.Should().HaveCount(2);
+        pagedResult.Items.First().SnakeImages.Should().NotBeNull();
         _snakeRepoMock.Verify(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<Snake>>(), It.IsAny<bool>()), Times.Once);
     }
 
@@ -561,7 +593,7 @@ public class SnakeServiceTests
             .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<Snake>>(), It.IsAny<bool>()))
             .ReturnsAsync(new List<Snake>());
 
-        _mapperMock.Setup(m => m.Map<List<SnakeDto>>(It.IsAny<List<Snake>>()))
+        _mapperMock.Setup(m => m.Map<IEnumerable<SnakeDto>>(It.IsAny<IEnumerable<Snake>>()))
             .Returns(new List<SnakeDto>());
 
         // Act
@@ -569,6 +601,8 @@ public class SnakeServiceTests
 
         // Assert
         result.Data.Should().NotBeNull();
+        var pagedResult = (PaginatedResultDto<SnakeDto>)result.Data!;
+        pagedResult.Items.Should().NotBeNull();
     }
 
     /// <summary>
@@ -585,7 +619,7 @@ public class SnakeServiceTests
             .Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<Snake>>(), It.IsAny<bool>()))
             .ReturnsAsync(new List<Snake>());
 
-        _mapperMock.Setup(m => m.Map<List<SnakeDto>>(It.IsAny<List<Snake>>()))
+        _mapperMock.Setup(m => m.Map<IEnumerable<SnakeDto>>(It.IsAny<IEnumerable<Snake>>()))
             .Returns(new List<SnakeDto>());
 
         // Act
@@ -593,7 +627,95 @@ public class SnakeServiceTests
 
         // Assert
         result.Data.Should().NotBeNull();
+        var pagedResult = (PaginatedResultDto<SnakeDto>)result.Data!;
+        pagedResult.Items.Should().NotBeNull();
         _snakeRepoMock.Verify(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<Snake>>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    #endregion
+
+    #region UpdateSnakeImagesAsync Tests
+
+    [Fact]
+    public async Task UpdateSnakeImagesAsync_SnakeNotFound_ReturnsWarning()
+    {
+        // Arrange
+        var snakeId = Guid.NewGuid();
+        _snakeRepoMock
+            .Setup(r => r.GetWithSpecAsync(It.IsAny<ISpecification<Snake>>(), It.IsAny<bool>()))
+            .ReturnsAsync((Snake?)null);
+
+        // Act
+        var result = await _sut.UpdateSnakeImagesAsync(snakeId, null, null, null, null);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
+        result.Message.Should().Contain("Snake not found");
+    }
+
+    [Fact]
+    public async Task UpdateSnakeImagesAsync_ValidRequest_PerformsUpdatesSuccessfully()
+    {
+        // Arrange
+        var snakeId = Guid.NewGuid();
+        var existingImgId1 = Guid.NewGuid();
+        var existingImgId2 = Guid.NewGuid(); // To be deleted
+
+        var snake = new Snake
+        {
+            Id = snakeId,
+            SnakeImages = new List<SnakeImage>
+            {
+                new SnakeImage { Id = existingImgId1, ImageUrl = "url1", IsPrimary = true },
+                new SnakeImage { Id = existingImgId2, ImageUrl = "url2", IsPrimary = false }
+            }
+        };
+
+        _snakeRepoMock
+            .Setup(r => r.GetWithSpecAsync(It.IsAny<ISpecification<Snake>>(), It.IsAny<bool>()))
+            .ReturnsAsync(snake);
+
+        _storageServiceMock
+            .Setup(s => s.DeleteByUrlAsync(It.IsAny<string>()))
+            .ReturnsAsync(true);
+
+        _storageServiceMock
+            .Setup(s => s.UploadAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(new FileUploadResult("new_url", "pub_id", 100, "jpg"));
+
+        var newImages = new List<SnakeImageUploadInfo>
+        {
+            new SnakeImageUploadInfo(new MemoryStream(), "test.jpg", "image/jpeg")
+        };
+
+        // Act: Keep existingImgId1, Delete existingImgId2, Add 1 new image, Set new image as primary
+        var result = await _sut.UpdateSnakeImagesAsync(
+            snakeId,
+            new List<Guid> { existingImgId1 },
+            null, // Not choosing existing as primary
+            newImages,
+            0 // Choosing the 1st new image as primary
+        );
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
+        
+        // Verify deletions
+        _storageServiceMock.Verify(s => s.DeleteByUrlAsync("url2"), Times.Once);
+        _imageRepoMock.Verify(r => r.DeleteAsync(existingImgId2), Times.Once);
+
+        // Verify uploads
+        _storageServiceMock.Verify(s => s.UploadAsync(It.IsAny<Stream>(), "test.jpg", "snakes", "image/jpeg"), Times.Once);
+        
+        // Verify IsPrimary logic
+        snake.SnakeImages.Should().HaveCount(2);
+        var keptOld = snake.SnakeImages.First(i => i.Id == existingImgId1);
+        var newlyAdded = snake.SnakeImages.First(i => i.ImageUrl == "new_url");
+        
+        keptOld.IsPrimary.Should().BeFalse();
+        newlyAdded.IsPrimary.Should().BeTrue();
+
+        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
     }
 
     #endregion

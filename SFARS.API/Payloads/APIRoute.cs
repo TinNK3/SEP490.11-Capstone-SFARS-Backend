@@ -58,6 +58,7 @@ namespace SFARS.API.Payloads
             public const string ImportApply = Base + "/snakes/import/apply";
             // [PUT]
             public const string Update = Base + "/snakes/{id}";
+            public const string UpdateImages = Base + "/snakes/{id}/images";
             public const string Revert = Base + "/snakes/revert/{changeLogId}";
             // [PATCH]
 

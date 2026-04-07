@@ -12,6 +12,26 @@
     "Note": "Cần thở máy sớm",
     "SnakeImages": [
       {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559296/snakes/wx68w6nw1jrqsmia06jv.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559297/snakes/hze6qrsnpgjuzkr58e9r.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559293/snakes/ufimayahhnlfl7h58ybq.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559295/snakes/uq02geph2jll3bogyiwp.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559294/snakes/kwyab3dahsrc0q2efqtm.jpg",
+        "IsPrimary": false
+      },
+      {
         "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Bungar_candi_120608-0343_krw.jpg/330px-Bungar_candi_120608-0343_krw.jpg",
         "IsPrimary": true
       }
@@ -26,12 +46,32 @@
     "KeyIdentifiers": "Khoang màu đen và vàng (hoặc vàng cam) xen kẽ nhau với chiều rộng các khoang tương đương nhau. Gờ sống lưng nổi rất cao tạo thành tiết diện tam giác sắc nét. Đuôi tù, cụt ở chóp (không nhọn như các loài rắn khác).",
     "TypicalSymptoms": "Đau tại chỗ cắn nhưng không hoại tử. Biểu hiện toàn thân: buồn ngủ, yếu cơ tiến triển chậm hơn cạp nia, khó nuốt, liệt cơ hô hấp. Tỷ lệ suy hô hấp chậm nhưng kéo dài.",
     "Habitat": "Rừng thường xanh, rừng tre nứa, vùng đồi núi thấp, ranh giới giữa rừng và đất nông nghiệp. Thường trú ẩn trong hang gặm nhấm, dưới khe đá hoặc gốc cây mục.",
-    "DistributionNote": "Phân bố rộng khắp toàn quốc, từ các tỉnh miền núi phía Bắc (Lạng Sơn, Cao Bằng) dọc theo dãy Trường Sơn đến tận khu vực Đồng bằng sông Cửu Long.",
+    "DistributionNote": "Phân bộ rộng khắp toàn quốc, từ các tỉnh miền núi phía Bắc (Lạng Sơn, Cao Bằng) dọc theo dãy Trường Sơn đến tận khu vực Đồng bằng sông Cửu Long.",
     "Note": "Di chuyển chậm chạp nhưng cắn rất đau.",
     "SnakeImages": [
       {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559465/snakes/q5ntpugp9qqvexg8vu13.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559468/snakes/xsbtebekox4pia1dxcax.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559467/snakes/qauxwpxqhzibyhqpj36x.jpg",
+        "IsPrimary": false
+      },
+      {
         "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/The_Banded_Krait.jpg/330px-The_Banded_Krait.jpg",
         "IsPrimary": true
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559469/snakes/v9kbh09kmnivu0slpmgd.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559464/snakes/v2nc57rdrbcj77eznqgh.jpg",
+        "IsPrimary": false
       }
     ]
   },
@@ -48,8 +88,28 @@
     "Note": "Ngụy trang rất giỏi trên lá khô",
     "SnakeImages": [
       {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559620/snakes/os8wyiyatzx3vijvutas.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559623/snakes/rim8svgqikdrhirjvvd6.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559619/snakes/ioxlrhgppd3oxum67p4c.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559622/snakes/atpnmcqb92ltsnscdpab.jpg",
+        "IsPrimary": false
+      },
+      {
         "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Callos_rhodos_120610-0642_krw.jpg/330px-Callos_rhodos_120610-0642_krw.jpg",
         "IsPrimary": true
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559621/snakes/zuqu9n0vvykvomraucxf.jpg",
+        "IsPrimary": false
       }
     ]
   },
@@ -84,8 +144,28 @@
     "Note": "Lượng nọc phóng ra rất lớn",
     "SnakeImages": [
       {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775561100/snakes/k38qkp6gkvebm1ud49va.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775561096/snakes/hanijpuihkiixumsf6ig.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775561094/snakes/jxjgkbns9l8it4l3cgmp.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775561098/snakes/mwf592fuqocupwvi56ix.jpg",
+        "IsPrimary": false
+      },
+      {
         "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/12_-_The_Mystical_King_Cobra_and_Coffee_Forests.jpg/330px-12_-_The_Mystical_King_Cobra_and_Coffee_Forests.jpg",
         "IsPrimary": true
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775561102/snakes/bcoxmytqnpbzmqbcobza.jpg",
+        "IsPrimary": false
       }
     ]
   },
@@ -102,8 +182,28 @@
     "Note": "Hay hoạt động chiều tối",
     "SnakeImages": [
       {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775561226/snakes/al32pszpuqhcwwdwgtr9.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775561227/snakes/h4jypf0fpn2o6sgajqaa.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775561225/snakes/zvblribpvs5i1nwm2nbw.jpg",
+        "IsPrimary": false
+      },
+      {
         "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Monocled_cobra_%28cropped%29.jpg/330px-Monocled_cobra_%28cropped%29.jpg",
         "IsPrimary": true
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775561224/snakes/feay0u18xkjtslvqt4nw.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775561224/snakes/nbzxt30jfcuzepiubewk.jpg",
+        "IsPrimary": false
       }
     ]
   },
@@ -120,8 +220,28 @@
     "Note": "Cần rửa mắt ngay nếu bị phun",
     "SnakeImages": [
       {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775561361/snakes/aygfhyke4ybvhf5uoiv0.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775561366/snakes/emtcpddkdazbl4m2t2u0.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775561364/snakes/nnpkhlekmxogncd2o4cl.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775561363/snakes/pcblltzdnippve0atlvy.jpg",
+        "IsPrimary": false
+      },
+      {
         "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Naja_siamensis_by_Danny_S..jpg/330px-Naja_siamensis_by_Danny_S..jpg",
         "IsPrimary": true
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775561368/snakes/cftalceaspkiu8sxyle6.jpg",
+        "IsPrimary": false
       }
     ]
   },
@@ -192,8 +312,28 @@
     "Note": "Thường bị nhầm là rắn độc",
     "SnakeImages": [
       {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559131/snakes/ahswvusf9kaybkwdpvfc.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559133/snakes/uqsmwjelezawffnxumww.jpg",
+        "IsPrimary": false
+      },
+      {
         "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Rainbow_Water_Snake_%28Enhydris_enhydris%29_%287845020860%29.jpg/330px-Rainbow_Water_Snake_%28Enhydris_enhydris%29_%287845020860%29.jpg",
         "IsPrimary": true
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559132/snakes/d0o7kffxcfuhtlusnjel.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559137/snakes/pumk22k4b1cdwxdqjxn5.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559134/snakes/inzsm6auwtsixwzszapi.jpg",
+        "IsPrimary": false
       }
     ]
   },
@@ -210,8 +350,28 @@
     "Note": "Có thể lượn từ cây này sang cây khác",
     "SnakeImages": [
       {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559787/snakes/vupsaqjnm6zp0vmepl0n.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559794/snakes/xhlglrdw8ssxqiyddcv4.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559791/snakes/isu0w9isl45dsxgldxhy.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559792/snakes/twwfb410mqh4bdmc5a8q.jpg",
+        "IsPrimary": false
+      },
+      {
         "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Chrysopelea_ornata.jpg/330px-Chrysopelea_ornata.jpg",
         "IsPrimary": true
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775559789/snakes/leua09m1wwnl6s6ks6vn.jpg",
+        "IsPrimary": false
       }
     ]
   },
@@ -230,6 +390,26 @@
       {
         "ImageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Sunbeam_Snake_%28Xenopeltis_unicolor%29_%287121228691%29.jpg/330px-Sunbeam_Snake_%28Xenopeltis_unicolor%29_%287121228691%29.jpg",
         "IsPrimary": true
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775560684/snakes/axbe6matnafslstsu2dr.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775560687/snakes/kh4wiwjxm4pqyuvnlvqv.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775560685/snakes/gd8lpwls8mpk0acrheik.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775560683/snakes/ohnsq6oyiogyzktdkdhp.jpg",
+        "IsPrimary": false
+      },
+      {
+        "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1775560686/snakes/t3i8etklyxsbdzrhiair.jpg",
+        "IsPrimary": false
       }
     ]
   },
