@@ -97,6 +97,7 @@ public static class DependencyInjection
             // SOS-specific services
             services.AddSingleton<ISosSpamGuardService, SosSpamGuardService>();
             services.AddScoped<IFcmPushService, FcmPushService>();
+            services.AddScoped<IDistributedLockProvider, SqlDistributedLockProvider>();
 
             // Hangfire — background job processing for tiered dispatch
             services.AddHangfire(config => config

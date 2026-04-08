@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Common.Enum;
@@ -54,6 +54,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(e => e.LocationAccuracyMeters)
             .HasColumnName("location_accuracy_meters");
+
+        builder.Property(e => e.LastLocationDeltaMeters)
+            .HasColumnName("last_location_delta_meters");
 
         #region Update at: 4-02-2026 by Nguyen Khanh Tin
         builder.Property(e => e.EmailVerificationCode)

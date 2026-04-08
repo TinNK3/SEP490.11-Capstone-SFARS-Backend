@@ -24,12 +24,16 @@ public class RescueMissionConfiguration : IEntityTypeConfiguration<RescueMission
         builder.Property(e => e.StartedAt).HasColumnName("started_at");
         builder.Property(e => e.ArrivedAt).HasColumnName("arrived_at");
         builder.Property(e => e.CompletedAt).HasColumnName("completed_at");
+        builder.Property(e => e.InitialDistanceMeters).HasColumnName("initial_distance_meters");
 
         builder.Property(e => e.RescuerNotes)
             .HasColumnName("rescuer_notes");
 
         builder.Property(e => e.PatientConditionAtHandover)
             .HasColumnName("patient_condition_at_handover");
+
+        builder.Property(e => e.NextCheckAt).HasColumnName("next_check_at");
+        builder.Property(e => e.LastCheckedDistanceMeters).HasColumnName("last_checked_distance_meters");
 
         builder.Property(e => e.CreatedAt).HasColumnName("created_at");
         builder.Property(e => e.CreatedBy).HasColumnName("created_by");
@@ -47,5 +51,9 @@ public class RescueMissionConfiguration : IEntityTypeConfiguration<RescueMission
             .HasForeignKey(m => m.RescuerId)
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("FK_RescueMission_User_RescuerId");
+
+        builder.HasIndex(e => e.NextCheckAt)
+            .HasDatabaseName("IX_RescueMission_NextCheckAt")
+            .HasFilter("[next_check_at] IS NOT NULL");
     }
 }

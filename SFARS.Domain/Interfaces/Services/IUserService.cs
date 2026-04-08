@@ -40,5 +40,15 @@ namespace SFARS.Domain.Interfaces.Services
         Task<IServiceResult> GetUserLocationAsync(Guid userId);
         Task<IServiceResult> UpdateUserLocationAsync(
             Guid userId, double latitude, double longitude, double? accuracyMeters);
+
+        /// <summary>
+        /// Retrieves online/available rescuers for map visualization.
+        /// </summary>
+        Task<IServiceResult> GetRescuersForMapAsync();
+
+        /// <summary>
+        /// Gets detailed information for a specific rescuer, including real-time distance and ETA.
+        /// </summary>
+        Task<IServiceResult> GetRescuerDetailAsync(Guid rescuerId, double userLat, double userLng);
     }
 }

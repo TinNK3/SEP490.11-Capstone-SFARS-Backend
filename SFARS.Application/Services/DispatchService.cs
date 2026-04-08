@@ -186,7 +186,44 @@ public class DispatchService : IDispatchService
 
         await _unitOfWork.SaveChangesAsync();
 
-        _logger.LogWarning("SOS Fallback triggered for IncidentId={Id}. Status=Unassigned.", incidentId);
+        // Schedule an automatic closure to prevent "Ghost SOS" if no rescuer ever accepts
+        _jobs.Schedule<IDispatchService>(
+            s => s.AutoCloseAbandonedIncidentAsync(incidentId), 
+            TimeSpan.FromHours(DispatchConstants.AbandonedIncidentExpiryHours));
+
+        _logger.LogWarning("SOS Fallback triggered for IncidentId={Id}. Status=Unassigned. Auto-close scheduled in {H}h.", 
+            incidentId, DispatchConstants.AbandonedIncidentExpiryHours);
+    }
+
+    /// <inheritdoc />
+    [Queue(DispatchConstants.HangfireQueue)]
+    public async Task AutoCloseAbandonedIncidentAsync(Guid incidentId)
+    {
+        var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
+        if (incident == null || incident.CurrentStatus != IncidentStatus.Unassigned)
+        {
+            return; // Already handled, assigned, or cancelled
+        }
+
+        _logger.LogWarning("Auto-closing abandoned incident {Id} after {H} hours of inactivity.", 
+            incidentId, DispatchConstants.AbandonedIncidentExpiryHours);
+
+        var oldStatus = incident.CurrentStatus;
+        incident.CurrentStatus = IncidentStatus.Closed;
+        incident.UpdatedAt = DateTime.UtcNow;
+
+        await _unitOfWork.Repository<IncidentStatusHistory, Guid>().AddAsync(new IncidentStatusHistory
+        {
+            Id = Guid.NewGuid(),
+            IncidentId = incidentId,
+            StatusFrom = oldStatus,
+            StatusTo = IncidentStatus.Closed,
+            ChangedBy = Guid.Empty, // System
+            ChangeReason = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Reason0010),
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _unitOfWork.SaveChangesAsync();
     }
 
     private async Task RunTierInternalAsync(

@@ -67,4 +67,11 @@ public class Incident : BaseEntity
     /// Used by CancelIncidentAsync to delete pending dispatch jobs if victim cancels during grace period.
     /// </summary>
     public string? DispatchJobIds { get; set; }
+
+    /// <summary>
+    /// Tracks the current version of the dispatch process.
+    /// Incremented every time a rescuer is rejected or timed out, triggering a new search.
+    /// Used for concurrency control to ensure only the latest dispatch attempt is valid.
+    /// </summary>
+    public int DispatchVersion { get; set; } = 0;
 }

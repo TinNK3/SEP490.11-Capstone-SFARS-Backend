@@ -114,6 +114,93 @@ namespace SFARS.Application.Services
             );
         }
 
+        /// <inheritdoc />
+        public async Task<IServiceResult> GetRescuersForMapAsync()
+        {
+            var threshold = DateTime.UtcNow.AddHours(-LocationConstants.LocationMapStaleHours);
+
+            var rescuers = await _unitOfWork.Repository<RescuerProfile, Guid>()
+                .GetQueryable()
+                .AsNoTracking()
+                .Where(rp => rp.IsVerified && 
+                             rp.IsAvailable && 
+                             rp.User.CurrentLocation != null &&
+                             rp.User.LocationUpdatedAt >= threshold)
+                .Select(rp => new RescuerMapDto
+                {
+                    Id = rp.UserId,
+                    Latitude = rp.User.CurrentLocation!.Y,
+                    Longitude = rp.User.CurrentLocation!.X
+                })
+                .ToListAsync();
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                rescuers
+            );
+        }
+
+        /// <inheritdoc />
+        public async Task<IServiceResult> GetRescuerDetailAsync(Guid rescuerId, double userLat, double userLng)
+        {
+            // 1. Fetch Rescuer and User info (Optimized with NoTracking)
+            var rescuer = await _unitOfWork.Repository<RescuerProfile, Guid>()
+                .GetQueryable(false)
+                .Include(rp => rp.User)
+                .Where(rp => rp.UserId == rescuerId && rp.IsVerified)
+                .FirstOrDefaultAsync();
+
+            if (rescuer == null)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
+            }
+
+            // 2. Fetch Total Missions separately to avoid complex Expression Tree issues
+            // This is clean, safe, and has negligible performance impact for a single record view.
+            var totalMissions = await _unitOfWork.Repository<RescueMission, Guid>()
+                .CountAsync(new BaseSpecification<RescueMission>(m => 
+                    m.RescuerId == rescuerId && m.Status == RescueStatus.Completed));
+
+            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+            var userLocation = factory.CreatePoint(new Coordinate(userLng, userLat));
+            
+            double distanceMeters = 0;
+            if (rescuer.User.CurrentLocation != null)
+            {
+                distanceMeters = rescuer.User.CurrentLocation.Distance(userLocation);
+            }
+
+            // Calculations: Convert KM/H to Meters/Minute for more natural urban calculation
+            double distanceKM = Math.Round(distanceMeters / 1000.0, 2);
+            double speedMetersPerMin = (LocationConstants.AverageRescueSpeedKmH * 1000.0) / 60.0;
+            
+            int etaMinutes = (int)Math.Ceiling(distanceMeters / speedMetersPerMin);
+
+            var dto = new RescuerDetailDto
+            {
+                FullName = rescuer.User.FullName,
+                Avatar = rescuer.User.Avatar,
+                Phone = rescuer.User.Phone,
+                Gender = rescuer.User.Gender,
+                Address = rescuer.User.Address,
+                ExperienceYears = rescuer.ExperienceYears,
+                LicensePlate = rescuer.LicensePlate,
+                VehicleType = rescuer.VehicleType,
+                TotalMissions = totalMissions,
+                DistanceKM = distanceKM,
+                EtaMinutes = etaMinutes,
+                LocationUpdatedAt = rescuer.User.LocationUpdatedAt
+            };
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                dto);
+        }
+
         /// <summary>
         /// [Admin] Get a single user by their ID.
         /// </summary>
@@ -517,6 +604,12 @@ namespace SFARS.Application.Services
 
             if (shouldSyncDb)
             {
+                // Calculate Delta (distance moved since last DB update)
+                if (user.CurrentLocation != null)
+                {
+                    user.LastLocationDeltaMeters = user.CurrentLocation.Distance(newLocation);
+                }
+
                 // Update user location fields in Entity
                 user.CurrentLocation = newLocation;
                 user.LocationUpdatedAt = newUpdateAt;

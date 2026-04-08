@@ -35,6 +35,8 @@ namespace SFARS.API.Payloads
             public const string Me = Base + "/me";
             public const string MeLocation = Base + "/me/location";
             public const string MeDonationHistory = Base + "/me/donation-history";
+            public const string RescuersMap = Base + "/rescuers/map";
+            public const string RescuerDetail = Base + "/rescuers/{id}/detail";
             // [PUT]
             public const string UpdateMe = Base + "/me";
             // [PATCH]

@@ -136,5 +136,10 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         // Used by CancelIncidentAsync to clean up scheduled jobs
         builder.Property(e => e.DispatchJobIds)
             .HasColumnName("dispatch_job_ids");
+
+        builder.Property(e => e.DispatchVersion)
+            .IsRequired()
+            .HasDefaultValue(0)
+            .HasColumnName("dispatch_version");
     }
 }

@@ -630,6 +630,12 @@
     "Vi": "Đã hết tất cả vòng tìm kiếm. Không có nhân viên cứu hộ nào nhận ca."
   },
   {
+    "MsgId": "Incident.Reason0011",
+    "MsgContent": "Stagnation or lack of progress detected. Mission reverted.",
+    "En": "Stagnation or lack of progress detected. Mission reverted.",
+    "Vi": "Phát hiện tình trạng đứng yên hoặc không có tiến độ di chuyển. Nhiệm vụ đã được hoàn tác."
+  },
+  {
     "MsgId": "Incident.Reason0008",
     "MsgContent": "Resolved externally (e.g. called 115).",
     "En": "Resolved externally (e.g. called 115).",
@@ -952,5 +958,11 @@
     "MsgContent": "Safe status recorded. You are doing well. Please stay calm, rest, and update me if you notice anything unusual.",
     "En": "Safe status recorded. You are doing well. Please stay calm, rest, and update me if you notice anything unusual.",
     "Vi": "Đã lưu trạng thái an toàn. Bạn đang làm rất tốt. Hãy giữ bình tĩnh, ngồi nghỉ ngơi và không vận động mạnh. Bất cứ khi nào bạn thấy có dấu hiệu bất thường, hãy chủ động cập nhật triệu chứng."
+  },
+  {
+    "MsgId": "Incident.Reason0010",
+    "MsgContent": "System automatically closed the incident due to inactivity in unassigned state.",
+    "En": "System automatically closed the incident due to inactivity in unassigned state.",
+    "Vi": "Hệ thống tự động đóng ca cấp cứu do quá thời gian chờ phản hồi."
   }
 ]
