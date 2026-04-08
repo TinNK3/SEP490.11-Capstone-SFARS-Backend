@@ -205,6 +205,30 @@ namespace SFARS.API.Controller
             return this.ToIActionResult(result);
         }
 
+        /// <summary>
+        /// Get all verified and available rescuers for map visualization.
+        /// Includes last activity timestamp for FE visualization logic.
+        /// </summary>
+        [Authorize]
+        [HttpGet(APIRoute.User.RescuersMap, Name = nameof(GetRescuersForMap))]
+        public async Task<IActionResult> GetRescuersForMap()
+        {
+            var result = await _userService.GetRescuersForMapAsync();
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
+        /// Get detailed information for a rescuer marker on the map.
+        /// Requires user's current lat/lng to calculate real-time distance and ETA.
+        /// </summary>
+        [Authorize]
+        [HttpGet(APIRoute.User.RescuerDetail, Name = nameof(GetRescuerDetailAsync))]
+        public async Task<IActionResult> GetRescuerDetailAsync(Guid id, [FromQuery] double lat, [FromQuery] double lng)
+        {
+            var result = await _userService.GetRescuerDetailAsync(id, lat, lng);
+            return this.ToIActionResult(result);
+        }
+
         #endregion
 
         #region Donation History

@@ -27,6 +27,13 @@ public interface IDispatchService
     /// Triggered after 90 s if nobody has accepted.
     /// Sets status to Unassigned and pushes sos:fallback to the victim.
     /// Incident remains open so any rescuer who comes online can still self-assign.
+    /// Schedules an automatic closure if no activity is recorded.
     /// </summary>
     Task RunFallbackAsync(Guid incidentId);
+
+    /// <summary>
+    /// Automatically closes an incident that has been Unassigned for a long time.
+    /// This prevents "Ghost SOS" incidents from cluttering the system.
+    /// </summary>
+    Task AutoCloseAbandonedIncidentAsync(Guid incidentId);
 }

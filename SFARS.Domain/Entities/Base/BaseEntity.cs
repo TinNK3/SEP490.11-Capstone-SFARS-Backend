@@ -12,4 +12,7 @@ public abstract class BaseEntity
 
     public DateTime? UpdatedAt { get; set; }
     public Guid? UpdatedBy { get; set; }
+
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = null!;
 }

@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -13,7 +12,6 @@ using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
 using SFARS.Infrastructure.Configurations;
-using SFARS.Infrastructure.Hubs;
 using Hangfire;
 
 namespace SFARS.Application.Services;
@@ -22,27 +20,21 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ISystemMessageService _msgService;
-    private readonly IHubContext<LocationTrackingHub> _locationHub;
     private readonly ILogger<AiReviewService> _logger;
     private readonly IBackgroundJobClient _backgroundJobs;
-    private readonly IFcmPushService _fcmService;
     private readonly MlopsOptions _mlopsOptions;
 
     public AiReviewService(
         IUnitOfWork unitOfWork,
         ISystemMessageService msgService,
-        IHubContext<LocationTrackingHub> locationHub,
         ILogger<AiReviewService> logger,
         IBackgroundJobClient backgroundJobs,
-        IFcmPushService fcmService,
         IOptions<MlopsOptions> mlopsOptions)
     {
         _unitOfWork = unitOfWork;
         _msgService = msgService;
-        _locationHub = locationHub;
         _logger = logger;
         _backgroundJobs = backgroundJobs;
-        _fcmService = fcmService;
         _mlopsOptions = mlopsOptions.Value;
     }
 
@@ -118,37 +110,13 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
 
         await _unitOfWork.SaveChangesAsync();
 
-        // Realtime notification via SignalR (foreground)
-        var reviewMessage = await _msgService.GetMessageAsync(ResultCodeConst.AiReview_Success0001);
-        var notificationPayload = new AiReviewCompletedNotificationDto
-        {
-            IncidentId = incidentId,
-            Message = reviewMessage,
-            ReviewStatus = request.ReviewStatus.ToString(),
-            EffectiveToxinGroup = incident.HumanReviewedToxinGroup?.ToString() ?? ToxinGroup.Unknown.ToString(),
-            RequiresFirstAidRefresh = (request.ReviewStatus == AiReviewStatus.ConfirmedCorrect || request.ReviewStatus == AiReviewStatus.Corrected)
-        };
-        await _locationHub.Clients
-            .GroupExcept(LocationConstants.SignalRGroupPrefix + incidentId, new[] { rescuerId.ToString() })
-            .SendAsync(LocationConstants.SignalRAiReviewed, notificationPayload);
-
-        // FCM push notification to patient (background fallback)
-        var fcmTitle = "Hệ thống - Kết quả AI";
-        var fcmData = new Dictionary<string, string>
-        {
-            { "type", "ai_review_completed" },
-            { "incidentId", incidentId.ToString() },
-            { "reviewStatus", request.ReviewStatus.ToString() }
-        };
-        await _fcmService.SendToUserAsync(incident.VictimId, fcmTitle, reviewMessage, fcmData);
-
         // Check retrain threshold (only for verified reviews)
         if (request.ReviewStatus == AiReviewStatus.ConfirmedCorrect || request.ReviewStatus == AiReviewStatus.Corrected)
         {
             if (isWoundReview)
-                await CheckAndTriggerWoundRetrainAsync();
+                _backgroundJobs.Enqueue<AiReviewService>(s => s.CheckAndTriggerWoundRetrainAsync());
             else
-                await CheckAndTriggerSnakeRetrainAsync();
+                _backgroundJobs.Enqueue<AiReviewService>(s => s.CheckAndTriggerSnakeRetrainAsync());
         }
 
         return new ServiceResult(ResultCodeConst.AiReview_Success0001, await _msgService.GetMessageAsync(ResultCodeConst.AiReview_Success0001), request.ReviewStatus.ToString());
@@ -251,43 +219,57 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
         incident.PriorityLevel = SeverityLevel.High;
     }
 
-    private async Task CheckAndTriggerSnakeRetrainAsync()
+    /// <summary>
+    /// Checks if we have enough new verified snake samples to trigger the MLOps retraining pipeline.
+    /// Runs as a background job to avoid blocking the main rescue flow.
+    /// </summary>
+    [DisableConcurrentExecution(timeoutInSeconds: 60)]
+    public async Task CheckAndTriggerSnakeRetrainAsync()
     {
         try
         {
             int threshold = _mlopsOptions.AutoRetrainThreshold;
 
-            var lastRetrain = await _unitOfWork.Repository<RetrainHistory, Guid>().GetQueryable(tracked: false)
+            // Find the last successful or currently active retrain job to set the start date for counting
+            var lastRetrain = await _unitOfWork.Repository<RetrainHistory, Guid>()
+                .GetQueryable(tracked: false)
+                .AsNoTracking()
                 .Where(x => x.PipelineType == RetrainPipelineType.SnakeSpecies)
                 .OrderByDescending(x => x.StartedAt)
-                .FirstOrDefaultAsync(x => x.Status == RetrainStatus.Success || x.Status == RetrainStatus.Pending || x.Status == RetrainStatus.Training);
+                .FirstOrDefaultAsync(x => x.Status == RetrainStatus.Success || 
+                                          x.Status == RetrainStatus.Pending || 
+                                          x.Status == RetrainStatus.Training);
 
             DateTime? since = lastRetrain?.StartedAt;
 
-            // Count new verified SNAKE reviews since last retrain
+            // Query only the IDs and count for performance (avoiding full object hydration)
             var newSamplesCount = await (
-                from r in _unitOfWork.Repository<AiInferenceReview, Guid>().GetQueryable(tracked: false)
-                join ai in _unitOfWork.Repository<AiInference, Guid>().GetQueryable(tracked: false)
-                    on r.AiInferenceId equals ai.Id
-                join m in _unitOfWork.Repository<IncidentMedia, Guid>().GetQueryable(tracked: false)
-                    on ai.IncidentMediaId equals m.Id
+                from r in _unitOfWork.Repository<AiInferenceReview, Guid>().GetQueryable(tracked: false).AsNoTracking()
+                join ai in _unitOfWork.Repository<AiInference, Guid>().GetQueryable(tracked: false).AsNoTracking() on r.AiInferenceId equals ai.Id
+                join m in _unitOfWork.Repository<IncidentMedia, Guid>().GetQueryable(tracked: false).AsNoTracking() on ai.IncidentMediaId equals m.Id
                 where (r.ReviewStatus == AiReviewStatus.ConfirmedCorrect || r.ReviewStatus == AiReviewStatus.Corrected)
                       && m.MediaType == MediaType.SnakePhoto
                       && (since == null || r.ReviewedAt > since)
                 select r.Id
             ).CountAsync();
 
-            _logger.LogInformation("MLOps Snake Check: {Count}/{Threshold} verified samples since last retrain.", newSamplesCount, threshold);
+            _logger.LogInformation("MLOps Snake Progress: {Count}/{Threshold} verified samples collected since {Since}", 
+                newSamplesCount, threshold, since?.ToString() ?? "Project Start");
 
             if (newSamplesCount >= threshold)
             {
-                bool isRunning = await _unitOfWork.Repository<RetrainHistory, Guid>().GetQueryable(tracked: false)
+                // Prevent duplicate concurrent pipelines
+                bool isRunning = await _unitOfWork.Repository<RetrainHistory, Guid>()
+                    .GetQueryable(tracked: false)
+                    .AsNoTracking()
                     .AnyAsync(x => x.PipelineType == RetrainPipelineType.SnakeSpecies
-                                   && (x.Status == RetrainStatus.Pending || x.Status == RetrainStatus.Training || x.Status == RetrainStatus.ExportingData));
+                                   && (x.Status == RetrainStatus.Pending || 
+                                       x.Status == RetrainStatus.Training || 
+                                       x.Status == RetrainStatus.ExportingData));
 
                 if (!isRunning)
                 {
-                    _logger.LogInformation("Snake retrain threshold reached! Queueing MLOps pipeline.");
+                    _logger.LogWarning("🚀 AUTO-RETRAIN: Snake threshold reached! Enqueueing pipeline...");
                     _backgroundJobs.Enqueue<IRetrainOrchestrationService>(s => s.TriggerRetrainAsync(since));
                 }
             }
@@ -298,26 +280,32 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
         }
     }
 
-    private async Task CheckAndTriggerWoundRetrainAsync()
+    /// <summary>
+    /// Checks if we have enough new verified wound samples to trigger the MLOps retraining pipeline.
+    /// Runs as a background job to avoid blocking the main rescue flow.
+    /// </summary>
+    [DisableConcurrentExecution(timeoutInSeconds: 60)]
+    public async Task CheckAndTriggerWoundRetrainAsync()
     {
         try
         {
             int threshold = _mlopsOptions.WoundAutoRetrainThreshold;
 
-            var lastRetrain = await _unitOfWork.Repository<RetrainHistory, Guid>().GetQueryable(tracked: false)
+            var lastRetrain = await _unitOfWork.Repository<RetrainHistory, Guid>()
+                .GetQueryable(tracked: false)
+                .AsNoTracking()
                 .Where(x => x.PipelineType == RetrainPipelineType.WoundClassification)
                 .OrderByDescending(x => x.StartedAt)
-                .FirstOrDefaultAsync(x => x.Status == RetrainStatus.Success || x.Status == RetrainStatus.Pending || x.Status == RetrainStatus.Training);
+                .FirstOrDefaultAsync(x => x.Status == RetrainStatus.Success || 
+                                          x.Status == RetrainStatus.Pending || 
+                                          x.Status == RetrainStatus.Training);
 
             DateTime? since = lastRetrain?.StartedAt;
 
-            // Count new verified WOUND reviews since last retrain
             var newSamplesCount = await (
-                from r in _unitOfWork.Repository<AiInferenceReview, Guid>().GetQueryable(tracked: false)
-                join ai in _unitOfWork.Repository<AiInference, Guid>().GetQueryable(tracked: false)
-                    on r.AiInferenceId equals ai.Id
-                join m in _unitOfWork.Repository<IncidentMedia, Guid>().GetQueryable(tracked: false)
-                    on ai.IncidentMediaId equals m.Id
+                from r in _unitOfWork.Repository<AiInferenceReview, Guid>().GetQueryable(tracked: false).AsNoTracking()
+                join ai in _unitOfWork.Repository<AiInference, Guid>().GetQueryable(tracked: false).AsNoTracking() on r.AiInferenceId equals ai.Id
+                join m in _unitOfWork.Repository<IncidentMedia, Guid>().GetQueryable(tracked: false).AsNoTracking() on ai.IncidentMediaId equals m.Id
                 where (r.ReviewStatus == AiReviewStatus.ConfirmedCorrect || r.ReviewStatus == AiReviewStatus.Corrected)
                       && m.MediaType == MediaType.BiteWoundPhoto
                       && ai.IsSnakeBite != null
@@ -325,17 +313,22 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
                 select r.Id
             ).CountAsync();
 
-            _logger.LogInformation("MLOps Wound Check: {Count}/{Threshold} verified samples since last retrain.", newSamplesCount, threshold);
+            _logger.LogInformation("MLOps Wound Progress: {Count}/{Threshold} verified samples collected since {Since}", 
+                newSamplesCount, threshold, since?.ToString() ?? "Project Start");
 
             if (newSamplesCount >= threshold)
             {
-                bool isRunning = await _unitOfWork.Repository<RetrainHistory, Guid>().GetQueryable(tracked: false)
+                bool isRunning = await _unitOfWork.Repository<RetrainHistory, Guid>()
+                    .GetQueryable(tracked: false)
+                    .AsNoTracking()
                     .AnyAsync(x => x.PipelineType == RetrainPipelineType.WoundClassification
-                                   && (x.Status == RetrainStatus.Pending || x.Status == RetrainStatus.Training || x.Status == RetrainStatus.ExportingData));
+                                   && (x.Status == RetrainStatus.Pending || 
+                                       x.Status == RetrainStatus.Training || 
+                                       x.Status == RetrainStatus.ExportingData));
 
                 if (!isRunning)
                 {
-                    _logger.LogInformation("Wound retrain threshold reached! Queueing MLOps pipeline.");
+                    _logger.LogWarning("🚀 AUTO-RETRAIN: Wound threshold reached! Enqueueing pipeline...");
                     _backgroundJobs.Enqueue<IRetrainOrchestrationService>(s => s.TriggerWoundRetrainAsync(since));
                 }
             }

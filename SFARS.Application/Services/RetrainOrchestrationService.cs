@@ -11,6 +11,7 @@ using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Infrastructure.Configurations;
 using System.Diagnostics;
 using System.Text.Json;
+using Hangfire;
 
 namespace SFARS.Application.Services;
 
@@ -43,10 +44,11 @@ public class RetrainOrchestrationService : IRetrainOrchestrationService
     }
 
     /// <inheritdoc />
+    [DisableConcurrentExecution(timeoutInSeconds: 86400)]
     public async Task<IServiceResult> TriggerRetrainAsync(DateTime? since = null)
     {
         _logger.LogInformation("Starting Snake Species Retrain Orchestration...");
-
+        
         var history = new RetrainHistory
         {
             Id = Guid.NewGuid(),
@@ -110,6 +112,7 @@ public class RetrainOrchestrationService : IRetrainOrchestrationService
     }
 
     /// <inheritdoc />
+    [DisableConcurrentExecution(timeoutInSeconds: 86400)]
     public async Task<IServiceResult> TriggerWoundRetrainAsync(DateTime? since = null)
     {
         _logger.LogInformation("Starting Wound Classification Retrain Orchestration...");

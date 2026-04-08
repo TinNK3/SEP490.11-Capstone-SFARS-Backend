@@ -131,6 +131,8 @@ namespace SFARS.Application.Common
         public const string Incident_Reason0007 = "Incident.Reason0007";  // Dispatch fallback — no rescuer found
         public const string Incident_Reason0008 = "Incident.Reason0008";  // Victim resolved external (115)
         public const string Incident_Reason0009 = "Incident.Reason0009";  // Victim manually dispatched SOS
+        public const string Incident_Reason0010 = "Incident.Reason0010";  // System auto-closed abandoned incident
+        public const string Incident_Reason0011 = "Incident.Reason0011";  // Watchdog stagnation detected (VN)
 
         // Symptom tracking
         public const string Incident_Success0008 = "Incident.Success0008"; // Symptom update saved
