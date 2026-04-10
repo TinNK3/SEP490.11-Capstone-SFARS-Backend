@@ -11,6 +11,8 @@ namespace SFARS.Domain.Common.Enum
         [Description("Thông báo")]
         Announcement,
         [Description("Cộng đồng")]
-        Community
+        Community,
+        [Description("Chia sẻ")]
+        SharedContent
     }
 }

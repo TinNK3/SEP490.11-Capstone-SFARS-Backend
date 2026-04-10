@@ -13,6 +13,7 @@ using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications.Community;
 using SFARS.Domain.Specifications.Params;
 using SFARS.Domain.Specifications;
+using SFARS.Application.Interfaces.Services;
 using SFARS.Infrastructure.Hubs;
 using System.Linq;
 
@@ -24,17 +25,20 @@ public class CommunityPostService : ICommunityPostService
     private readonly IHubContext<CommunityHub> _hub;
     private readonly ILogger<CommunityPostService> _logger;
     private readonly IFileStorageService _fileStorage;
+    private readonly INotificationService _notificationService;
 
     public CommunityPostService(
         IUnitOfWork uow,
         IHubContext<CommunityHub> hub,
         ILogger<CommunityPostService> logger,
-        IFileStorageService fileStorage)
+        IFileStorageService fileStorage,
+        INotificationService notificationService)
     {
         _uow = uow;
         _hub = hub;
         _logger = logger;
         _fileStorage = fileStorage;
+        _notificationService = notificationService;
     }
 
     public async Task<IServiceResult> GetPostsAsync(CommunityPostSpecParams specParams, Guid? currentUserId)
@@ -224,6 +228,7 @@ public class CommunityPostService : ICommunityPostService
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Sửa bài đăng thành công", dto);
     }
 
+
     public async Task<IServiceResult> HidePostAsync(Guid postId, Guid requesterId)
     {
         var post = await _uow.Repository<ContentPost, Guid>().GetByIdAsync(postId);
@@ -305,6 +310,14 @@ public class CommunityPostService : ICommunityPostService
         post.UpdatedAt = DateTime.UtcNow;
         await _uow.SaveChangesAsync();
 
+        // Notify author if liked
+        if (isLiked)
+        {
+            await _notificationService.NotifyLikeAsync(post.AuthorId, userId, postId, false);
+        }
+
+        // Broadcast update via SignalR
+        await _hub.Clients.All.SendAsync("PostLiked", new { postId, likeCount = post.LikeCount, userId, isLiked });
         var payload = new LikeUpdatedPayload(postId, post.LikeCount, isLiked);
         await _hub.Clients.Group(CommunityHub.PostGroup(postId)).SendAsync("LikeUpdated", payload);
 
@@ -362,6 +375,22 @@ public class CommunityPostService : ICommunityPostService
         _uow.Repository<ContentPost, Guid>().Update(post);
         await _uow.SaveChangesAsync();
 
+        // Notify author of the post or the parent comment
+        if (parentId.HasValue)
+        {
+            var parentComment = await _uow.Repository<PostComment, Guid>().GetByIdAsync(parentId.Value);
+            if (parentComment != null)
+            {
+                await _notificationService.NotifyCommentReplyAsync(parentComment.AuthorId, authorId, postId, false);
+            }
+        }
+        else
+        {
+            await _notificationService.NotifyCommentAsync(post.AuthorId, authorId, postId, false);
+        }
+
+        // Broadcast to SignalR
+        await _hub.Clients.All.SendAsync("NewComment", new { postId, commentId = comment.Id, authorId });
         var spec = new BaseSpecification<PostComment>(c => c.Id == comment.Id);
         spec.ApplyInclude(q => q.Include(c => c.Author));
         var saved = await _uow.Repository<PostComment, Guid>().GetWithSpecAsync(spec, tracked: false);
@@ -489,6 +518,10 @@ public class CommunityPostService : ICommunityPostService
         var postsData = await postRepo.GetQueryable(tracked: false)
             .Include(p => p.Medias)
             .Include(p => p.Likes)
+            .Include(p => p.SharedPost!).ThenInclude(sp => sp.Author)
+            .Include(p => p.SharedPost!).ThenInclude(sp => sp.Medias)
+            .Include(p => p.SharedReel!).ThenInclude(sr => sr.User)
+            .Include(p => p.SharedReel!).ThenInclude(sr => sr.Likes)
             .Where(p => postIds.Contains(p.Id))
             .ToListAsync();
 
@@ -515,7 +548,21 @@ public class CommunityPostService : ICommunityPostService
                         p.LikeCount,
                         p.CommentCount,
                         currentUserId.HasValue && p.Likes.Any(l => l.UserId == currentUserId.Value),
-                        p.CreatedAt
+                        p.CreatedAt,
+                        p.SharedPost != null ? MapToDto(p.SharedPost, currentUserId, true) : null,
+                        p.SharedReel != null ? new SFARS.Application.Dtos.Reels.ReelResponseDto
+                        {
+                            Id = p.SharedReel.Id,
+                            UserId = p.SharedReel.UserId,
+                            UserFullName = p.SharedReel.User?.FullName ?? "Unknown",
+                            UserAvatar = p.SharedReel.User?.Avatar,
+                            VideoUrl = p.SharedReel.VideoUrl,
+                            Caption = p.SharedReel.Caption,
+                            CreatedAt = p.SharedReel.CreatedAt,
+                            LikeCount = p.SharedReel.LikeCount,
+                            CommentCount = p.SharedReel.CommentCount,
+                            IsLikedByCurrentUser = currentUserId.HasValue && p.SharedReel.Likes.Any(l => l.UserId == currentUserId.Value)
+                        } : null
                     ));
                 }
             }
@@ -545,6 +592,48 @@ public class CommunityPostService : ICommunityPostService
         return new ServiceResult(ResultCodeConst.SYS_Success0002, "Thành công", result);
     }
 
+    public async Task<IServiceResult> SharePostAsync(Guid postId, Guid userId, string? content)
+    {
+        var repo = _uow.Repository<ContentPost, Guid>();
+        var original = await repo.GetByIdAsync(postId);
+        if (original == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Bài đăng không tồn tại.");
+
+        // 1. Create Share Log
+        var shareLog = new ShareLog
+        {
+            UserId = userId,
+            PostId = postId,
+            Content = content,
+            CreatedAt = DateTime.UtcNow
+        };
+        await _uow.Repository<ShareLog, Guid>().AddAsync(shareLog);
+
+        // 2. Increment ShareCount
+        original.ShareCount++;
+
+        // 3. Create a NEW Post (SharedContent type)
+        var sharedPost = new ContentPost
+        {
+            Id = Guid.NewGuid(),
+            AuthorId = userId,
+            Type = PostType.SharedContent,
+            BodyContent = content, // Personal message when sharing
+            SharedPostId = postId,
+            IsPublished = true,
+            Title = $"Shared post from {original.Id}",
+            Slug = "share-p-" + Guid.NewGuid().ToString("N")[..10],
+            CreatedAt = DateTime.UtcNow
+        };
+        await repo.AddAsync(sharedPost);
+
+        await _uow.SaveChangesAsync();
+
+        // 4. Notify author
+        await _notificationService.NotifyShareAsync(original.AuthorId, userId, postId, false);
+
+        return new ServiceResult(ResultCodeConst.SYS_Success0002, "Đã chia sẻ bài viết thành công.");
+    }
+
     private static CommunityPostDto MapToDto(ContentPost p, Guid? viewerId, bool limitMedia = false)
     {
         var mediaList = p.Medias.OrderBy(m => m.Order).AsEnumerable();
@@ -558,7 +647,23 @@ public class CommunityPostService : ICommunityPostService
             p.LikeCount,
             p.CommentCount,
             viewerId.HasValue && p.Likes.Any(l => l.UserId == viewerId.Value),
-            p.CreatedAt
+            p.CreatedAt,
+            // Map SharedPost (one level deep is enough)
+            p.SharedPost != null ? MapToDto(p.SharedPost, viewerId, true) : null,
+            // Map SharedReel
+            p.SharedReel != null ? new SFARS.Application.Dtos.Reels.ReelResponseDto
+            {
+                Id = p.SharedReel.Id,
+                UserId = p.SharedReel.UserId,
+                UserFullName = p.SharedReel.User?.FullName ?? "Unknown",
+                UserAvatar = p.SharedReel.User?.Avatar,
+                VideoUrl = p.SharedReel.VideoUrl,
+                Caption = p.SharedReel.Caption,
+                CreatedAt = p.SharedReel.CreatedAt,
+                LikeCount = p.SharedReel.LikeCount,
+                CommentCount = p.SharedReel.CommentCount,
+                IsLikedByCurrentUser = viewerId.HasValue && p.SharedReel.Likes.Any(l => l.UserId == viewerId.Value)
+            } : null
         );
     }
 

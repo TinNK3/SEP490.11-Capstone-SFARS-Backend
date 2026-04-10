@@ -48,6 +48,7 @@ public partial class SFARSDbContext : DbContext
     public DbSet<Reel> Reels { get; set; }
     public DbSet<ReelLike> ReelLikes { get; set; }
     public DbSet<ReelComment> ReelComments { get; set; }
+    public DbSet<ShareLog> Shares { get; set; }
 
     // Finance & System
     public DbSet<Transaction> Transactions { get; set; }

@@ -12,4 +12,10 @@ public interface INotificationService
     Task<IServiceResult> MarkAsReadAsync(Guid notificationId, Guid userId);
     Task<IServiceResult> MarkAllAsReadAsync(Guid userId);
     Task<IServiceResult> GetUnreadCountAsync(Guid userId);
+
+    // Social Notifications
+    Task NotifyLikeAsync(Guid authorId, Guid likerId, Guid contentId, bool isReel);
+    Task NotifyCommentAsync(Guid authorId, Guid commenterId, Guid contentId, bool isReel);
+    Task NotifyCommentReplyAsync(Guid parentCommentAuthorId, Guid replierId, Guid contentId, bool isReel);
+    Task NotifyShareAsync(Guid authorId, Guid sharerId, Guid contentId, bool isReel);
 }

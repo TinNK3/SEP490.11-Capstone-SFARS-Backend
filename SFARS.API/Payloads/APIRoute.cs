@@ -84,6 +84,7 @@ namespace SFARS.API.Payloads
             public const string CreatePost = Base + "/posts";
             public const string AddComment = Base + "/posts/{id}/comments";
             public const string ToggleLike = Base + "/posts/{id}/like";
+            public const string Share = Base + "/posts/{id}/share";
 
             // [PUT]
             public const string UpdatePost = Base + "/posts/{id}";
@@ -115,6 +116,7 @@ namespace SFARS.API.Payloads
             public const string Create = Base;
             public const string ToggleLike = Base + "/{id}/like";
             public const string AddComment = Base + "/{id}/comments";
+            public const string Share = Base + "/{id}/share";
 
             // [PATCH]
             public const string Hide = Base + "/{id}/hide";

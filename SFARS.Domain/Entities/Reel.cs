@@ -12,6 +12,7 @@ public class Reel : BaseEntity
 
     public int LikeCount { get; set; }
     public int CommentCount { get; set; }
+    public int ShareCount { get; set; }
 
     // Navigation properties
     public virtual User User { get; set; } = null!;

@@ -8,7 +8,9 @@ using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Specifications.Interfaces;
 using SFARS.Domain.Interfaces.Repositories.Base;
+using SFARS.Application.Interfaces.Services;
 using System.Linq.Expressions;
+using SFARS.Domain.Common.Enum;
 
 namespace SFARS.Tests.Application.Services.Reels;
 
@@ -20,6 +22,8 @@ public class ReelServiceTests
     private readonly Mock<IGenericRepository<ReelLike, object>> _likeRepoMock;
     private readonly Mock<IGenericRepository<User, Guid>> _userRepoMock;
     private readonly Mock<IGenericRepository<ReelComment, Guid>> _commentRepoMock;
+    private readonly Mock<IGenericRepository<ContentPost, Guid>> _postRepoMock;
+    private readonly Mock<INotificationService> _notificationServiceMock;
 
     private readonly ReelService _sut;
 
@@ -31,13 +35,16 @@ public class ReelServiceTests
         _likeRepoMock = new Mock<IGenericRepository<ReelLike, object>>();
         _userRepoMock = new Mock<IGenericRepository<User, Guid>>();
         _commentRepoMock = new Mock<IGenericRepository<ReelComment, Guid>>();
+        _postRepoMock = new Mock<IGenericRepository<ContentPost, Guid>>();
+        _notificationServiceMock = new Mock<INotificationService>();
 
         _uowMock.Setup(u => u.Repository<Reel, Guid>()).Returns(_reelRepoMock.Object);
         _uowMock.Setup(u => u.Repository<ReelLike, object>()).Returns(_likeRepoMock.Object);
         _uowMock.Setup(u => u.Repository<User, Guid>()).Returns(_userRepoMock.Object);
         _uowMock.Setup(u => u.Repository<ReelComment, Guid>()).Returns(_commentRepoMock.Object);
-
-        _sut = new ReelService(_uowMock.Object, _fileStorageMock.Object);
+        _uowMock.Setup(u => u.Repository<ContentPost, Guid>()).Returns(_postRepoMock.Object);
+ 
+        _sut = new ReelService(_uowMock.Object, _fileStorageMock.Object, _notificationServiceMock.Object);
     }
 
     [Fact]
@@ -181,5 +188,34 @@ public class ReelServiceTests
         var data = result.Data as ReelCommentListResponse;
         data.Should().NotBeNull();
         data!.Items.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task ShareReelAsync_HopLe_TaoPostMoiVaNotifyAuthor()
+    {
+        // Arrange
+        var reelId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var reel = new Reel { Id = reelId, UserId = authorId, ShareCount = 0 };
+
+        _reelRepoMock.Setup(r => r.GetByIdAsync(reelId)).ReturnsAsync(reel);
+        _uowMock.Setup(u => u.Repository<ShareLog, Guid>()).Returns(new Mock<IGenericRepository<ShareLog, Guid>>().Object);
+        _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Act
+        var result = await _sut.ShareReelAsync(reelId, userId, "Awesome short!");
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
+        reel.ShareCount.Should().Be(1);
+
+        // Verify a new post was created linked to this reel
+        _postRepoMock.Verify(r => r.AddAsync(It.Is<ContentPost>(p => 
+            p.Type == PostType.SharedContent && 
+            p.SharedReelId == reelId && 
+            p.AuthorId == userId)), Times.Once);
+
+        _notificationServiceMock.Verify(n => n.NotifyShareAsync(authorId, userId, reelId, true), Times.Once);
     }
 }
