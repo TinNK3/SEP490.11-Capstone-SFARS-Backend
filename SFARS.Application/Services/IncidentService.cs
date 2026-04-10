@@ -2,6 +2,7 @@ using Hangfire;
 using MapsterMapper;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NetTopologySuite.Geometries;
@@ -39,6 +40,7 @@ namespace SFARS.Application.Services
         private readonly IHubContext<RescueDispatchHub> _rescueHub;
         private readonly IHubContext<LocationTrackingHub> _locationHub;
         private readonly IFcmPushService _fcmService;
+        private readonly IConfiguration _configuration;
 
         public IncidentService(
             ISystemMessageService msgService,
@@ -52,7 +54,8 @@ namespace SFARS.Application.Services
             ISpeechToTextService speechToTextService,
             IHubContext<RescueDispatchHub> rescueHub,
             IHubContext<LocationTrackingHub> locationHub,
-            IFcmPushService fcmService)
+            IFcmPushService fcmService,
+            IConfiguration configuration)
             : base(msgService, unitOfWork, mapper, logger)
         {
             _fileStorageService = fileStorageService;
@@ -63,6 +66,7 @@ namespace SFARS.Application.Services
             _rescueHub = rescueHub;
             _locationHub = locationHub;
             _fcmService = fcmService;
+            _configuration = configuration;
         }
 
 
@@ -1456,6 +1460,99 @@ namespace SFARS.Application.Services
                     "Symptom broadcast (Unassigned) sent to {Count} rescuers. IncidentId={Id}",
                     rescuers.Count(), incidentId);
             }
+        }
+
+        #endregion
+        #region SMS Gateway 
+
+        /// <summary>
+        /// Processes an incoming SOS from an SMS via a DIY Gateway.
+        /// Extracts GPS, finds the user by phone number, and creates the Incident.
+        /// </summary>
+        public async Task<IServiceResult> ProcessSmsWebhookAsync(string senderPhone, string messageBody, string secretKey)
+        {
+            var expectedKey = _configuration["SmsGateway:SecretKey"];
+            if (string.IsNullOrEmpty(expectedKey) || secretKey != expectedKey)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Incident_Warning0011,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0011)
+                );
+            }
+
+            // Fallback expected format: "SFARS SOS 10.772,106.698"
+            var text = messageBody?.Trim();
+            if (string.IsNullOrEmpty(text) || !text.StartsWith(DispatchConstants.SmsSosPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Incident_Warning0012, 
+                    await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0012)
+                );
+            }
+
+            var parts = text.Substring(DispatchConstants.SmsSosPrefix.Length).Split(',', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length != 2 || 
+                !double.TryParse(parts[0], out var lat) || 
+                !double.TryParse(parts[1], out var lng))
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Incident_Warning0013, 
+                    await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0013)
+                );
+            }
+
+            // Normalize phone: e.g. +84901234567 -> 0901234567
+            var normalizedPhone = NormalizeVnPhoneNumber(senderPhone);
+
+            // Find user in database
+            var user = await _unitOfWork.Repository<User, Guid>()
+                .GetQueryable(tracked: false)
+                .FirstOrDefaultAsync(u => u.Phone == normalizedPhone);
+
+            if (user == null)
+            {
+                _logger.LogWarning("SMS SOS received but no matching user found for phone: {Phone}", normalizedPhone);
+                return new ServiceResult(
+                    ResultCodeConst.Incident_Warning0014, 
+                    await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0014)
+                );
+            }
+
+            // Automatically create Incident on behalf of this user
+            var dto = new IncidentDto
+            {
+                Latitude = lat,
+                Longitude = lng,
+                AddressString = DispatchConstants.SmsAddressFallback,
+                Description = DispatchConstants.SmsDescriptionFallback,
+                PriorityLevel = SeverityLevel.Critical // Always treat offline SOS as Critical
+            };
+
+            var createResult = await CreateIncidentAsync(user.Id, dto);
+            if (!createResult.ResultCode.Contains("Success"))
+            {
+                _logger.LogError("Failed to create Incident from SMS: {Message}", createResult.Message);
+                return createResult;
+            }
+
+            // [CRITICAL] Trigger the actual SOS dispatch flow (Ping Rescuers)
+            // Since it's an offline fallback, we bypass the grace period and dispatch immediately.
+            if (createResult.Data is IncidentDto createdIncident)
+            {
+                BackgroundJob.Enqueue<IDispatchService>(s => s.StartDispatchAsync(createdIncident.Id));
+                _logger.LogInformation("SMS SOS Dispatch triggered for Incident {Code}", createdIncident.Code);
+            }
+            
+            return createResult;
+        }
+
+        public static string NormalizeVnPhoneNumber(string phone)
+        {
+            if (string.IsNullOrWhiteSpace(phone)) return string.Empty;
+            var clean = new string(phone.Where(c => char.IsDigit(c) || c == '+').ToArray());
+            if (clean.StartsWith("+84")) clean = "0" + clean.Substring(3);
+            if (clean.StartsWith("84")) clean = "0" + clean.Substring(2);
+            return clean;
         }
 
         #endregion

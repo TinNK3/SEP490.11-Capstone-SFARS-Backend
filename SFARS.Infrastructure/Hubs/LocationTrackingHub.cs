@@ -11,9 +11,8 @@ using System.Security.Claims;
 namespace SFARS.Infrastructure.Hubs;
 
 /// <summary>
-/// SignalR Hub for real-time location tracking during incidents.
-/// Clients join group "incident-{incidentId}" to receive location updates.
-/// NO broadcast method exposed — server pushes via IHubContext only.
+/// SignalR Hub for real-time location tracking and incident communication.
+/// Clients join group "incident-{incidentId}" to receive updates.
 /// </summary>
 public class LocationTrackingHub : Hub
 {
@@ -35,11 +34,10 @@ public class LocationTrackingHub : Hub
     public async Task JoinIncidentTracking(Guid incidentId)
     {
         var userIdClaim = Context.User?
-        .FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            .FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
         if (!Guid.TryParse(userIdClaim, out var userId))
             throw new HubException("Unauthorized");
-
 
         // Single query: is user a participant in an active incident?
         var isParticipant = await _unitOfWork.Repository<Incident, Guid>()
@@ -59,13 +57,11 @@ public class LocationTrackingHub : Hub
 
     /// <summary>
     /// Public join via QR tracking code (no auth required).
-    /// Rate limited: max 5 invalid attempts per connection.
     /// </summary>
     public async Task JoinIncidentTrackingPublic(string trackingCode)
     {
         var connId = Context.ConnectionId;
 
-        // Rate limit invalid attempts
         var attempts = _publicAttempts.GetOrAdd(connId, 0);
         if (attempts >= 5)
             throw new HubException("Too many invalid attempts");
@@ -84,15 +80,10 @@ public class LocationTrackingHub : Hub
             throw new HubException("Invalid or expired tracking code");
         }
 
-        // Reset counter on success
         _publicAttempts.TryRemove(connId, out _);
-
         await Groups.AddToGroupAsync(connId, LocationConstants.SignalRGroupPrefix + incident.Id);
     }
 
-    /// <summary>
-    /// Leave an incident tracking room.
-    /// </summary>
     public async Task LeaveIncidentTracking(Guid incidentId)
     {
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, LocationConstants.SignalRGroupPrefix + incidentId);
@@ -103,4 +94,38 @@ public class LocationTrackingHub : Hub
         _publicAttempts.TryRemove(Context.ConnectionId, out _);
         return base.OnDisconnectedAsync(exception);
     }
+
+    #region Video Call Signaling
+
+    /// <summary>
+    /// Notify other participants in the incident group that a call has been accepted.
+    /// </summary>
+    [Authorize]
+    public async Task AcceptVideoCall(Guid incidentId)
+    {
+        await Clients.OthersInGroup(LocationConstants.SignalRGroupPrefix + incidentId)
+            .SendAsync(VideoCallConstants.EventCallAccepted, incidentId);
+    }
+
+    /// <summary>
+    /// Notify other participants that the call was rejected.
+    /// </summary>
+    [Authorize]
+    public async Task RejectVideoCall(Guid incidentId, string reason)
+    {
+        await Clients.OthersInGroup(LocationConstants.SignalRGroupPrefix + incidentId)
+            .SendAsync(VideoCallConstants.EventCallRejected, incidentId, reason);
+    }
+
+    /// <summary>
+    /// Notify other participants that the call has ended.
+    /// </summary>
+    [Authorize]
+    public async Task EndVideoCall(Guid incidentId)
+    {
+        await Clients.OthersInGroup(LocationConstants.SignalRGroupPrefix + incidentId)
+            .SendAsync(VideoCallConstants.EventCallEnded, incidentId);
+    }
+
+    #endregion
 }

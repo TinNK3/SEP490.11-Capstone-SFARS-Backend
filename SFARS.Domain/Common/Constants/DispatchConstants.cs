@@ -95,4 +95,9 @@ public static class DispatchConstants
     public const string FcmSymptomUpdateTitleKey = "sos_symptom_update";
     public const string PushSymptomTitle = "Cập nhật triệu chứng!";
     public const string PushSymptomBody = "Nạn nhân ca {0} vừa cập nhật triệu chứng mới. Chạm để xem chi tiết.";
+
+    // SMS Fallback Constants
+    public const string SmsSosPrefix = "SFARS SOS";
+    public const string SmsAddressFallback = "Khu vực không xác định (Báo cáo qua SMS Ngoại tuyến)";
+    public const string SmsDescriptionFallback = "Tín hiệu SOS gửi tự động qua SMS khi nạn nhân mất kết nối mạng. Hãy chủ động liên lạc qua cuộc gọi thoại.";
 }

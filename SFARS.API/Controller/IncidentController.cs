@@ -226,6 +226,24 @@ namespace SFARS.API.Controller
 
         #endregion
 
+        #region Offline Webhook (SMS)
+
+        /// <summary>
+        /// Webhook endpoint for DIY SMS Gateway.
+        /// Processes offline SOS signals sent via SMS.
+        /// </summary>
+        /// <param name="req">SMS Payload</param>
+        /// <returns>Result of incident creation</returns>
+        [AllowAnonymous]
+        [HttpPost(APIRoute.Webhook.SmsSOSInbound, Name = nameof(ReceiveSmsWebhook))]
+        public async Task<IActionResult> ReceiveSmsWebhook([FromBody] SmsWebhookRequestDto req)
+        {
+            var result = await _incidentService.ProcessSmsWebhookAsync(req.SenderPhone, req.MessageBody, req.SecretKey);
+            return this.ToIActionResult(result);
+        }
+
+        #endregion
+
         #region SOS Grace Period & Anti-Spam
 
         /// <summary>

@@ -60,6 +60,9 @@ public class SnakeConfiguration : IEntityTypeConfiguration<Snake>
         builder.Property(e => e.IsActive)
              .HasColumnName("is_active");
 
+        builder.Property(e => e.EmbeddingJson)
+             .HasColumnName("embedding_json");
+
         builder.Property(e => e.CreatedAt).HasColumnName("created_at");
         builder.Property(e => e.CreatedBy).HasColumnName("created_by");
         builder.Property(e => e.UpdatedAt).HasColumnName("updated_at");

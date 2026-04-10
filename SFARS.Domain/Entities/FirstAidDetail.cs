@@ -13,5 +13,11 @@ public class FirstAidDetail : BaseEntity
     public string? ImageUrl { get; set; }
     public SystemLanguage LanguageCode { get; set; } = SystemLanguage.Vietnamese;
 
+    /// <summary>
+    /// Semantic embedding vector for the first aid step (stored as JSON array).
+    /// Used for RAG semantic search.
+    /// </summary>
+    public string? EmbeddingJson { get; set; }
+
     public virtual Snake? Snake { get; set; } = null!;
 }

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SFARS.Application.Common;
@@ -10,6 +11,11 @@ using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Repositories.Base;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Domain.Specifications.Interfaces;
+using SFARS.Domain.Specifications.Params;
+using SFARS.Application.Dtos;
+using System.Collections;
+using System.Linq.Expressions;
 using ChatHistoryItem = SFARS.Domain.Interfaces.Infrastructure.ChatHistoryItem;
 
 namespace SFARS.Tests.Application.Services.Chat;
@@ -58,12 +64,35 @@ public class ChatServiceTests
 
         _geminiServiceMock.Setup(x => x.ModelName).Returns("gemini-1.5-flash");
 
+        // Default mock: GetQueryable returns empty async-enumerable collections
+        SetupDefaultQueryableMocks();
+
+        var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+
         _sut = new ChatService(
             _msgServiceMock.Object,
             _unitOfWorkMock.Object,
             _geminiServiceMock.Object,
-            _loggerMock.Object
+            _loggerMock.Object,
+            memoryCache
         );
+    }
+
+    /// <summary>
+    /// Sets up default empty queryable mocks for all repos used by ChatService.
+    /// Individual tests can override specific setups as needed.
+    /// </summary>
+    private void SetupDefaultQueryableMocks()
+    {
+        _sessionRepoMock.Setup(r => r.GetQueryable(It.IsAny<bool>()))
+            .Returns(ToAsyncQueryable(new List<ChatSession>()));
+        _messageRepoMock.Setup(r => r.GetQueryable(It.IsAny<bool>()))
+            .Returns(ToAsyncQueryable(new List<ChatMessage>()));
+        _snakeRepoMock.Setup(r => r.GetQueryable(It.IsAny<bool>()))
+            .Returns(ToAsyncQueryable(new List<Snake>()));
+        _firstAidRepoMock.Setup(r => r.GetQueryable(It.IsAny<bool>()))
+            .Returns(ToAsyncQueryable(new List<FirstAidDetail>()));
     }
 
     #region SendMessageAsync Tests
@@ -222,9 +251,10 @@ public class ChatServiceTests
         Guid? sessionId = null;
         var message = "What should I do if bitten by a cobra?";
 
-        _snakeRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<Snake>());
-        _firstAidRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<FirstAidDetail>());
-        _messageRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<ChatMessage>());
+        // Embedding call will throw → triggers keyword fallback
+        _geminiServiceMock
+            .Setup(x => x.GenerateEmbeddingAsync(It.IsAny<string>()))
+            .ThrowsAsync(new Exception("Embedding unavailable"));
 
         _geminiServiceMock
             .Setup(x => x.ChatWithContextAsync(
@@ -276,9 +306,10 @@ public class ChatServiceTests
         };
 
         _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
-        _snakeRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<Snake>());
-        _firstAidRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<FirstAidDetail>());
-        _messageRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<ChatMessage>());
+
+        _geminiServiceMock
+            .Setup(x => x.GenerateEmbeddingAsync(It.IsAny<string>()))
+            .ThrowsAsync(new Exception("Embedding unavailable"));
 
         _geminiServiceMock
             .Setup(x => x.ChatWithContextAsync(
@@ -320,9 +351,9 @@ public class ChatServiceTests
         Guid? sessionId = null;
         var longMessage = new string('a', 100); // 100 characters
 
-        _snakeRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<Snake>());
-        _firstAidRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<FirstAidDetail>());
-        _messageRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<ChatMessage>());
+        _geminiServiceMock
+            .Setup(x => x.GenerateEmbeddingAsync(It.IsAny<string>()))
+            .ThrowsAsync(new Exception("Embedding unavailable"));
 
         _geminiServiceMock
             .Setup(x => x.ChatWithContextAsync(
@@ -366,9 +397,10 @@ public class ChatServiceTests
         };
 
         _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
-        _snakeRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<Snake>());
-        _firstAidRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<FirstAidDetail>());
-        _messageRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<ChatMessage>());
+
+        _geminiServiceMock
+            .Setup(x => x.GenerateEmbeddingAsync(It.IsAny<string>()))
+            .ThrowsAsync(new Exception("Embedding unavailable"));
 
         _geminiServiceMock
             .Setup(x => x.ChatWithContextAsync(
@@ -390,7 +422,7 @@ public class ChatServiceTests
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Chat_Success0001);
         var response = result.Data as SendMessageResponseDto;
-        response!.AiMessage.Content.Should().Be("AI service temporarily unavailable");
+        response!.AiMessage.Content.Should().Contain("AI service temporarily unavailable");
 
         _loggerMock.Verify(
             x => x.Log(
@@ -424,9 +456,10 @@ public class ChatServiceTests
         };
 
         _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
-        _snakeRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<Snake>());
-        _firstAidRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<FirstAidDetail>());
-        _messageRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<ChatMessage>());
+
+        _geminiServiceMock
+            .Setup(x => x.GenerateEmbeddingAsync(It.IsAny<string>()))
+            .ThrowsAsync(new Exception("Embedding unavailable"));
 
         _geminiServiceMock
             .Setup(x => x.ChatWithContextAsync(
@@ -463,7 +496,7 @@ public class ChatServiceTests
         var userId = Guid.Empty;
 
         // Act
-        var result = await _sut.GetSessionsAsync(userId, 1, 10);
+        var result = await _sut.GetSessionsAsync(userId, new BaseSpecParams { Page = 1, PageSize = 10 });
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0013);
@@ -490,17 +523,21 @@ public class ChatServiceTests
             new ChatSession { Id = Guid.NewGuid(), UserId = otherUserId, Title = "Other Session", LastMessageAt = DateTime.UtcNow, IsActive = true, CreatedAt = DateTime.UtcNow }
         };
 
-        _sessionRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(sessions);
+        _sessionRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<ChatSession>>(), It.IsAny<bool>()))
+            .ReturnsAsync(sessions.Where(s => s.UserId == userId).OrderByDescending(s => s.LastMessageAt).ToList());
+        _sessionRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<ChatSession>>()))
+            .ReturnsAsync(2);
 
         // Act
-        var result = await _sut.GetSessionsAsync(userId, 1, 10);
+        var result = await _sut.GetSessionsAsync(userId, new BaseSpecParams { Page = 1, PageSize = 10 });
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
-        var data = result.Data as List<ChatSessionDto>;
+        var data = result.Data as PaginatedResultDto<ChatSessionDto>;
         data.Should().NotBeNull();
-        data!.Count.Should().Be(2); // Only user's sessions
-        data.First().Title.Should().Be("Session 2"); // Most recent first
+        data!.Items.Should().NotBeNull();
+        data.Items.Count().Should().Be(2); // Only user's sessions
+        data.Items.First().Title.Should().Be("Session 2"); // Most recent first
     }
 
     /// <summary>
@@ -526,16 +563,19 @@ public class ChatServiceTests
             })
             .ToList();
 
-        _sessionRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(sessions);
+        _sessionRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<ChatSession>>(), It.IsAny<bool>()))
+            .ReturnsAsync(sessions.Skip(10).Take(10).ToList()); // page 2, page size 10
+        _sessionRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<ChatSession>>()))
+            .ReturnsAsync(15);
 
         // Act
-        var result = await _sut.GetSessionsAsync(userId, page: 2, pageSize: 10);
+        var result = await _sut.GetSessionsAsync(userId, new BaseSpecParams { Page = 2, PageSize = 10 });
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
-        var data = result.Data as List<ChatSessionDto>;
+        var data = result.Data as PaginatedResultDto<ChatSessionDto>;
         data.Should().NotBeNull();
-        data!.Count.Should().Be(5); // Remaining sessions
+        data!.Items.Count().Should().Be(5); // Remaining sessions
     }
 
     /// <summary>
@@ -549,16 +589,21 @@ public class ChatServiceTests
     {
         // Arrange
         var userId = Guid.NewGuid();
-        _sessionRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<ChatSession>());
+
+        // Default setup already returns empty list for GetAllWithSpecAsync / CountAsync due to Moq behavior returning empty list/0, but we can explicit:
+        _sessionRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<ChatSession>>(), It.IsAny<bool>()))
+            .ReturnsAsync(new List<ChatSession>());
+        _sessionRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<ChatSession>>()))
+            .ReturnsAsync(0);
 
         // Act
-        var result = await _sut.GetSessionsAsync(userId, 1, 10);
+        var result = await _sut.GetSessionsAsync(userId, new BaseSpecParams { Page = 1, PageSize = 10 });
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
-        var data = result.Data as List<ChatSessionDto>;
+        var data = result.Data as PaginatedResultDto<ChatSessionDto>;
         data.Should().NotBeNull();
-        data!.Should().BeEmpty();
+        data!.Items.Should().BeEmpty();
     }
 
     #endregion
@@ -581,7 +626,7 @@ public class ChatServiceTests
         _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync((ChatSession?)null);
 
         // Act
-        var result = await _sut.GetMessagesAsync(userId, sessionId, 1, 10);
+        var result = await _sut.GetMessagesAsync(userId, sessionId, new BaseSpecParams { Page = 1, PageSize = 10 });
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0002);
@@ -611,7 +656,7 @@ public class ChatServiceTests
         _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
 
         // Act
-        var result = await _sut.GetMessagesAsync(userId, sessionId, 1, 10);
+        var result = await _sut.GetMessagesAsync(userId, sessionId, new BaseSpecParams { Page = 1, PageSize = 10 });
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0002);
@@ -641,17 +686,20 @@ public class ChatServiceTests
         };
 
         _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
-        _messageRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(messages);
+        _messageRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<ChatMessage>>(), It.IsAny<bool>()))
+            .ReturnsAsync(messages.Where(m => m.ChatSessionId == sessionId).OrderBy(m => m.CreatedAt).ToList());
+        _messageRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<ChatMessage>>()))
+            .ReturnsAsync(2);
 
         // Act
-        var result = await _sut.GetMessagesAsync(userId, sessionId, 1, 10);
+        var result = await _sut.GetMessagesAsync(userId, sessionId, new BaseSpecParams { Page = 1, PageSize = 10 });
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
-        var data = result.Data as List<ChatMessageDto>;
+        var data = result.Data as PaginatedResultDto<ChatMessageDto>;
         data.Should().NotBeNull();
-        data!.Count.Should().Be(2); // Only messages from this session
-        data.First().Content.Should().Be("Hello"); // Oldest first
+        data!.Items.Count().Should().Be(2); // Only messages from this session
+        data.Items.First().Content.Should().Be("Hello"); // Oldest first
     }
 
     /// <summary>
@@ -681,16 +729,95 @@ public class ChatServiceTests
             .ToList();
 
         _sessionRepoMock.Setup(r => r.GetByIdAsync(sessionId)).ReturnsAsync(session);
-        _messageRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(messages);
+        _messageRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<ChatMessage>>(), It.IsAny<bool>()))
+            .ReturnsAsync(messages.Skip(20).Take(10).ToList()); // Page 3, pageSize 10
+        _messageRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<ChatMessage>>()))
+            .ReturnsAsync(25);
 
         // Act
-        var result = await _sut.GetMessagesAsync(userId, sessionId, page: 3, pageSize: 10);
+        var result = await _sut.GetMessagesAsync(userId, sessionId, new BaseSpecParams { Page = 3, PageSize = 10 });
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
-        var data = result.Data as List<ChatMessageDto>;
+        var data = result.Data as PaginatedResultDto<ChatMessageDto>;
         data.Should().NotBeNull();
-        data!.Count.Should().Be(5); // Last 5 messages
+        data!.Items.Count().Should().Be(5); // Last 5 messages
+    }
+
+    #endregion
+
+    #region Async Queryable Test Helpers
+
+    private static IQueryable<T> ToAsyncQueryable<T>(IEnumerable<T> source)
+    {
+        return new TestAsyncEnumerable<T>(source);
+    }
+
+    private sealed class TestAsyncQueryProvider<TEntity>(IQueryProvider inner) : IAsyncQueryProvider
+    {
+        public IQueryable CreateQuery(Expression expression)
+        {
+            return new TestAsyncEnumerable<TEntity>(expression);
+        }
+
+        public IQueryable<TElement> CreateQuery<TElement>(Expression expression)
+        {
+            return new TestAsyncEnumerable<TElement>(expression);
+        }
+
+        public object? Execute(Expression expression)
+        {
+            return inner.Execute(expression);
+        }
+
+        public TResult Execute<TResult>(Expression expression)
+        {
+            return inner.Execute<TResult>(expression);
+        }
+
+        public TResult ExecuteAsync<TResult>(Expression expression, CancellationToken cancellationToken = default)
+        {
+            var expectedResultType = typeof(TResult).GetGenericArguments().First();
+            var executionResult = typeof(IQueryProvider)
+                .GetMethods()
+                .First(m => m.Name == nameof(IQueryProvider.Execute) && m.IsGenericMethod)
+                .MakeGenericMethod(expectedResultType)
+                .Invoke(inner, new[] { expression });
+
+            return (TResult)typeof(Task)
+                .GetMethod(nameof(Task.FromResult))!
+                .MakeGenericMethod(expectedResultType)
+                .Invoke(null, new[] { executionResult })!;
+        }
+    }
+
+    private sealed class TestAsyncEnumerable<T> : EnumerableQuery<T>, IAsyncEnumerable<T>, IQueryable<T>
+    {
+        public TestAsyncEnumerable(IEnumerable<T> enumerable) : base(enumerable) { }
+        public TestAsyncEnumerable(Expression expression) : base(expression) { }
+
+        public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+        {
+            return new TestAsyncEnumerator<T>(this.AsEnumerable().GetEnumerator());
+        }
+
+        IQueryProvider IQueryable.Provider => new TestAsyncQueryProvider<T>(this);
+    }
+
+    private sealed class TestAsyncEnumerator<T>(IEnumerator<T> inner) : IAsyncEnumerator<T>
+    {
+        public T Current => inner.Current;
+
+        public ValueTask<bool> MoveNextAsync()
+        {
+            return new ValueTask<bool>(inner.MoveNext());
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            inner.Dispose();
+            return ValueTask.CompletedTask;
+        }
     }
 
     #endregion

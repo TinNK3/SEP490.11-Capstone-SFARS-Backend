@@ -12,6 +12,12 @@
     "Vi": "Phiên chat này đã kết thúc."
   },
   {
+    "MsgId": "Chat.Warning0002",
+    "MsgContent": "Rate limit exceeded. Please wait a few seconds before sending another message.",
+    "En": "Rate limit exceeded. Please wait a few seconds before sending another message.",
+    "Vi": "Vui lòng chờ vài giây trước khi gửi tin nhắn tiếp theo."
+  },
+  {
     "MsgId": "Chat.Fail0001",
     "MsgContent": "AI assistant is temporarily unavailable. Please try again later.",
     "En": "AI assistant is temporarily unavailable. Please try again later.",
@@ -964,5 +970,53 @@
     "MsgContent": "System automatically closed the incident due to inactivity in unassigned state.",
     "En": "System automatically closed the incident due to inactivity in unassigned state.",
     "Vi": "Hệ thống tự động đóng ca cấp cứu do quá thời gian chờ phản hồi."
+  },
+  {
+    "MsgId": "Incident.Warning0011",
+    "MsgContent": "Invalid Gateway Secret Key.",
+    "En": "Invalid Gateway Secret Key.",
+    "Vi": "Mã bí mật Gateway không hợp lệ."
+  },
+  {
+    "MsgId": "Incident.Warning0012",
+    "MsgContent": "Invalid SOS message format.",
+    "En": "Invalid SOS message format.",
+    "Vi": "Định dạng tin nhắn SOS không hợp lệ."
+  },
+  {
+    "MsgId": "Incident.Warning0013",
+    "MsgContent": "Invalid coordinates format in SMS.",
+    "En": "Invalid coordinates format in SMS.",
+    "Vi": "Định dạng tọa độ trong SMS không hợp lệ."
+  },
+  {
+    "MsgId": "Incident.Warning0014",
+    "MsgContent": "No user found with this phone number.",
+    "En": "No user found with this phone number.",
+    "Vi": "Không tìm thấy người dùng tương ứng với số điện thoại này."
+  },
+  {
+    "MsgId": "VideoCall.Success0001",
+    "MsgContent": "Video call token generated.",
+    "En": "Video call token generated.",
+    "Vi": "Đã tạo mã kết nối cuộc gọi video."
+  },
+  {
+    "MsgId": "VideoCall.Warning0001",
+    "MsgContent": "You are not authorized to join this call.",
+    "En": "You are not authorized to join this call.",
+    "Vi": "Bạn không có quyền tham gia cuộc gọi này."
+  },
+  {
+    "MsgId": "VideoCall.Warning0002",
+    "MsgContent": "The incident is not in a state that allows calling.",
+    "En": "The incident is not in a state that allows calling.",
+    "Vi": "Sự cố đang ở trạng thái không cho phép thực hiện cuộc gọi."
+  },
+  {
+    "MsgId": "VideoCall.Warning0003",
+    "MsgContent": "Video call configuration is missing.",
+    "En": "Video call configuration is missing.",
+    "Vi": "Cấu hình cuộc gọi video bị thiếu."
   }
 ]

@@ -1,6 +1,7 @@
 using FluentAssertions;
 using MapsterMapper;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -45,6 +46,7 @@ public class IncidentServiceTests
     protected readonly Mock<IHubContext<RescueDispatchHub>> _rescueHubMock;
     protected readonly Mock<IHubContext<LocationTrackingHub>> _locationHubMock;
     protected readonly Mock<IFcmPushService> _fcmServiceMock;
+    protected readonly Mock<IConfiguration> _configurationMock;
     protected readonly IncidentService _sut; // System Under Test
 
     public IncidentServiceTests()
@@ -67,6 +69,7 @@ public class IncidentServiceTests
         _rescueHubMock = new Mock<IHubContext<RescueDispatchHub>>();
         _locationHubMock = new Mock<IHubContext<LocationTrackingHub>>();
         _fcmServiceMock = new Mock<IFcmPushService>();
+        _configurationMock = new Mock<IConfiguration>();
 
         // Setup repositories
         _unitOfWorkMock.Setup(x => x.Repository<Incident, Guid>()).Returns(_incidentRepoMock.Object);
@@ -102,7 +105,8 @@ public class IncidentServiceTests
             _sttServiceMock.Object,
             _rescueHubMock.Object,
             _locationHubMock.Object,
-            _fcmServiceMock.Object
+            _fcmServiceMock.Object,
+            _configurationMock.Object
         );
     }
 
