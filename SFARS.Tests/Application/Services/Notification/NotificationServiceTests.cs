@@ -238,7 +238,6 @@ namespace SFARS.Tests.Application.Services.Notification
 
         /// <summary>
         /// Test Type: NORMAL
-        /// Test Type: NORMAL
         /// Tests: SendNotificationsAsync dispatches SignalR ReceiveNotification event
         /// Precondition: Valid single user request
         /// Expected Result: SignalR sends "ReceiveNotification" to correct userId
