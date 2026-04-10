@@ -21,17 +21,20 @@ public class NotificationService : INotificationService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IHubContext<NotificationHub> _hubContext;
     private readonly ILogger<NotificationService> _logger;
+    private readonly IFcmPushService _fcmPushService;
 
     public NotificationService(
         ISystemMessageService msgService,
         IUnitOfWork unitOfWork,
         IHubContext<NotificationHub> hubContext,
-        ILogger<NotificationService> logger)
+        ILogger<NotificationService> logger,
+        IFcmPushService fcmPushService)
     {
         _msgService = msgService;
         _unitOfWork = unitOfWork;
         _hubContext = hubContext;
         _logger = logger;
+        _fcmPushService = fcmPushService;
     }
 
     public async Task<IServiceResult> SendNotificationAsync(Guid userId, string title, string message, NotificationType type, Guid? referenceId = null)
@@ -42,7 +45,7 @@ public class NotificationService : INotificationService
     public async Task<IServiceResult> SendNotificationsAsync(IEnumerable<Guid> userIds, string title, string message, NotificationType type, Guid? referenceId = null)
     {
         var userIdsList = userIds.Distinct().ToList();
-        if (!userIdsList.Any()) 
+        if (!userIdsList.Any())
             return new ServiceResult(ResultCodeConst.SYS_Warning0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001));
 
         var now = DateTime.UtcNow;
@@ -64,8 +67,8 @@ public class NotificationService : INotificationService
         await _unitOfWork.Repository<NotificationLog, Guid>().AddRangeAsync(logs);
         await _unitOfWork.SaveChangesAsync();
 
-        // 2. Dispatch SignalR song song (Parallel) & Bỏ qua count query
-        var signalRTasks = logs.Select(async log => 
+        // 2. Dispatch SignalR
+        var signalRTasks = logs.Select(async log =>
         {
             var dto = new NotificationDto
             {
@@ -77,18 +80,22 @@ public class NotificationService : INotificationService
                 IsRead = log.IsRead,
                 SentAt = log.SentAt
             };
-            
-            // Gửi thông báo mới
+
             await _hubContext.Clients.User(log.UserId.ToString()).SendAsync("ReceiveNotification", dto);
-            
-            // CẮT BỎ CÂU QUERY N+1 TẠI ĐÂY! 
-            // Thay vì gửi Count chính xác, chỉ gửi một trigger để Client tự biết đường +1 vào UI
             await _hubContext.Clients.User(log.UserId.ToString()).SendAsync("IncrementUnreadCount");
         });
 
-        // Chạy toàn bộ tiến trình SignalR cùng lúc thay vì đợi từng cái
-        await Task.WhenAll(signalRTasks);
-        
+        // 3. Dispatch FCM
+        var fcmData = new Dictionary<string, string>
+        {
+            { "type", type.ToString() },
+            { "referenceId", referenceId?.ToString() ?? string.Empty }
+        };
+
+        var fcmTasks = _fcmPushService.SendToUsersAsync(userIdsList, title, message, fcmData);
+
+        await Task.WhenAll(signalRTasks.Concat(new[] { fcmTasks }));
+
         return new ServiceResult(ResultCodeConst.SYS_Success0002, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002));
     }
 
@@ -100,14 +107,14 @@ public class NotificationService : INotificationService
             spec.AddFilter(x => x.IsRead == specParams.IsRead.Value);
         }
         spec.AddOrderByDescending(x => x.SentAt);
-        
+
         var totalItems = await _unitOfWork.Repository<NotificationLog, Guid>().CountAsync(spec);
-        
+
         if (totalItems == 0)
         {
             var emptyResult = new PaginatedResultDto<NotificationDto>(
                 new List<NotificationDto>(), specParams.GetPage(), specParams.GetTake(), 0, 0);
-            return new ServiceResult(ResultCodeConst.SYS_Success0002, 
+            return new ServiceResult(ResultCodeConst.SYS_Success0002,
                 await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002), emptyResult);
         }
 
@@ -126,7 +133,7 @@ public class NotificationService : INotificationService
         }).ToList();
 
         var totalPages = totalItems == 0 ? 0 : (int)Math.Ceiling(totalItems / (double)specParams.GetTake());
-        
+
         var paginatedResult = new PaginatedResultDto<NotificationDto>(dtos, specParams.GetPage(), specParams.GetTake(), totalPages, totalItems);
         return new ServiceResult(ResultCodeConst.SYS_Success0002, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002), paginatedResult);
     }
@@ -135,36 +142,35 @@ public class NotificationService : INotificationService
     {
         var spec = new BaseSpecification<NotificationLog>(x => x.Id == notificationId && x.UserId == userId);
         var log = await _unitOfWork.Repository<NotificationLog, Guid>().GetWithSpecAsync(spec);
-        
+
         if (log != null && !log.IsRead)
         {
             log.IsRead = true;
             _unitOfWork.Repository<NotificationLog, Guid>().Update(log);
             await _unitOfWork.SaveChangesAsync();
-            
+
             var countSpec = new BaseSpecification<NotificationLog>(x => x.UserId == userId && !x.IsRead);
             var unreadCount = await _unitOfWork.Repository<NotificationLog, Guid>().CountAsync(countSpec);
             await _hubContext.Clients.User(userId.ToString()).SendAsync("UpdateUnreadCount", unreadCount);
         }
-        
+
         return new ServiceResult(ResultCodeConst.SYS_Success0002, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002));
     }
 
     public async Task<IServiceResult> MarkAllAsReadAsync(Guid userId)
     {
         var spec = new BaseSpecification<NotificationLog>(x => x.UserId == userId && !x.IsRead);
-        
-        // Execute Bulk Update (EF Core 7+) via GenericRepository pattern
+
         var affectedRows = await _unitOfWork.Repository<NotificationLog, Guid>().UpdateWithSpecAsync(
             spec,
             s => s.SetProperty(x => x.IsRead, true)
         );
-        
+
         if (affectedRows > 0)
         {
             await _hubContext.Clients.User(userId.ToString()).SendAsync("UpdateUnreadCount", 0);
         }
-        
+
         return new ServiceResult(ResultCodeConst.SYS_Success0002, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002));
     }
 
@@ -174,5 +180,45 @@ public class NotificationService : INotificationService
         var count = await _unitOfWork.Repository<NotificationLog, Guid>().CountAsync(spec);
         
         return new ServiceResult(ResultCodeConst.SYS_Success0002, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002), count);
+    }
+
+    public async Task NotifyLikeAsync(Guid authorId, Guid likerId, Guid contentId, bool isReel)
+    {
+        if (authorId == likerId) return;
+        var user = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(likerId);
+        var name = user?.FullName ?? "Người dùng";
+        var title = isReel ? "Lượt thích mới trên Reel" : "Lượt thích mới trên bài viết";
+        var message = $"{name} đã thích {(isReel ? "Reel" : "bài viết")} của bạn.";
+        await SendNotificationAsync(authorId, title, message, NotificationType.Like, contentId);
+    }
+
+    public async Task NotifyCommentAsync(Guid authorId, Guid commenterId, Guid contentId, bool isReel)
+    {
+        if (authorId == commenterId) return;
+        var user = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(commenterId);
+        var name = user?.FullName ?? "Người dùng";
+        var title = isReel ? "Bình luận mới trên Reel" : "Bình luận mới trên bài viết";
+        var message = $"{name} đã bình luận về {(isReel ? "Reel" : "bài viết")} của bạn.";
+        await SendNotificationAsync(authorId, title, message, NotificationType.Comment, contentId);
+    }
+
+    public async Task NotifyCommentReplyAsync(Guid parentCommentAuthorId, Guid replierId, Guid contentId, bool isReel)
+    {
+        if (parentCommentAuthorId == replierId) return;
+        var user = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(replierId);
+        var name = user?.FullName ?? "Người dùng";
+        var title = "Phản hồi bình luận mới";
+        var message = $"{name} đã phản hồi bình luận của bạn.";
+        await SendNotificationAsync(parentCommentAuthorId, title, message, NotificationType.CommentReply, contentId);
+    }
+
+    public async Task NotifyShareAsync(Guid authorId, Guid sharerId, Guid contentId, bool isReel)
+    {
+        if (authorId == sharerId) return;
+        var user = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(sharerId);
+        var name = user?.FullName ?? "Người dùng";
+        var title = isReel ? "Lượt chia sẻ mới trên Reel" : "Lượt chia sẻ mới trên bài viết";
+        var message = $"{name} đã chia sẻ {(isReel ? "Reel" : "bài viết")} của bạn.";
+        await SendNotificationAsync(authorId, title, message, NotificationType.Share, contentId);
     }
 }

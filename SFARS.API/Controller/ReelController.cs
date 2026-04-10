@@ -4,6 +4,7 @@ using SFARS.API.Extension;
 using SFARS.API.Extensions;
 using SFARS.API.Payloads;
 using SFARS.API.Payloads.Request.Reels;
+using SFARS.Application.Dtos.Community;
 using SFARS.Application.Dtos.Reels;
 using SFARS.Domain.Interfaces.Services;
 
@@ -104,5 +105,12 @@ public class ReelController : ControllerBase
     public async Task<IActionResult> DeleteReelCommentAsync(Guid id)
     {
         return this.ToIActionResult(await _svc.DeleteCommentAsync(User.GetUserId(), id));
+    }
+
+    /// <summary>Chia sẻ Reel</summary>
+    [HttpPost(APIRoute.Reels.Share, Name = nameof(ShareReelAsync))]
+    public async Task<IActionResult> ShareReelAsync(Guid id, [FromBody] ShareRequest req)
+    {
+        return this.ToIActionResult(await _svc.ShareReelAsync(id, User.GetUserId(), req.Content));
     }
 }

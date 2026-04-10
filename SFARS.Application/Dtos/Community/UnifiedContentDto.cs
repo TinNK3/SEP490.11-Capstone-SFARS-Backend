@@ -13,7 +13,9 @@ public record UnifiedContentDto(
     int LikeCount,
     int CommentCount,
     bool IsLikedByMe,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    CommunityPostDto? SharedPost = null,
+    SFARS.Application.Dtos.Reels.ReelResponseDto? SharedReel = null
 );
 
 public record UnifiedContentListResponse(

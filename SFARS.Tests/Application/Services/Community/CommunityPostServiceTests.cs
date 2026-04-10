@@ -11,6 +11,7 @@ using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Application.Interfaces.Services;
 using SFARS.Domain.Interfaces.Repositories.Base;
 using SFARS.Domain.Specifications;
 using SFARS.Domain.Specifications.Interfaces;
@@ -31,6 +32,7 @@ public class CommunityPostServiceTests
     private readonly Mock<IGenericRepository<Reel, Guid>> _reelRepoMock;
     private readonly Mock<IGenericRepository<User, Guid>> _userRepoMock;
     private readonly Mock<IFileStorageService> _fileStorageMock;
+    private readonly Mock<INotificationService> _notificationServiceMock;
 
     private readonly CommunityPostService _sut; // System Under Test
 
@@ -40,6 +42,7 @@ public class CommunityPostServiceTests
         _hubMock = new Mock<IHubContext<CommunityHub>>();
         _loggerMock = new Mock<ILogger<CommunityPostService>>();
         _fileStorageMock = new Mock<IFileStorageService>();
+        _notificationServiceMock = new Mock<INotificationService>();
 
         _postRepoMock = new Mock<IGenericRepository<ContentPost, Guid>>();
         _commentRepoMock = new Mock<IGenericRepository<PostComment, Guid>>();
@@ -58,6 +61,7 @@ public class CommunityPostServiceTests
         var mockClients = new Mock<IHubClients>();
         var mockClientProxy = new Mock<IClientProxy>();
         mockClients.Setup(c => c.Group(It.IsAny<string>())).Returns(mockClientProxy.Object);
+        mockClients.Setup(c => c.All).Returns(mockClientProxy.Object);
         _hubMock.Setup(h => h.Clients).Returns(mockClients.Object);
 
         // Khởi tạo Service để test với các mock object đã cấu hình
@@ -65,7 +69,8 @@ public class CommunityPostServiceTests
             _uowMock.Object,
             _hubMock.Object,
             _loggerMock.Object,
-            _fileStorageMock.Object
+            _fileStorageMock.Object,
+            _notificationServiceMock.Object
         );
     }
 
@@ -534,6 +539,38 @@ public class CommunityPostServiceTests
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
         result.Message.Should().Contain("Người dùng không tồn tại");
+    }
+    #endregion
+
+    #region Tests cho SharePostAsync
+    [Fact]
+    public async Task SharePostAsync_HopLe_TaoPostMoiVaNotifyAuthor()
+    {
+        // Arrange
+        var postId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var post = new ContentPost { Id = postId, AuthorId = authorId, ShareCount = 0 };
+
+        _postRepoMock.Setup(r => r.GetByIdAsync(postId)).ReturnsAsync(post);
+        _uowMock.Setup(u => u.Repository<ShareLog, Guid>()).Returns(new Mock<IGenericRepository<ShareLog, Guid>>().Object);
+        _uowMock.Setup(u => u.Repository<ContentPost, Guid>()).Returns(_postRepoMock.Object);
+        _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Act
+        var result = await _sut.SharePostAsync(postId, userId, "Check this out!");
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
+        post.ShareCount.Should().Be(1);
+        
+        // Verify a new post was created
+        _postRepoMock.Verify(r => r.AddAsync(It.Is<ContentPost>(p => 
+            p.Type == PostType.SharedContent && 
+            p.SharedPostId == postId && 
+            p.AuthorId == userId)), Times.Once);
+
+        _notificationServiceMock.Verify(n => n.NotifyShareAsync(authorId, userId, postId, false), Times.Once);
     }
     #endregion
 }

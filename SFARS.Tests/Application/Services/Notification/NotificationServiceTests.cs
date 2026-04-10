@@ -30,6 +30,7 @@ public class NotificationServiceTests
     private readonly Mock<IGenericRepository<NotificationLog, Guid>> _notificationRepoMock;
     private readonly Mock<IHubClients> _hubClientsMock;
     private readonly Mock<IClientProxy> _clientProxyMock;
+    private readonly Mock<IFcmPushService> _fcmPushServiceMock;
     private readonly NotificationService _sut;
 
     // Shared test data
@@ -43,6 +44,7 @@ public class NotificationServiceTests
         _hubContextMock = new Mock<IHubContext<NotificationHub>>();
         _loggerMock = new Mock<ILogger<NotificationService>>();
         _notificationRepoMock = new Mock<IGenericRepository<NotificationLog, Guid>>();
+        _fcmPushServiceMock = new Mock<IFcmPushService>();
 
         // Setup SignalR mock chain: HubContext → Clients → User(id) → IClientProxy
         _hubClientsMock = new Mock<IHubClients>();
@@ -71,7 +73,8 @@ public class NotificationServiceTests
             _msgServiceMock.Object,
             _unitOfWorkMock.Object,
             _hubContextMock.Object,
-            _loggerMock.Object);
+            _loggerMock.Object,
+            _fcmPushServiceMock.Object);
     }
 
     #region SendNotificationAsync Tests
@@ -97,6 +100,7 @@ public class NotificationServiceTests
         _notificationRepoMock.Verify(x => x.AddRangeAsync(It.Is<IEnumerable<NotificationLog>>(
             logs => logs.Count() == 1 && logs.First().UserId == _testUserId)), Times.Once);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(), Times.Once);
+        _fcmPushServiceMock.Verify(x => x.SendToUsersAsync(It.IsAny<IEnumerable<Guid>>(), title, message, It.IsAny<IDictionary<string, string>>()), Times.Once);
     }
 
     #endregion

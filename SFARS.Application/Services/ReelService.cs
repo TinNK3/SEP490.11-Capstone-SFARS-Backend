@@ -8,6 +8,8 @@ using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
 using SFARS.Domain.Specifications.Reels;
+using SFARS.Application.Interfaces.Services;
+using SFARS.Domain.Common.Enum;
 
 namespace SFARS.Application.Services;
 
@@ -15,11 +17,13 @@ public class ReelService : IReelService
 {
     private readonly IUnitOfWork _uow;
     private readonly IFileStorageService _fileStorageService;
+    private readonly INotificationService _notificationService;
 
-    public ReelService(IUnitOfWork uow, IFileStorageService fileStorageService)
+    public ReelService(IUnitOfWork uow, IFileStorageService fileStorageService, INotificationService notificationService)
     {
         _uow = uow;
         _fileStorageService = fileStorageService;
+        _notificationService = notificationService;
     }
 
     public async Task<IServiceResult> CreateReelAsync(Guid currentUserId, string? caption, Stream videoStream, string fileName, string contentType, long contentLength)
@@ -220,6 +224,11 @@ public class ReelService : IReelService
         reelRepo.Update(reel);
         await _uow.SaveChangesAsync();
 
+        if (isLiked)
+        {
+            await _notificationService.NotifyLikeAsync(reel.UserId, currentUserId, reelId, true);
+        }
+
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Toggle like success", new { isLiked });
     }
 
@@ -272,6 +281,19 @@ public class ReelService : IReelService
         reel.CommentCount++;
         reelRepo.Update(reel);
         await _uow.SaveChangesAsync();
+
+        if (actualParentId.HasValue)
+        {
+            var parent = await commentRepo.GetByIdAsync(actualParentId.Value);
+            if (parent != null)
+            {
+                await _notificationService.NotifyCommentReplyAsync(parent.UserId, currentUserId, reelId, true);
+            }
+        }
+        else
+        {
+            await _notificationService.NotifyCommentAsync(reel.UserId, currentUserId, reelId, true);
+        }
 
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Thêm bình luận thành công");
     }
@@ -388,5 +410,47 @@ public class ReelService : IReelService
             CommentCount = reel.CommentCount,
             IsLikedByCurrentUser = false // just created
         };
+    }
+
+    public async Task<IServiceResult> ShareReelAsync(Guid reelId, Guid userId, string? content)
+    {
+        var reelRepo = _uow.Repository<Reel, Guid>();
+        var reel = await reelRepo.GetByIdAsync(reelId);
+        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel không tồn tại.");
+
+        var shareLog = new ShareLog
+        {
+            UserId = userId,
+            ReelId = reelId,
+            Content = content,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = userId
+        };
+
+        await _uow.Repository<ShareLog, Guid>().AddAsync(shareLog);
+        
+        reel.ShareCount++;
+        reelRepo.Update(reel);
+        
+        // Create a NEW Post (SharedContent type) linked to this Reel
+        var sharedPost = new ContentPost
+        {
+            Id = Guid.NewGuid(),
+            AuthorId = userId,
+            Type = PostType.SharedContent,
+            BodyContent = content, // Personal message
+            SharedReelId = reelId, // Link to the original Reel
+            IsPublished = true,
+            Title = $"Shared reel from {reel.Id}",
+            Slug = "share-r-" + Guid.NewGuid().ToString("N")[..10],
+            CreatedAt = DateTime.UtcNow
+        };
+        await _uow.Repository<ContentPost, Guid>().AddAsync(sharedPost);
+
+        await _uow.SaveChangesAsync();
+
+        await _notificationService.NotifyShareAsync(reel.UserId, userId, reelId, true);
+
+        return new ServiceResult(ResultCodeConst.SYS_Success0002, "Chia sẻ Reel thành công.");
     }
 }

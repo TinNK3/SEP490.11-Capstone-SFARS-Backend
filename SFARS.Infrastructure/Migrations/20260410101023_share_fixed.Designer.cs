@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SFARS.Infrastructure.Data.Context;
@@ -12,13 +13,15 @@ using SFARS.Infrastructure.Data.Context;
 namespace SFARS.Infrastructure.Migrations
 {
     [DbContext(typeof(SFARSDbContext))]
-    partial class SFARSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260410101023_share_fixed")]
+    partial class share_fixed
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.1")
+                .HasAnnotation("ProductVersion", "9.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -76,12 +79,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(500)")
                         .HasColumnName("reason");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("updated_at");
@@ -133,9 +130,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("incident_media_id");
 
-                    b.Property<bool?>("IsSnakeBite")
-                        .HasColumnType("bit");
-
                     b.Property<string>("ModelName")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)")
@@ -145,12 +139,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)")
                         .HasColumnName("model_version");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<double?>("SelectedConfidence")
                         .HasColumnType("float")
@@ -217,12 +205,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<int>("Rank")
                         .HasColumnType("int")
                         .HasColumnName("rank");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<Guid>("SnakeId")
                         .HasColumnType("uniqueidentifier")
@@ -299,12 +281,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("reviewer_id");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<string>("UnableToAssessReasonChoice")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)")
@@ -373,12 +349,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("review_id");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("updated_at");
@@ -425,12 +395,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<string>("SenderType")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -468,12 +432,6 @@ namespace SFARS.Infrastructure.Migrations
 
                     b.Property<DateTime?>("LastMessageAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<string>("Title")
                         .HasMaxLength(200)
@@ -535,21 +493,7 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnName("like_count");
 
                     b.Property<int>("ShareCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("share_count");
-
-                    b.Property<Guid?>("SharedPostId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("SharedReelId")
-                        .HasColumnType("uniqueidentifier");
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
+                        .HasColumnType("int");
 
                     b.Property<string>("Slug")
                         .IsRequired()
@@ -586,10 +530,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasName("PK_ContentPost_Id");
 
                     b.HasIndex("AuthorId");
-
-                    b.HasIndex("SharedPostId");
-
-                    b.HasIndex("SharedReelId");
 
                     b.HasIndex("Slug")
                         .IsUnique()
@@ -628,12 +568,6 @@ namespace SFARS.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -678,12 +612,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)")
                         .HasColumnName("language_code");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<Guid?>("SnakeId")
                         .HasColumnType("uniqueidentifier")
@@ -787,12 +715,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("dispatch_job_ids");
 
-                    b.Property<int>("DispatchVersion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("dispatch_version");
-
                     b.Property<string>("ExtractedSymptoms")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)")
@@ -811,10 +733,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(30)")
                         .HasColumnName("human_reviewed_toxin_group");
 
-                    b.Property<DateTime?>("LastSymptomUpdateAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("last_symptom_update_at");
-
                     b.Property<Point>("Location")
                         .IsRequired()
                         .HasColumnType("geography")
@@ -829,12 +747,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)")
                         .HasColumnName("priority_level");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<Guid?>("SnakeId")
                         .HasColumnType("uniqueidentifier")
@@ -909,12 +821,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<DateTime?>("LastMessageAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<string>("Title")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -967,12 +873,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<Guid?>("SenderId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1018,12 +918,6 @@ namespace SFARS.Infrastructure.Migrations
 
                     b.Property<Guid>("MessageId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -1071,12 +965,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(500)")
                         .HasColumnName("media_url");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("updated_at");
@@ -1120,12 +1008,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<Guid>("IncidentId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("incident_id");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<string>("StatusFrom")
                         .HasMaxLength(20)
@@ -1205,12 +1087,6 @@ namespace SFARS.Infrastructure.Migrations
 
                     b.Property<Guid?>("ReportedBy")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -1308,12 +1184,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(100)")
                         .HasColumnName("province");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1366,12 +1236,6 @@ namespace SFARS.Infrastructure.Migrations
 
                     b.Property<Guid?>("ReferenceId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<DateTime>("SentAt")
                         .HasColumnType("datetime2")
@@ -1450,12 +1314,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("is_used");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -1481,78 +1339,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasDatabaseName("IX_OtpRequest_UserId_Purpose");
 
                     b.ToTable("OtpRequest", (string)null);
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.OutboxMessage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("created_by");
-
-                    b.Property<string>("Error")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("error");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)")
-                        .HasColumnName("event_type");
-
-                    b.Property<bool>("IsProcessed")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_processed");
-
-                    b.Property<string>("Payload")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("payload");
-
-                    b.Property<DateTime?>("ProcessedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("processed_at");
-
-                    b.Property<int>("RetryCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("retry_count");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("updated_by");
-
-                    b.HasKey("Id")
-                        .HasName("PK_OutboxMessage_Id");
-
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("IX_OutboxMessage_CreatedAt");
-
-                    b.HasIndex("IsProcessed")
-                        .HasDatabaseName("IX_OutboxMessage_IsProcessed");
-
-                    b.ToTable("OutboxMessage", (string)null);
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.PointTransaction", b =>
@@ -1588,12 +1374,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<Guid?>("ReferenceId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("reference_id");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2")
@@ -1653,12 +1433,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<Guid>("PostId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("post_id");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2")
@@ -1739,12 +1513,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("post_id");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("updated_at");
@@ -1802,12 +1570,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("int")
                         .HasColumnName("points_reward");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1859,11 +1621,6 @@ namespace SFARS.Infrastructure.Migrations
 
                     b.Property<int>("ShareCount")
                         .HasColumnType("int");
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -1907,12 +1664,6 @@ namespace SFARS.Infrastructure.Migrations
 
                     b.Property<Guid>("ReelId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -2033,12 +1784,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<Guid>("ReporterId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
@@ -2090,18 +1835,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("incident_id");
 
-                    b.Property<double?>("InitialDistanceMeters")
-                        .HasColumnType("float")
-                        .HasColumnName("initial_distance_meters");
-
-                    b.Property<double?>("LastCheckedDistanceMeters")
-                        .HasColumnType("float")
-                        .HasColumnName("last_checked_distance_meters");
-
-                    b.Property<DateTime?>("NextCheckAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("next_check_at");
-
                     b.Property<string>("PatientConditionAtHandover")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("patient_condition_at_handover");
@@ -2113,12 +1846,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<string>("RescuerNotes")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("rescuer_notes");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<DateTime?>("StartedAt")
                         .HasColumnType("datetime2")
@@ -2142,10 +1869,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasName("PK_RescueMission_Id");
 
                     b.HasIndex("IncidentId");
-
-                    b.HasIndex("NextCheckAt")
-                        .HasDatabaseName("IX_RescueMission_NextCheckAt")
-                        .HasFilter("[next_check_at] IS NOT NULL");
 
                     b.HasIndex("RescuerId");
 
@@ -2291,18 +2014,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("float")
                         .HasColumnName("old_accuracy");
 
-                    b.Property<int>("PipelineType")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("pipeline_type");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("started_at");
@@ -2325,9 +2036,6 @@ namespace SFARS.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("PK_RetrainHistory_Id");
-
-                    b.HasIndex("PipelineType", "Status")
-                        .HasDatabaseName("IX_RetrainHistory_PipelineType_Status");
 
                     b.ToTable("RetrainHistory", (string)null);
                 });
@@ -2362,12 +2070,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<Guid>("ReviewerId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("reviewer_id");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<Guid?>("TargetId")
                         .HasColumnType("uniqueidentifier")
@@ -2419,12 +2121,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)")
                         .HasColumnName("role_name");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2")
@@ -2531,12 +2227,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("note");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<string>("ScientificName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -2617,12 +2307,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("old_value");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<Guid>("SnakeId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("snake_id");
@@ -2687,12 +2371,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(20)")
                         .HasColumnName("risk_level");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<Guid?>("SnakeId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("snake_id");
@@ -2756,12 +2434,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<bool>("IsPrimary")
                         .HasColumnType("bit")
                         .HasColumnName("is_primary");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<Guid>("SnakeId")
                         .HasColumnType("uniqueidentifier")
@@ -2838,12 +2510,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(100)")
                         .HasColumnName("msg_id");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("updated_at");
@@ -2916,12 +2582,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<string>("QrCode")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("qr_code");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -3021,10 +2681,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("last_active_at");
 
-                    b.Property<double?>("LastLocationDeltaMeters")
-                        .HasColumnType("float")
-                        .HasColumnName("last_location_delta_meters");
-
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -3048,12 +2704,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)")
                         .HasColumnName("phone");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -3115,12 +2765,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)")
                         .HasColumnName("platform");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2")
@@ -3389,21 +3033,7 @@ namespace SFARS.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_ContentPost_User_AuthorId");
 
-                    b.HasOne("SFARS.Domain.Entities.ContentPost", "SharedPost")
-                        .WithMany()
-                        .HasForeignKey("SharedPostId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("SFARS.Domain.Entities.Reel", "SharedReel")
-                        .WithMany()
-                        .HasForeignKey("SharedReelId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
                     b.Navigation("Author");
-
-                    b.Navigation("SharedPost");
-
-                    b.Navigation("SharedReel");
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.FirstAidDetail", b =>

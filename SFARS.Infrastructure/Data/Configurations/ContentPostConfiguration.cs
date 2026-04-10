@@ -41,6 +41,7 @@ public class ContentPostConfiguration : IEntityTypeConfiguration<ContentPost>
 
         builder.Property(e => e.LikeCount).HasColumnName("like_count").HasDefaultValue(0);
         builder.Property(e => e.CommentCount).HasColumnName("comment_count").HasDefaultValue(0);
+        builder.Property(e => e.ShareCount).HasColumnName("share_count").HasDefaultValue(0);
 
         builder.Property(e => e.CreatedAt).HasColumnName("created_at");
         builder.Property(e => e.CreatedBy).HasColumnName("created_by");
@@ -56,5 +57,15 @@ public class ContentPostConfiguration : IEntityTypeConfiguration<ContentPost>
             .HasForeignKey(p => p.AuthorId)
             .OnDelete(DeleteBehavior.Cascade)
             .HasConstraintName("FK_ContentPost_User_AuthorId");
+
+        builder.HasOne(p => p.SharedPost)
+            .WithMany()
+            .HasForeignKey(p => p.SharedPostId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.HasOne(p => p.SharedReel)
+            .WithMany()
+            .HasForeignKey(p => p.SharedReelId)
+            .OnDelete(DeleteBehavior.NoAction);
     }
 }

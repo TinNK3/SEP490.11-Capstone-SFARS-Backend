@@ -94,4 +94,9 @@ public class CommunityController : ControllerBase
     [HttpDelete(APIRoute.Community.DeleteComment, Name = nameof(DeleteCommentAsync))]
     public async Task<IActionResult> DeleteCommentAsync(Guid commentId)
         => this.ToIActionResult(await _svc.DeleteCommentAsync(commentId, User.GetUserId()));
+
+    /// <summary>Chia sẻ bài viết</summary>
+    [HttpPost(APIRoute.Community.Share, Name = nameof(SharePostAsync))]
+    public async Task<IActionResult> SharePostAsync(Guid id, [FromBody] ShareRequest req)
+        => this.ToIActionResult(await _svc.SharePostAsync(id, User.GetUserId(), req.Content));
 }
