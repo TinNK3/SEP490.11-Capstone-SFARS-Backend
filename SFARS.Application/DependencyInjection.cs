@@ -69,6 +69,7 @@ public static class DependencyInjection
 
         // Notification services
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IEmailJobService, EmailJobService>();
 
         // Facility services
         services.AddScoped<IMedicalFacilityService<FacilityDto>, MedicalFacilityService>();

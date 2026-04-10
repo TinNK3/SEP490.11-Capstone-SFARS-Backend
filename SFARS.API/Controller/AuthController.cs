@@ -36,7 +36,7 @@ namespace SFARS.API.Controller
         [HttpPost(APIRoute.Auth.SignInWithGoogle, Name = nameof(SignInWithGoogleAsync))]
         public async Task<IActionResult> SignInWithGoogleAsync([FromBody] SignInWithGoogleRequest req)
         {
-            var result = await _authService.SignInWithGoogleAsync(req.Credential);
+            var result = await _authService.SignInWithGoogleAsync(req.Credential, req.IsAdminLogin);
             return this.ToIActionResult(result);
         }
 

@@ -52,6 +52,7 @@ namespace SFARS.Application.Common
         public const string Auth_Fail0002 = "Auth.Fail0002";
 
         public const string Auth_Success0010 = "Auth.Success0010"; // OTP verified successfully
+        public const string Auth_Success0011 = "Auth.Success0011"; // Please continue with OTP sign-in
         #endregion
 
         #region User
@@ -130,6 +131,13 @@ namespace SFARS.Application.Common
         public const string Incident_Reason0007 = "Incident.Reason0007";  // Dispatch fallback — no rescuer found
         public const string Incident_Reason0008 = "Incident.Reason0008";  // Victim resolved external (115)
         public const string Incident_Reason0009 = "Incident.Reason0009";  // Victim manually dispatched SOS
+        public const string Incident_Reason0010 = "Incident.Reason0010";  // System auto-closed abandoned incident
+        public const string Incident_Reason0011 = "Incident.Reason0011";  // Watchdog stagnation detected (VN)
+
+        // Symptom tracking
+        public const string Incident_Success0008 = "Incident.Success0008"; // Symptom update saved
+        public const string Incident_Warning0010 = "Incident.Warning0010"; // Cannot update symptoms on closed/cancelled
+        public const string Incident_Notify0006  = "Incident.Notify0006";  // Symptom updated — notify rescuer
         #endregion
 
         #region AI
@@ -222,5 +230,12 @@ namespace SFARS.Application.Common
         public const string Analytics_Success0001 = "Analytics.Success0001"; // Heatmap hotspot ping sent to community
         public const string Analytics_Warning0001 = "Analytics.Warning0001"; // No users with device tokens found – ping skipped
         #endregion
+        // AI Voice Messages (Symptom Tracking)
+        public const string Voice_BreathingDifficulty = "Voice.BreathingDifficulty";
+        public const string Voice_Ptosis = "Voice.Ptosis";
+        public const string Voice_Bleeding = "Voice.Bleeding";
+        public const string Voice_VomitingDizziness = "Voice.VomitingDizziness";
+        public const string Voice_SwellingPain = "Voice.SwellingPain";
+        public const string Voice_None = "Voice.None";
     }
 }

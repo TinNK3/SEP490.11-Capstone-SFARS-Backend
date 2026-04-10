@@ -6,5 +6,6 @@ namespace SFARS.API.Payloads.Request.Auth
     {
         [Required]
         public string Credential { get; set; } = null!;
+        public bool IsAdminLogin { get; set; }
     }
 }

@@ -42,6 +42,24 @@ public class SnakeController : ControllerBase
     }
 
     /// <summary>
+    /// Standalone API to classify a wound from an uploaded image (Snake Bite vs Non Snake Bite).
+    /// This is independent of the SOS workflow.
+    /// </summary>
+    [HttpPost(APIRoute.Snake.ClassifyWound, Name = nameof(ClassifyWoundAsync))]
+    [AllowAnonymous]
+    public async Task<IActionResult> ClassifyWoundAsync(
+        [FromServices] IAiInferenceService aiService,
+        [FromForm] ClassifyWoundRequest request)
+    {
+        var result = await aiService.ClassifyWoundAsync(
+            request.Image.OpenReadStream(), 
+            request.Image.ContentType, 
+            request.Image.Length);
+            
+        return this.ToIActionResult(result);
+    }
+
+    /// <summary>
     /// Retrieves all snake entities asynchronously with optional searching and filtering.
     /// </summary>
     [HttpGet(APIRoute.Snake.GetAll, Name = nameof(GetAllAsync))]

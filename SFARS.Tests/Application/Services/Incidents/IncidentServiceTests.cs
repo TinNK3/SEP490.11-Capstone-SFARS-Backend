@@ -1,5 +1,6 @@
 using FluentAssertions;
 using MapsterMapper;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -19,6 +20,7 @@ using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Specifications;
 using SFARS.Domain.Specifications.Interfaces;
 using SFARS.Infrastructure.Configurations;
+using SFARS.Infrastructure.Hubs;
 using System.Linq.Expressions;
 
 namespace SFARS.Tests.Application.Services.Incidents;
@@ -40,6 +42,9 @@ public class IncidentServiceTests
     protected readonly Mock<IGenericRepository<NotificationLog, Guid>> _notificationRepoMock;
     protected readonly Mock<IGenericRepository<User, Guid>> _userRepoMock;
     protected readonly Mock<ISpeechToTextService> _sttServiceMock;
+    protected readonly Mock<IHubContext<RescueDispatchHub>> _rescueHubMock;
+    protected readonly Mock<IHubContext<LocationTrackingHub>> _locationHubMock;
+    protected readonly Mock<IFcmPushService> _fcmServiceMock;
     protected readonly IncidentService _sut; // System Under Test
 
     public IncidentServiceTests()
@@ -59,6 +64,9 @@ public class IncidentServiceTests
         _notificationRepoMock = new Mock<IGenericRepository<NotificationLog, Guid>>();
         _userRepoMock = new Mock<IGenericRepository<User, Guid>>();
         _sttServiceMock = new Mock<ISpeechToTextService>();
+        _rescueHubMock = new Mock<IHubContext<RescueDispatchHub>>();
+        _locationHubMock = new Mock<IHubContext<LocationTrackingHub>>();
+        _fcmServiceMock = new Mock<IFcmPushService>();
 
         // Setup repositories
         _unitOfWorkMock.Setup(x => x.Repository<Incident, Guid>()).Returns(_incidentRepoMock.Object);
@@ -91,7 +99,10 @@ public class IncidentServiceTests
             _storageOptionsMock.Object,
             _spamGuardMock.Object,
             _aiReviewServiceMock.Object,
-            _sttServiceMock.Object
+            _sttServiceMock.Object,
+            _rescueHubMock.Object,
+            _locationHubMock.Object,
+            _fcmServiceMock.Object
         );
     }
 
@@ -220,7 +231,7 @@ public class IncidentServiceTests
     public async Task GetMyIncidentsAsync_EmptyUserId_ReturnsAuthWarning()
     {
         // Act
-        var result = await _sut.GetMyIncidentsAsync(Guid.Empty);
+        var result = await _sut.GetMyIncidentsAsync(Guid.Empty, new SFARS.Domain.Specifications.Params.IncidentSpecParams());
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0013);
@@ -244,11 +255,12 @@ public class IncidentServiceTests
             .ReturnsAsync(incidents);
 
         // Act
-        var result = await _sut.GetMyIncidentsAsync(userId);
+        var result = await _sut.GetMyIncidentsAsync(userId, new SFARS.Domain.Specifications.Params.IncidentSpecParams());
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
-        result.Data.Should().BeEquivalentTo(incidents);
+        var pagedResult = result.Data as SFARS.Application.Dtos.PaginatedResultDto<IncidentDto>;
+        pagedResult.Items.Should().BeEquivalentTo(incidents);
     }
 
     [Fact]
@@ -265,11 +277,12 @@ public class IncidentServiceTests
             .ReturnsAsync(emptyList);
 
         // Act
-        var result = await _sut.GetMyIncidentsAsync(userId);
+        var result = await _sut.GetMyIncidentsAsync(userId, new SFARS.Domain.Specifications.Params.IncidentSpecParams());
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
-        result.Data.Should().BeEquivalentTo(emptyList);
+        var pagedResult = result.Data as SFARS.Application.Dtos.PaginatedResultDto<IncidentDto>;
+        pagedResult.Items.Should().BeEquivalentTo(emptyList);
     }
 
     [Fact]
@@ -290,11 +303,11 @@ public class IncidentServiceTests
             .ReturnsAsync(new List<IncidentDto>());
 
         // Act
-        await _sut.GetMyIncidentsAsync(userId, page, pageSize);
+        await _sut.GetMyIncidentsAsync(userId, new SFARS.Domain.Specifications.Params.IncidentSpecParams { Page = page, PageSize = pageSize });
 
         // Assert
         capturedSpec.Should().NotBeNull();
-        capturedSpec!.Skip.Should().Be(page * pageSize);
+        capturedSpec!.Skip.Should().Be((page - 1) * pageSize);
         capturedSpec.Take.Should().Be(pageSize);
     }
 

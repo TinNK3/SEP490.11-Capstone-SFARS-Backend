@@ -19,6 +19,12 @@ public class Incident : BaseEntity
     public int? MinutesSinceBite { get; set; } // Extracted time
     public string? ExtractedSymptoms { get; set; } // JSON or CSV string of extracted symptoms
     
+    /// <summary>
+    /// Tracks the last time the victim submitted a symptom update via the Bottom Sheet UI.
+    /// Used by AcceptMissionAsync to detect if symptoms changed while a rescuer was deciding.
+    /// </summary>
+    public DateTime? LastSymptomUpdateAt { get; set; }
+    
     // Status
     public IncidentStatus CurrentStatus { get; set; } = IncidentStatus.Pending;
     public SeverityLevel PriorityLevel { get; set; } = SeverityLevel.Low;
@@ -61,4 +67,11 @@ public class Incident : BaseEntity
     /// Used by CancelIncidentAsync to delete pending dispatch jobs if victim cancels during grace period.
     /// </summary>
     public string? DispatchJobIds { get; set; }
+
+    /// <summary>
+    /// Tracks the current version of the dispatch process.
+    /// Incremented every time a rescuer is rejected or timed out, triggering a new search.
+    /// Used for concurrency control to ensure only the latest dispatch attempt is valid.
+    /// </summary>
+    public int DispatchVersion { get; set; } = 0;
 }

@@ -100,4 +100,10 @@ public static class LocationConstants
 
     /// <summary>SignalR Redis backplane channel prefix</summary>
     public const string SignalRRedisChannelPrefix = "SFARS:SignalR:";
+
+    /// <summary>How long a location is considered valid for the public map display</summary>
+    public const int LocationMapStaleHours = 24;
+
+    /// <summary>Average rescue speed in KM/H for ETA calculations (Optimized for Gia Lai area)</summary>
+    public const double AverageRescueSpeedKmH = 40.0;
 }

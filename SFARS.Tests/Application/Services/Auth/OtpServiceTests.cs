@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Moq;
+using Hangfire;
 using SFARS.Application.Common;
 using SFARS.Application.Configurations;
 using SFARS.Application.Dtos.Auth;
@@ -35,6 +36,7 @@ public class OtpServiceTests
     private readonly Mock<ILogger<AuthService>> _loggerMock;
     private readonly Mock<IExternalAuthService> _externalAuthServiceMock;
     private readonly Mock<IEmailService> _emailServiceMock;
+    private readonly Mock<IBackgroundJobClient> _backgroundJobClientMock;
     private readonly Mock<ITokenBlacklistService> _tokenBlacklistServiceMock;
     private readonly Mock<IGenericRepository<OtpRequest, Guid>> _otpRepoMock;
     private readonly TokenValidationParameters _tokenValidationParameters;
@@ -55,6 +57,7 @@ public class OtpServiceTests
         _loggerMock = new Mock<ILogger<AuthService>>();
         _externalAuthServiceMock = new Mock<IExternalAuthService>();
         _emailServiceMock = new Mock<IEmailService>();
+        _backgroundJobClientMock = new Mock<IBackgroundJobClient>();
         _tokenBlacklistServiceMock = new Mock<ITokenBlacklistService>();
         _otpRepoMock = new Mock<IGenericRepository<OtpRequest, Guid>>();
         _tokenValidationParameters = new TokenValidationParameters();
@@ -99,6 +102,7 @@ public class OtpServiceTests
             _loggerMock.Object,
             _externalAuthServiceMock.Object,
             _emailServiceMock.Object,
+            _backgroundJobClientMock.Object,
             _tokenBlacklistServiceMock.Object,
             new Moq.Mock<Microsoft.AspNetCore.Http.IHttpContextAccessor>().Object
         );

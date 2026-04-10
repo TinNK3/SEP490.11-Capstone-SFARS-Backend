@@ -48,8 +48,18 @@ public static class DispatchConstants
     public const int Tier2MaxRescuers = 50;
     public const int Tier3MaxRescuers = 100;
     
-    // Claim Timeout
+    // Claim Timeout & Watchdog
     public const int ClaimTimeoutMinutes = 10; // Limit incident block if rescuer no-shows
+    
+    // Watchdog Thresholds (Master Elite)
+    public const int    WatchdogHeartbeatTimeoutMins = 10;
+    public const double WatchdogMicroMovementThresholdMeters = 15.0; // GPS noise floor
+    public const double WatchdogMacroProgressThresholdMeters = 500.0; // Significant distance change
+    public const int    WatchdogInitialGraceMins = 15;
+    public const int    WatchdogStandardIntervalMins = 10;
+
+    // Abandoned Timeout
+    public const int AbandonedIncidentExpiryHours = 2; // Auto-close Unassigned incidents
 
     // Firebase Messaging keys
     public const string FcmSosDispatchTitleKey = "sos_dispatch";
@@ -65,9 +75,6 @@ public static class DispatchConstants
     /// <summary>Pushed to rescuers when a new SOS is dispatched in their tier.</summary>
     public const string EventNewDispatch   = "sos:dispatch";
 
-    /// <summary>Pushed to rescuers when a tier is escalated (so they know context changed).</summary>
-    public const string EventTierEscalated = "sos:escalated";
-
     /// <summary>Pushed to the victim when all tiers fail — triggers fallback UI.</summary>
     public const string EventFallback      = "sos:fallback";
 
@@ -81,4 +88,11 @@ public static class DispatchConstants
     public const string PushTitlePrefix = "SOS Rắn Cắn!";
     public const string PushUnknownSnake = "Chưa rõ loài";
     public const string PushBodyTemplate = "{0}. Cách bạn {1}km. Chạm để xem và nhận ca!";
+
+    // Symptom Update — SignalR + FCM
+    /// <summary>Pushed to rescuers when the victim updates their symptoms mid-incident.</summary>
+    public const string EventSymptomUpdated = "sos:symptom_updated";
+    public const string FcmSymptomUpdateTitleKey = "sos_symptom_update";
+    public const string PushSymptomTitle = "Cập nhật triệu chứng!";
+    public const string PushSymptomBody = "Nạn nhân ca {0} vừa cập nhật triệu chứng mới. Chạm để xem chi tiết.";
 }

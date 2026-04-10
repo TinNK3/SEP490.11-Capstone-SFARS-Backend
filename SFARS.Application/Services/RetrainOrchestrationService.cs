@@ -11,6 +11,7 @@ using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Infrastructure.Configurations;
 using System.Diagnostics;
 using System.Text.Json;
+using Hangfire;
 
 namespace SFARS.Application.Services;
 
@@ -20,6 +21,7 @@ public class RetrainOrchestrationService : IRetrainOrchestrationService
     private readonly ILogger<RetrainOrchestrationService> _logger;
     private readonly IFileStorageService _fileStorageService;
     private readonly ISpeciesClassificationService _classificationService;
+    private readonly IWoundDetectionService _woundDetectionService;
     private readonly ISystemMessageService _msgService;
     private readonly MlopsOptions _mlopsOptions;
 
@@ -28,6 +30,7 @@ public class RetrainOrchestrationService : IRetrainOrchestrationService
         ILogger<RetrainOrchestrationService> logger,
         IFileStorageService fileStorageService,
         ISpeciesClassificationService classificationService,
+        IWoundDetectionService woundDetectionService,
         ISystemMessageService messageService,
         IOptions<MlopsOptions> options)
     {
@@ -35,30 +38,36 @@ public class RetrainOrchestrationService : IRetrainOrchestrationService
         _logger = logger;
         _fileStorageService = fileStorageService;
         _classificationService = classificationService;
+        _woundDetectionService = woundDetectionService;
         _msgService = messageService;
         _mlopsOptions = options.Value;
     }
 
+    /// <inheritdoc />
+    [DisableConcurrentExecution(timeoutInSeconds: 86400)]
     public async Task<IServiceResult> TriggerRetrainAsync(DateTime? since = null)
     {
-        _logger.LogInformation("Starting AI Retrain Orchestration...");
+        _logger.LogInformation("Starting Snake Species Retrain Orchestration...");
         
         var history = new RetrainHistory
         {
             Id = Guid.NewGuid(),
+            PipelineType = RetrainPipelineType.SnakeSpecies,
             Status = RetrainStatus.Pending,
             StartedAt = DateTime.UtcNow
         };
-        
+
         await _unitOfWork.Repository<RetrainHistory, Guid>().AddAsync(history);
         await _unitOfWork.SaveChangesAsync();
-        
+
         try
         {
             history.Status = RetrainStatus.Training;
             await _unitOfWork.SaveChangesAsync();
 
-            var runResult = await ExecutePythonMLOpsPipelineAsync();
+            var runResult = await ExecutePythonPipelineAsync(
+                _mlopsOptions.ScriptsRelativePath,
+                _mlopsOptions.PipelineScriptName);
 
             history.ModelVersion = runResult.ModelVersion;
             history.TotalSamplesProcessed = runResult.SampleCount;
@@ -70,15 +79,15 @@ public class RetrainOrchestrationService : IRetrainOrchestrationService
             {
                 if (runResult.IsPromoted)
                 {
-                    _logger.LogInformation("Model was promoted! Hot swapping ONNX model...");
+                    _logger.LogInformation("Snake model was promoted! Hot-swapping ONNX model...");
                     bool hotSwapSuccess = await _classificationService.ReloadSpeciesModelAsync();
                     if (!hotSwapSuccess)
                     {
-                        history.ErrorMessage = "Training succeeded and model promoted, but hot-swap failed in backend.";
+                        history.ErrorMessage = "Training succeeded and model promoted, but hot-swap failed.";
                         _logger.LogError(history.ErrorMessage);
                     }
                 }
-                
+
                 history.Status = RetrainStatus.Success;
             }
             else
@@ -89,7 +98,7 @@ public class RetrainOrchestrationService : IRetrainOrchestrationService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Exception during AI Retrain Orchestration");
+            _logger.LogError(ex, "Exception during Snake Retrain Orchestration");
             history.Status = RetrainStatus.Failed;
             history.ErrorMessage = ex.Message;
         }
@@ -102,6 +111,75 @@ public class RetrainOrchestrationService : IRetrainOrchestrationService
         return new ServiceResult(ResultCodeConst.SYS_Success0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0001));
     }
 
+    /// <inheritdoc />
+    [DisableConcurrentExecution(timeoutInSeconds: 86400)]
+    public async Task<IServiceResult> TriggerWoundRetrainAsync(DateTime? since = null)
+    {
+        _logger.LogInformation("Starting Wound Classification Retrain Orchestration...");
+
+        var history = new RetrainHistory
+        {
+            Id = Guid.NewGuid(),
+            PipelineType = RetrainPipelineType.WoundClassification,
+            Status = RetrainStatus.Pending,
+            StartedAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.Repository<RetrainHistory, Guid>().AddAsync(history);
+        await _unitOfWork.SaveChangesAsync();
+
+        try
+        {
+            history.Status = RetrainStatus.Training;
+            await _unitOfWork.SaveChangesAsync();
+
+            var runResult = await ExecutePythonPipelineAsync(
+                _mlopsOptions.WoundScriptsRelativePath,
+                _mlopsOptions.WoundPipelineScriptName);
+
+            history.ModelVersion = runResult.ModelVersion;
+            history.TotalSamplesProcessed = runResult.SampleCount;
+            history.IsPromoted = runResult.IsPromoted;
+            history.OldAccuracy = runResult.OldAccuracy;
+            history.NewAccuracy = runResult.NewAccuracy;
+
+            if (runResult.Success)
+            {
+                if (runResult.IsPromoted)
+                {
+                    _logger.LogInformation("Wound model was promoted! Hot-swapping ONNX model...");
+                    bool hotSwapSuccess = await _woundDetectionService.ReloadClassificationModelAsync();
+                    if (!hotSwapSuccess)
+                    {
+                        history.ErrorMessage = "Training succeeded and model promoted, but hot-swap failed.";
+                        _logger.LogError(history.ErrorMessage);
+                    }
+                }
+
+                history.Status = RetrainStatus.Success;
+            }
+            else
+            {
+                history.Status = RetrainStatus.Failed;
+                history.ErrorMessage = runResult.ErrorMessage ?? "Python script returned failure exit code";
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception during Wound Retrain Orchestration");
+            history.Status = RetrainStatus.Failed;
+            history.ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            history.CompletedAt = DateTime.UtcNow;
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        return new ServiceResult(ResultCodeConst.SYS_Success0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0001));
+    }
+
+    /// <inheritdoc />
     public async Task<IServiceResult> GetRetrainHistoryAsync(int count = 10)
     {
         var history = await _unitOfWork.Repository<RetrainHistory, Guid>().GetQueryable(tracked: false)
@@ -112,18 +190,19 @@ public class RetrainOrchestrationService : IRetrainOrchestrationService
         return new ServiceResult(ResultCodeConst.SYS_Success0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0001), history);
     }
 
-    private async Task<PythonRunResult> ExecutePythonMLOpsPipelineAsync()
+    // Shared Python execution logic for both snake and wound pipelines
+    private async Task<PythonRunResult> ExecutePythonPipelineAsync(string scriptsRelativePath, string scriptName)
     {
         var result = new PythonRunResult();
         
         string pythonExecutable = _mlopsOptions.PythonExecutable;
-        string scriptDir = ResolveScriptDirectory();
-        string scriptPath = Path.Combine(scriptDir, _mlopsOptions.PipelineScriptName);
+        string scriptDir = ResolveScriptDirectory(scriptsRelativePath);
+        string scriptPath = Path.Combine(scriptDir, scriptName);
 
         if (!File.Exists(scriptPath))
         {
             result.Success = false;
-            result.ErrorMessage = $"Could not find MLOps script. Expected at: {_mlopsOptions.ScriptsRelativePath}/{_mlopsOptions.PipelineScriptName}";
+            result.ErrorMessage = $"Could not find MLOps script. Expected at: {scriptsRelativePath}/{scriptName}";
             return result;
         }
 
@@ -193,31 +272,23 @@ public class RetrainOrchestrationService : IRetrainOrchestrationService
         return result;
     }
 
-    private string ResolveScriptDirectory()
+    private string ResolveScriptDirectory(string relativePath)
     {
         string currentDir = AppContext.BaseDirectory;
-        string targetRelativeDir = _mlopsOptions.ScriptsRelativePath; // "scripts/mlops"
 
-        // Traverse upwards until we find the "scripts" folder in the same directory
-        // This handles cases whether running from bin/Debug/net9.0, or from project root
         while (!string.IsNullOrEmpty(currentDir))
         {
-            string candidate = Path.GetFullPath(Path.Combine(currentDir, targetRelativeDir));
+            string candidate = Path.GetFullPath(Path.Combine(currentDir, relativePath));
             if (Directory.Exists(candidate))
-            {
                 return candidate;
-            }
 
-            // Move one level up
             var parent = Directory.GetParent(currentDir);
             if (parent == null) break;
             currentDir = parent.FullName;
         }
 
-        // Fallback: If not found, return a relative path from current execution dir 
-        // to provide a clear error path in logs.
-        _logger.LogWarning("Could not resolve absolute path for script directory. Using fallback.");
-        return Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), _mlopsOptions.ScriptsRelativePath));
+        _logger.LogWarning("Could not resolve absolute path for script directory '{Path}'. Using fallback.", relativePath);
+        return Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), relativePath));
     }
     
     private class PythonRunResult

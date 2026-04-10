@@ -35,6 +35,8 @@ namespace SFARS.API.Payloads
             public const string Me = Base + "/me";
             public const string MeLocation = Base + "/me/location";
             public const string MeDonationHistory = Base + "/me/donation-history";
+            public const string RescuersMap = Base + "/rescuers/map";
+            public const string RescuerDetail = Base + "/rescuers/{id}/detail";
             // [PUT]
             public const string UpdateMe = Base + "/me";
             // [PATCH]
@@ -53,6 +55,7 @@ namespace SFARS.API.Payloads
             public const string History = Base + "/snakes/{id}/history";
             // [POST]
             public const string IdentifySpecies = Base + "/snakes/identify-species";
+            public const string ClassifyWound = Base + "/snakes/classify-wound";
             public const string Create = Base + "/snakes";
             public const string ImportPreview = Base + "/snakes/import/preview";
             public const string ImportApply = Base + "/snakes/import/apply";
@@ -134,6 +137,9 @@ namespace SFARS.API.Payloads
             // [GET]
             public const string GetById = Base + "/incidents/{id}";
             public const string GetMyIncidents = Base + "/incidents/me";
+            public const string GetRecentCommunity = Base + "/incidents/recent";
+            public const string GetAllAdmin = Base + "/admin/incidents";
+            public const string GetStatusHistoryAdmin = Base + "/admin/incidents/{id}/status-history";
             public const string Tracking = Base + "/incidents/{id}/tracking";
             public const string TrackingByCode = Base + "/tracking";
             public const string SosPreCheck = Base + "/sos-pre-check";
@@ -145,6 +151,8 @@ namespace SFARS.API.Payloads
             public const string ResolveFallback = Base + "/incidents/{id}/resolve-fallback";
             // [PATCH]
             public const string VoiceSymptom = Base + "/incidents/{id}/voice-symptom";
+            public const string UpdateSymptoms = Base + "/incidents/{id}/symptoms";
+            public const string GetSymptomTimeline = Base + "/incidents/{id}/symptoms/timeline";
             public const string Cancel = Base + "/incidents/{id}/cancel";
             public const string Dispatch = Base + "/incidents/{id}/dispatch";
         }
@@ -154,6 +162,8 @@ namespace SFARS.API.Payloads
         /// </summary>
         public static class Mission
         {
+            // [GET]
+            public const string GetMyMissions = Base + "/missions/me";
             // [POST]
             public const string Accept = Base + "/missions/{id}/accept";
             // [PATCH]
@@ -252,6 +262,8 @@ namespace SFARS.API.Payloads
             public const string Antivenom = Base + "/admin/facilities/{id}/antivenom";
             public const string Deactivate = Base + "/admin/facilities/{id}/deactivate";
             public const string Activate = Base + "/admin/facilities/{id}/activate";
+            // [DELETE]
+            public const string Delete = Base + "/admin/facilities/{id}";
         }
 
         /// <summary>
@@ -259,12 +271,20 @@ namespace SFARS.API.Payloads
         /// </summary>
         public static class AdminMlops
         {
+            // Snake Species Pipeline
             // [GET]
-            public const string ExportData = Base + "/admin/mlops/export";
-            public const string ExportByKey = Base + "/admin/mlops/export-by-key";
-            public const string GetRetrainHistory = Base + "/admin/mlops/retrain-history";
+            public const string ExportData = Base + "/admin/mlops/snake/export";
+            public const string ExportByKey = Base + "/admin/mlops/snake/export-by-key";
+            public const string GetRetrainHistory = Base + "/admin/mlops/snake/retrain-history";
             // [POST]
-            public const string TriggerRetrain = Base + "/admin/mlops/trigger-retrain";
+            public const string TriggerRetrain = Base + "/admin/mlops/snake/trigger-retrain";
+
+            // Wound Classification Pipeline
+            // [GET]
+            public const string ExportWoundData = Base + "/admin/mlops/wound/export";
+            public const string ExportWoundByKey = Base + "/admin/mlops/wound/export-by-key";
+            // [POST]
+            public const string TriggerWoundRetrain = Base + "/admin/mlops/wound/trigger-retrain";
         }
 
         /// <summary>

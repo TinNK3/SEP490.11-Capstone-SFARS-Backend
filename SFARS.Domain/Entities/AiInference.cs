@@ -21,5 +21,11 @@ namespace SFARS.Domain.Entities
         public string? DecisionRule { get; set; } // "Top1Only" / "Top1>=0.7"...
 
         public virtual ICollection<AiInferenceCandidate> Candidates { get; set; } = new List<AiInferenceCandidate>();
+        
+        /// <summary>
+        /// True if the user uploaded a Wound Photo and the model classified it as a Snake Bite.
+        /// False if classified as Not a Snake Bite. Null if the user uploaded a Snake Photo instead.
+        /// </summary>
+        public bool? IsSnakeBite { get; set; }
     }
 }

@@ -3,6 +3,7 @@ using MapsterMapper;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Hangfire;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.User;
@@ -38,6 +39,7 @@ namespace SFARS.Tests.Application.Services.Users
         private readonly Mock<ILogger<UserService>> _loggerMock;
         private readonly Mock<IPublisher> _publisherMock;
         private readonly Mock<IFileStorageService> _fileStorageServiceMock;
+        private readonly Mock<IBackgroundJobClient> _backgroundJobClientMock;
         private readonly Mock<IAdminAuditLogService> _auditLogServiceMock;
 
         private readonly UserService _sut;
@@ -53,6 +55,7 @@ namespace SFARS.Tests.Application.Services.Users
             _loggerMock     = new Mock<ILogger<UserService>>();
             _publisherMock  = new Mock<IPublisher>();
             _fileStorageServiceMock = new Mock<IFileStorageService>();
+            _backgroundJobClientMock = new Mock<IBackgroundJobClient>();
             _auditLogServiceMock = new Mock<IAdminAuditLogService>();
 
             _unitOfWorkMock
@@ -70,6 +73,7 @@ namespace SFARS.Tests.Application.Services.Users
                 _loggerMock.Object,
                 _publisherMock.Object,
                 _fileStorageServiceMock.Object,
+                _backgroundJobClientMock.Object,
                 _auditLogServiceMock.Object
             );
         }
@@ -317,6 +321,161 @@ namespace SFARS.Tests.Application.Services.Users
                 r => r.GetWithSpecAsync(It.IsAny<UserSpecification>(), It.IsAny<bool>()),
                 Times.Once);
             _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
+        }
+
+        #endregion
+
+        #region PATCH /api/user/avatar - UpdateAvatarAsync Tests
+
+        [Fact]
+        public async Task UpdateAvatarAsync_InvalidInput_ReturnsWarning()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+
+            // Act
+            var result = await _sut.UpdateAvatarAsync(userId, null, null, null);
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0001);
+            result.Message.Should().Be("File stream, fileName, and contentType are required.");
+        }
+
+        [Fact]
+        public async Task UpdateAvatarAsync_UserEmptyId_ReturnsWarning()
+        {
+            // Arrange
+            var userId = Guid.Empty;
+            using var stream = new System.IO.MemoryStream(new byte[100]);
+            _msgServiceMock.Setup(m => m.GetMessageAsync(ResultCodeConst.Auth_Warning0007))
+                .ReturnsAsync("Auth Error");
+
+            // Act
+            var result = await _sut.UpdateAvatarAsync(userId, stream, "avatar.png", "image/png");
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0007);
+            result.Message.Should().Be("Auth Error");
+        }
+
+        [Fact]
+        public async Task UpdateAvatarAsync_FileTooLarge_ReturnsWarning()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            var size = SFARS.Domain.Common.Constants.FileStorageConstants.MaxAvatarSizeBytes + 1;
+            using var largeStream = new System.IO.MemoryStream(new byte[size]);
+
+            // Act
+            var result = await _sut.UpdateAvatarAsync(userId, largeStream, "avatar.png", "image/png");
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0001);
+            result.Message.Should().Contain("File size cannot exceed");
+        }
+
+        [Fact]
+        public async Task UpdateAvatarAsync_InvalidMimeType_ReturnsWarning()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            using var stream = new System.IO.MemoryStream(new byte[100]);
+
+            // Act
+            var result = await _sut.UpdateAvatarAsync(userId, stream, "doc.pdf", "application/pdf");
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0001);
+            result.Message.Should().Contain("Invalid file type");
+        }
+
+        [Fact]
+        public async Task UpdateAvatarAsync_UserNotFound_ReturnsWarning()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            using var stream = new System.IO.MemoryStream(new byte[100]);
+            
+            _userRepoMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync((User?)null);
+            _msgServiceMock.Setup(m => m.GetMessageAsync(ResultCodeConst.SYS_Warning0004))
+                .ReturnsAsync("Not found");
+
+            // Act
+            var result = await _sut.UpdateAvatarAsync(userId, stream, "avatar.png", "image/png");
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
+            result.Message.Should().Be("Not found");
+        }
+
+        [Fact]
+        public async Task UpdateAvatarAsync_Success_UpdatesDb_And_EnqueuesCleanup()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            using var stream = new System.IO.MemoryStream(new byte[100]);
+            var oldAvatarUrl = "http://old.com/avatar.png";
+            var user = new User { Id = userId, Avatar = oldAvatarUrl };
+            var uploadResult = new FileUploadResult("http://new.com/avatar.png", "img1", 100, "png");
+            
+            _userRepoMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
+            _fileStorageServiceMock
+                .Setup(f => f.UploadAsync(stream, "avatar.png", SFARS.Domain.Common.Constants.FileStorageConstants.AvatarFolder, "image/png"))
+                .ReturnsAsync(uploadResult);
+            _userRepoMock.Setup(r => r.UpdateAsync(It.IsAny<User>())).Returns(Task.CompletedTask);
+            _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+            _msgServiceMock.Setup(m => m.GetMessageAsync(ResultCodeConst.SYS_Success0003))
+                .ReturnsAsync("Success");
+            _mapperMock.Setup(m => m.Map<UserDto>(user))
+                .Returns(new UserDto { Avatar = uploadResult.Url });
+
+            // Act
+            var result = await _sut.UpdateAvatarAsync(userId, stream, "avatar.png", "image/png");
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0003);
+            result.Message.Should().Be("Success");
+            user.Avatar.Should().Be("http://new.com/avatar.png");
+            
+            _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
+            
+            // Hangfire Enqueue verification
+            _backgroundJobClientMock.Verify(b => b.Create(
+                It.Is<Hangfire.Common.Job>(job => job.Type == typeof(IFileStorageService) && job.Method.Name == nameof(IFileStorageService.DeleteByUrlAsync) && job.Args[0].ToString() == oldAvatarUrl),
+                It.IsAny<Hangfire.States.EnqueuedState>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task UpdateAvatarAsync_DbSaveFails_RollsBackUpload_ReturnsError()
+        {
+            // Arrange
+            var userId = Guid.NewGuid();
+            using var stream = new System.IO.MemoryStream(new byte[100]);
+            var user = new User { Id = userId };
+            var uploadResult = new FileUploadResult("http://new.com/avatar.png", "img1", 100, "png");
+            
+            _userRepoMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
+            _fileStorageServiceMock
+                .Setup(f => f.UploadAsync(stream, "avatar.png", SFARS.Domain.Common.Constants.FileStorageConstants.AvatarFolder, "image/png"))
+                .ReturnsAsync(uploadResult);
+                
+            _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ThrowsAsync(new System.Exception("DB error"));
+            _msgServiceMock.Setup(m => m.GetMessageAsync(ResultCodeConst.SYS_Fail0001))
+                .ReturnsAsync("Fail");
+
+            // Act
+            var result = await _sut.UpdateAvatarAsync(userId, stream, "avatar.png", "image/png");
+
+            // Assert
+            result.ResultCode.Should().Be(ResultCodeConst.SYS_Fail0001);
+            result.Message.Should().Be("Fail");
+            
+            // Verify Rollback
+            _fileStorageServiceMock.Verify(f => f.DeleteByUrlAsync("http://new.com/avatar.png"), Times.Once);
+            
+            // Verify No background job created
+            _backgroundJobClientMock.Verify(b => b.Create(It.IsAny<Hangfire.Common.Job>(), It.IsAny<Hangfire.States.EnqueuedState>()), Times.Never);
         }
 
         #endregion
@@ -1071,6 +1230,7 @@ namespace SFARS.Tests.Application.Services.Users
 
             var roleRepoMock     = new Mock<IGenericRepository<Role, Guid>>();
             var userRoleRepoMock = new Mock<IGenericRepository<UserRole, Guid>>();
+            var rescuerProfileRepoMock = new Mock<IGenericRepository<RescuerProfile, Guid>>();
 
             roleRepoMock
                 .Setup(r => r.GetWithSpecAsync(It.IsAny<ISpecification<Role>>(), It.IsAny<bool>()))
@@ -1080,8 +1240,13 @@ namespace SFARS.Tests.Application.Services.Users
                 .Setup(r => r.AddAsync(It.IsAny<UserRole>()))
                 .Returns(Task.CompletedTask);
 
+            rescuerProfileRepoMock
+                .Setup(r => r.AddAsync(It.IsAny<RescuerProfile>()))
+                .Returns(Task.CompletedTask);
+
             _unitOfWorkMock.Setup(u => u.Repository<Role, Guid>()).Returns(roleRepoMock.Object);
             _unitOfWorkMock.Setup(u => u.Repository<UserRole, Guid>()).Returns(userRoleRepoMock.Object);
+            _unitOfWorkMock.Setup(u => u.Repository<RescuerProfile, Guid>()).Returns(rescuerProfileRepoMock.Object);
             _unitOfWorkMock.Setup(u => u.SaveChangesWithTransactionAsync()).ReturnsAsync(1);
 
             _mapperMock
@@ -1102,6 +1267,21 @@ namespace SFARS.Tests.Application.Services.Users
             _userRepoMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Once);
             userRoleRepoMock.Verify(r => r.AddAsync(It.IsAny<UserRole>()), Times.Once);
             _unitOfWorkMock.Verify(u => u.SaveChangesWithTransactionAsync(), Times.Once);
+
+            if (roleType == RoleType.Rescuer)
+            {
+                _backgroundJobClientMock.Verify(b => b.Create(
+                    It.IsAny<Hangfire.Common.Job>(),
+                    It.IsAny<Hangfire.States.IState>()),
+                    Times.Once);
+            }
+            else
+            {
+                _backgroundJobClientMock.Verify(b => b.Create(
+                    It.IsAny<Hangfire.Common.Job>(),
+                    It.IsAny<Hangfire.States.IState>()),
+                    Times.Never);
+            }
         }
 
         #endregion

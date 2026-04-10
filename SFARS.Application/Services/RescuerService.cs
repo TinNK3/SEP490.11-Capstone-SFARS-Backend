@@ -43,7 +43,7 @@ public class RescuerService : IRescuerService
             );
         }
 
-        // ── 1. Fetch User entity ───────────────────────────────────────────────
+        // Fetch User entity
         var user = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(userId);
         if (user == null)
         {
@@ -53,7 +53,7 @@ public class RescuerService : IRescuerService
             );
         }
 
-        // ── 2. Fetch RescuerProfile entity ────────────────────────────────────
+        // Fetch RescuerProfile entity
         var profile = await _unitOfWork.Repository<RescuerProfile, Guid>().GetByIdAsync(userId);
         if (profile == null)
         {
@@ -63,7 +63,7 @@ public class RescuerService : IRescuerService
             );
         }
 
-        // ── 3. Build combined response DTO ────────────────────────────────────
+        // Build combined response DTO
         var responseDto = new RescuerProfileDto
         {
             UserId = user.Id,
@@ -112,7 +112,7 @@ public class RescuerService : IRescuerService
             );
         }
 
-        // ── 1. Fetch User entity ───────────────────────────────────────────────
+        // Fetch User entity
         var user = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(userId);
         if (user == null)
         {
@@ -122,7 +122,7 @@ public class RescuerService : IRescuerService
             );
         }
 
-        // ── 2. Fetch RescuerProfile entity ────────────────────────────────────
+        // Fetch RescuerProfile entity
         var profile = await _unitOfWork.Repository<RescuerProfile, Guid>().GetByIdAsync(userId);
         if (profile == null)
         {
@@ -132,7 +132,7 @@ public class RescuerService : IRescuerService
             );
         }
 
-        // ── 3. Update User fields ─────────────────────────────────────────────
+        // Update User fields
         user.FirstName = profileDto.FirstName;
         user.LastName = profileDto.LastName;
         user.Phone = profileDto.Phone;
@@ -142,7 +142,7 @@ public class RescuerService : IRescuerService
         user.Dob = profileDto.Dob;
         user.UpdatedAt = DateTime.UtcNow;
 
-        // ── 4. Update RescuerProfile fields ──────────────────────────────────
+        // Update RescuerProfile fields
         profile.ExperienceYears = profileDto.ExperienceYears;
         profile.VehicleType = profileDto.VehicleType;   // enum VehicleType
         profile.LicensePlate = profileDto.LicensePlate;
@@ -150,12 +150,12 @@ public class RescuerService : IRescuerService
         profile.IsAvailable = profileDto.IsAvailable;
         profile.AvailableUpdatedAt = DateTime.UtcNow;
 
-        // ── 5. Persist both in one SaveChanges ────────────────────────────────
+        // Persist both in one SaveChanges
         await _unitOfWork.Repository<User, Guid>().UpdateAsync(user);
         await _unitOfWork.Repository<RescuerProfile, Guid>().UpdateAsync(profile);
         await _unitOfWork.SaveChangesAsync();
 
-        // ── 6. Build combined response DTO ────────────────────────────────────
+        // Build combined response DTO
         var responseDto = new RescuerProfileDto
         {
             UserId = user.Id,

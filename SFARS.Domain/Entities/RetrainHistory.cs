@@ -21,6 +21,11 @@ namespace SFARS.Domain.Entities
         /// </summary>
         public bool IsPromoted { get; set; }
         
+        /// <summary>
+        /// Which AI pipeline this retrain belongs to.
+        /// </summary>
+        public RetrainPipelineType PipelineType { get; set; } = RetrainPipelineType.SnakeSpecies;
+
         public RetrainStatus Status { get; set; } = RetrainStatus.Pending;
         
         public string? ErrorMessage { get; set; }

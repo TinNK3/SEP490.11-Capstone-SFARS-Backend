@@ -1,12 +1,15 @@
 using Hangfire;
 using MapsterMapper;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NetTopologySuite.Geometries;
 using SFARS.Application.Common;
+using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.AiInference;
 using SFARS.Application.Dtos.AiReview;
+using SFARS.Application.Dtos.Dispatch;
 using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Validations;
 using SFARS.Domain.Common.Constants;
@@ -18,8 +21,10 @@ using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
+using SFARS.Domain.Specifications.Params;
 using SFARS.Infrastructure.Configurations;
 using SFARS.Infrastructure.Helpers;
+using SFARS.Infrastructure.Hubs;
 using System.Text.Json;
 
 namespace SFARS.Application.Services
@@ -31,6 +36,9 @@ namespace SFARS.Application.Services
         private readonly ISosSpamGuardService _spamGuard;
         private readonly IAiReviewService<SubmitAiReviewRequestDto, FirstAidStepDto> _aiReviewService;
         private readonly ISpeechToTextService _speechToTextService;
+        private readonly IHubContext<RescueDispatchHub> _rescueHub;
+        private readonly IHubContext<LocationTrackingHub> _locationHub;
+        private readonly IFcmPushService _fcmService;
 
         public IncidentService(
             ISystemMessageService msgService,
@@ -41,7 +49,10 @@ namespace SFARS.Application.Services
             IOptions<StorageOptions> storageOptions,
             ISosSpamGuardService spamGuard,
             IAiReviewService<SubmitAiReviewRequestDto, FirstAidStepDto> aiReviewService,
-            ISpeechToTextService speechToTextService)
+            ISpeechToTextService speechToTextService,
+            IHubContext<RescueDispatchHub> rescueHub,
+            IHubContext<LocationTrackingHub> locationHub,
+            IFcmPushService fcmService)
             : base(msgService, unitOfWork, mapper, logger)
         {
             _fileStorageService = fileStorageService;
@@ -49,6 +60,9 @@ namespace SFARS.Application.Services
             _spamGuard = spamGuard;
             _aiReviewService = aiReviewService;
             _speechToTextService = speechToTextService;
+            _rescueHub = rescueHub;
+            _locationHub = locationHub;
+            _fcmService = fcmService;
         }
 
 
@@ -194,9 +208,9 @@ namespace SFARS.Application.Services
         }
 
         /// <summary>
-        /// Get incidents reported by the current user
+        /// Get incidents reported by the current user with standard pagination
         /// </summary>
-        public async Task<IServiceResult> GetMyIncidentsAsync(Guid userId, int page = 0, int pageSize = 10)
+        public async Task<IServiceResult> GetMyIncidentsAsync(Guid userId, IncidentSpecParams specParams)
         {
             if (userId == Guid.Empty)
             {
@@ -206,9 +220,10 @@ namespace SFARS.Application.Services
                 );
             }
 
-            var spec = new BaseSpecification<Incident>(i => i.VictimId == userId);
-            spec.AddOrderByDescending(i => i.CreatedAt);
-            spec.ApplyPaging(pageSize, page * pageSize);
+            var countSpec = new IncidentSpecification(specParams, userId, isCount: true);
+            var totalItems = await _unitOfWork.Repository<Incident, Guid>().CountAsync(countSpec);
+
+            var spec = new IncidentSpecification(specParams, userId, isCount: false);
 
             var dtos = await _unitOfWork.Repository<Incident, Guid>()
                 .GetAllWithSpecAndSelectorAsync(spec, i => new IncidentDto
@@ -233,10 +248,146 @@ namespace SFARS.Application.Services
                     ExtractedSymptoms = i.ExtractedSymptoms
                 }, tracked: false);
 
+            var limit = specParams.GetTake();
+            var page = specParams.GetPage();
+            var totalPages = limit > 0 ? (int)Math.Ceiling(totalItems / (double)limit) : 0;
+
+            var pagedResult = new PaginatedResultDto<IncidentDto>(
+                dtos,
+                page,
+                limit,
+                totalPages,
+                totalItems
+            );
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                pagedResult
+            );
+        }
+
+        public async Task<IServiceResult> GetAllIncidentsAsync(IncidentSpecParams specParams)
+        {
+            var countSpec = new IncidentSpecification(specParams, null, isCount: true);
+            var totalItems = await _unitOfWork.Repository<Incident, Guid>().CountAsync(countSpec);
+
+            var spec = new IncidentSpecification(specParams, null, isCount: false);
+
+            var dtos = await _unitOfWork.Repository<Incident, Guid>()
+                .GetAllWithSpecAndSelectorAsync(spec, i => new IncidentDto
+                {
+                    Id = i.Id,
+                    Code = i.Code,
+                    Latitude = i.Location.Y,
+                    Longitude = i.Location.X,
+                    AddressString = i.AddressString,
+                    Description = i.Description,
+                    CurrentStatus = i.CurrentStatus,
+                    PriorityLevel = i.PriorityLevel,
+                    AiPredictionResult = i.AiPredictionResult,
+                    AiConfidenceScore = i.AiConfidenceScore,
+                    SnakeId = i.SnakeId,
+                    VictimId = i.VictimId,
+                    VictimName = i.Victim.FullName,
+                    CreatedAt = i.CreatedAt,
+                    SymptomAudioUrl = i.SymptomAudioUrl,
+                    SymptomText = i.SymptomText,
+                    MinutesSinceBite = i.MinutesSinceBite,
+                    ExtractedSymptoms = i.ExtractedSymptoms
+                }, tracked: false);
+
+            var limit = specParams.GetTake();
+            var page = specParams.GetPage();
+            var totalPages = limit > 0 ? (int)Math.Ceiling(totalItems / (double)limit) : 0;
+
+            var pagedResult = new PaginatedResultDto<IncidentDto>(
+                dtos,
+                page,
+                limit,
+                totalPages,
+                totalItems
+            );
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                pagedResult
+            );
+        }
+
+        public async Task<IServiceResult> GetStatusHistoryAsync(Guid incidentId)
+        {
+            var histories = await _unitOfWork.Repository<IncidentStatusHistory, Guid>()
+                .GetQueryable(tracked: false)
+                .Where(h => h.IncidentId == incidentId)
+                .ToListAsync();
+
+            // Fetch users to map ChangedByName
+            var userIds = histories.Select(h => h.ChangedBy).Distinct();
+            var users = await _unitOfWork.Repository<User, Guid>()
+                .GetQueryable(tracked: false)
+                .Where(u => userIds.Contains(u.Id))
+                .ToListAsync();
+            var userDict = users.ToDictionary(u => u.Id, u => u.FullName);
+
+            var dtos = histories.OrderByDescending(h => h.CreatedAt).Select(h => new IncidentStatusHistoryDto
+            {
+                Id = h.Id,
+                IncidentId = h.IncidentId,
+                StatusFrom = h.StatusFrom,
+                StatusTo = h.StatusTo,
+                ChangeReason = h.ChangeReason,
+                CreatedAt = h.CreatedAt,
+                ChangedBy = h.ChangedBy,
+                ChangedByName = userDict.GetValueOrDefault(h.ChangedBy, "Unknown")
+            }).ToList();
+
             return new ServiceResult(
                 ResultCodeConst.SYS_Success0002,
                 await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
                 dtos
+            );
+        }
+
+        public async Task<IServiceResult> GetRecentCommunityIncidentsAsync(BaseSpecParams specParams)
+        {
+            var countSpec = new CommunityIncidentSpecification(specParams, isCount: true);
+            var totalItems = await _unitOfWork.Repository<Incident, Guid>().CountAsync(countSpec);
+
+            var spec = new CommunityIncidentSpecification(specParams, isCount: false);
+
+            var dtos = await _unitOfWork.Repository<Incident, Guid>()
+                .GetAllWithSpecAndSelectorAsync(spec, i => new CommunityIncidentDto
+                {
+                    Id = i.Id,
+                    Code = i.Code,
+                    // Round to 3 decimal places (~110m resolution) for privacy
+                    Latitude = Math.Round(i.Location.Y, 3),
+                    Longitude = Math.Round(i.Location.X, 3),
+                    CurrentStatus = i.CurrentStatus,
+                    PriorityLevel = i.PriorityLevel,
+                    CreatedAt = i.CreatedAt,
+                    SnakeId = (i.HumanReviewedSnakeId != null) ? i.HumanReviewedSnakeId : 
+                              (i.AiConfidenceScore > 0.85) ? i.SnakeId : null
+                }, tracked: false);
+
+            var limit = specParams.GetTake();
+            var page = specParams.GetPage();
+            var totalPages = limit > 0 ? (int)Math.Ceiling(totalItems / (double)limit) : 0;
+
+            var pagedResult = new PaginatedResultDto<CommunityIncidentDto>(
+                dtos,
+                page,
+                limit,
+                totalPages,
+                totalItems
+            );
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                pagedResult
             );
         }
 
@@ -1022,6 +1173,289 @@ namespace SFARS.Application.Services
                 await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
                 dto
             );
+        }
+
+        #endregion
+
+        #region Symptom Tracking
+
+        /// <summary>
+        /// Update victim's symptoms via Bottom Sheet UI.
+        /// Handles 4 cases based on IncidentStatus:
+        ///   Case 1 (Dispatching): DB-only — next Tier job auto-picks up fresh data.
+        ///   Case 2 (Assigned):    SignalR + FCM to the assigned Rescuer.
+        ///   Case 3 (Unassigned):  Broadcast SignalR + FCM to nearby rescuers (like a mini-dispatch).
+        ///   Case 5 (Closed/Cancelled): Reject with warning.
+        /// </summary>
+        public async Task<IServiceResult> UpdateSymptomsAsync(
+            Guid userId, Guid incidentId, int? minutesSinceBite, List<SymptomType> symptoms)
+        {
+            if (userId == Guid.Empty)
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0013,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0013));
+
+            var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
+            if (incident == null)
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0002,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002));
+
+            if (incident.VictimId != userId)
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0007,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0007));
+
+            // Case 5: Reject updates on terminal statuses
+            if (incident.CurrentStatus == IncidentStatus.Closed ||
+                incident.CurrentStatus == IncidentStatus.Cancelled)
+                return new ServiceResult(
+                    ResultCodeConst.Incident_Warning0010,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0010));
+
+            var now = DateTime.UtcNow;
+            var symptomsCsv = string.Join(", ", symptoms);
+
+            // Partial update: only overwrite MinutesSinceBite if provided (first submission)
+            if (minutesSinceBite.HasValue)
+                incident.MinutesSinceBite = minutesSinceBite.Value;
+
+            incident.ExtractedSymptoms = symptomsCsv;
+            incident.LastSymptomUpdateAt = now;
+            incident.UpdatedAt = now;
+
+            // Timeline snapshot — append-only history for Rescuer's patient chart
+            var snapshot = new IncidentSymptom
+            {
+                Id = Guid.NewGuid(),
+                IncidentId = incidentId,
+                ReportedBy = userId,
+                HasBleeding = symptoms.Contains(SymptomType.Bleeding),
+                HasSwelling = symptoms.Contains(SymptomType.Swelling),
+                HasNecrosis = symptoms.Contains(SymptomType.Swelling), // Swelling/Necrosis shared flag functionally
+                HasBreathingDifficulty = symptoms.Contains(SymptomType.BreathingDifficulty),
+                HasPtosis = symptoms.Contains(SymptomType.Ptosis),
+                HasVomiting = symptoms.Contains(SymptomType.VomitingDizziness),
+                HasPain = symptoms.Contains(SymptomType.Pain),
+                Notes = symptomsCsv,
+                ReportedAt = now,
+                CreatedAt = now,
+                CreatedBy = userId
+            };
+            await _unitOfWork.Repository<IncidentSymptom, Guid>().AddAsync(snapshot);
+            await _unitOfWork.SaveChangesAsync();
+
+            // Notification routing based on incident status
+            await NotifySymptomUpdateAsync(incident, symptomsCsv);
+
+            _logger.LogInformation(
+                "Symptom update saved for IncidentId={Id}. Status={S}. Symptoms={Sym}",
+                incidentId, incident.CurrentStatus, symptomsCsv);
+
+            // Determine appropriate AI Voice message to return to Frontend based on clinical priority
+            string voiceCode = ResultCodeConst.Voice_None;
+            if (symptoms.Contains(SymptomType.BreathingDifficulty))
+                voiceCode = ResultCodeConst.Voice_BreathingDifficulty;
+            else if (symptoms.Contains(SymptomType.Ptosis))
+                voiceCode = ResultCodeConst.Voice_Ptosis;
+            else if (symptoms.Contains(SymptomType.Bleeding))
+                voiceCode = ResultCodeConst.Voice_Bleeding;
+            else if (symptoms.Contains(SymptomType.VomitingDizziness))
+                voiceCode = ResultCodeConst.Voice_VomitingDizziness;
+            else if (symptoms.Contains(SymptomType.Swelling) || symptoms.Contains(SymptomType.Pain))
+                voiceCode = ResultCodeConst.Voice_SwellingPain;
+
+            var voiceMessage = await _msgService.GetMessageAsync(voiceCode);
+
+            return new ServiceResult(
+                ResultCodeConst.Incident_Success0008,
+                await _msgService.GetMessageAsync(ResultCodeConst.Incident_Success0008),
+                new 
+                {
+                    AiVoiceMessage = voiceMessage 
+                });
+        }
+
+        /// <summary>
+        /// Retrieves the time-series history of symptom updates for a specific incident.
+        /// Only accessible by the victim or assigned rescuers.
+        /// </summary>
+        public async Task<IServiceResult> GetSymptomTimelineAsync(Guid userId, Guid incidentId)
+        {
+            if (userId == Guid.Empty)
+                return new ServiceResult(
+                    ResultCodeConst.Auth_Warning0013,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0013));
+
+            // Validate incident access (Victim or Assigned Rescuer)
+            var spec = new BaseSpecification<Incident>(i => 
+                i.Id == incidentId && 
+                (i.VictimId == userId || i.Missions.Any(m => m.RescuerId == userId))
+            );
+            
+            var incident = await _unitOfWork.Repository<Incident, Guid>().GetWithSpecAsync(spec);
+            if (incident == null)
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
+
+            // Fetch symptoms in chronological order
+            var symptomSpec = new BaseSpecification<IncidentSymptom>(s => s.IncidentId == incidentId);
+            symptomSpec.AddOrderBy(s => s.ReportedAt);
+            
+            var symptomLogs = await _unitOfWork.Repository<IncidentSymptom, Guid>().GetAllWithSpecAsync(symptomSpec);
+
+            // Map to Timeline DTO
+            var timeline = symptomLogs.Select(s => 
+            {
+                var activeSymptoms = new List<SymptomType>();
+                if (s.HasBleeding) activeSymptoms.Add(SymptomType.Bleeding);
+                if (s.HasSwelling) activeSymptoms.Add(SymptomType.Swelling);
+                if (s.HasBreathingDifficulty) activeSymptoms.Add(SymptomType.BreathingDifficulty);
+                if (s.HasPtosis) activeSymptoms.Add(SymptomType.Ptosis);
+                if (s.HasVomiting) activeSymptoms.Add(SymptomType.VomitingDizziness);
+                if (s.HasPain) activeSymptoms.Add(SymptomType.Pain);
+                if (activeSymptoms.Count == 0) activeSymptoms.Add(SymptomType.None);
+
+                return new IncidentSymptomTimelineDto
+                {
+                    Id = s.Id,
+                    ReportedAt = s.ReportedAt,
+                    ActiveSymptoms = activeSymptoms,
+                    Notes = s.Notes
+                };
+            }).ToList();
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0001,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0001),
+                timeline);
+        }
+
+        /// <summary>
+        /// Routes symptom-update notifications based on current incident status.
+        /// </summary>
+        private async Task NotifySymptomUpdateAsync(Incident incident, string symptomsCsv)
+        {
+            var incidentId = incident.Id;
+
+            // Build lightweight payload for SignalR
+            var signalRPayload = new
+            {
+                IncidentId = incidentId,
+                IncidentCode = incident.Code,
+                MinutesSinceBite = incident.MinutesSinceBite,
+                Symptoms = symptomsCsv,
+                UpdatedAt = incident.LastSymptomUpdateAt
+            };
+
+            // Always broadcast to the incident tracking group (victim + observers)
+            await _locationHub.Clients
+                .Group(LocationConstants.SignalRGroupPrefix + incidentId)
+                .SendAsync(DispatchConstants.EventSymptomUpdated, signalRPayload);
+
+            // Case 1 (Dispatching): DB already updated — next Hangfire Tier job will pick up fresh data.
+            // No extra notification needed.
+
+            // Case 2 (Assigned / EnRoute / Arrived): Point-to-point to the active Rescuer
+            if (incident.CurrentStatus == IncidentStatus.Assigned ||
+                incident.CurrentStatus == IncidentStatus.EnRoute ||
+                incident.CurrentStatus == IncidentStatus.Arrived)
+            {
+                var missionSpec = new BaseSpecification<RescueMission>(m =>
+                    m.IncidentId == incidentId &&
+                    (m.Status == RescueStatus.Pending || m.Status == RescueStatus.Accepted));
+                var activeMission = await _unitOfWork.Repository<RescueMission, Guid>()
+                    .GetWithSpecAsync(missionSpec);
+
+                if (activeMission != null)
+                {
+                    // SignalR direct to rescuer
+                    await _rescueHub.Clients
+                        .Group(DispatchConstants.RescuerGroupPrefix + activeMission.RescuerId)
+                        .SendAsync(DispatchConstants.EventSymptomUpdated, signalRPayload);
+
+                    // FCM high-priority push
+                    var body = string.Format(DispatchConstants.PushSymptomBody, incident.Code);
+                    var data = new Dictionary<string, string>
+                    {
+                        { "incidentId", incidentId.ToString() },
+                        { "type", DispatchConstants.FcmSymptomUpdateTitleKey }
+                    };
+                    await _fcmService.SendToUserAsync(
+                        activeMission.RescuerId, DispatchConstants.PushSymptomTitle, body, data);
+
+                    await _unitOfWork.Repository<NotificationLog, Guid>().AddAsync(new NotificationLog
+                    {
+                        Id = Guid.NewGuid(),
+                        UserId = activeMission.RescuerId,
+                        Title = DispatchConstants.PushSymptomTitle,
+                        Message = body,
+                        Type = NotificationType.Mission,
+                        IsRead = false,
+                        SentAt = DateTime.UtcNow,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                    await _unitOfWork.SaveChangesAsync();
+                }
+            }
+
+            // Case 3 (Unassigned): Broadcast to all nearby rescuers like a mini-dispatch
+            if (incident.CurrentStatus == IncidentStatus.Unassigned)
+            {
+                var heartbeatCutoff = DateTime.UtcNow.AddHours(-DispatchConstants.Tier3FreshnessHours);
+                var rescuerSpec = new BaseSpecification<User>(u =>
+                    u.RescuerProfile != null &&
+                    u.RescuerProfile.IsAvailable &&
+                    u.RescuerProfile.IsVerified &&
+                    u.CurrentLocation != null &&
+                    u.LocationUpdatedAt != null &&
+                    u.LocationUpdatedAt >= heartbeatCutoff &&
+                    u.CurrentLocation.Distance(incident.Location) <= DispatchConstants.Tier3RadiusMeters);
+
+                var rescuers = await _unitOfWork.Repository<User, Guid>().GetAllWithSpecAsync(rescuerSpec);
+                var body = string.Format(DispatchConstants.PushSymptomBody, incident.Code);
+                var notificationsToSave = new List<NotificationLog>();
+
+                foreach (var rescuer in rescuers)
+                {
+                    // SignalR per-rescuer
+                    await _rescueHub.Clients
+                        .Group(DispatchConstants.RescuerGroupPrefix + rescuer.Id)
+                        .SendAsync(DispatchConstants.EventSymptomUpdated, signalRPayload);
+
+                    // FCM per-rescuer
+                    var data = new Dictionary<string, string>
+                    {
+                        { "incidentId", incidentId.ToString() },
+                        { "type", DispatchConstants.FcmSymptomUpdateTitleKey }
+                    };
+                    await _fcmService.SendToUserAsync(
+                        rescuer.Id, DispatchConstants.PushSymptomTitle, body, data);
+
+                    notificationsToSave.Add(new NotificationLog
+                    {
+                        Id = Guid.NewGuid(),
+                        UserId = rescuer.Id,
+                        Title = DispatchConstants.PushSymptomTitle,
+                        Message = body,
+                        Type = NotificationType.Mission,
+                        IsRead = false,
+                        SentAt = DateTime.UtcNow,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+
+                if (notificationsToSave.Count > 0)
+                {
+                    await _unitOfWork.Repository<NotificationLog, Guid>().AddRangeAsync(notificationsToSave);
+                    await _unitOfWork.SaveChangesAsync();
+                }
+
+                _logger.LogInformation(
+                    "Symptom broadcast (Unassigned) sent to {Count} rescuers. IncidentId={Id}",
+                    rescuers.Count(), incidentId);
+            }
         }
 
         #endregion

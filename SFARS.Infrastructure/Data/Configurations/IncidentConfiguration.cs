@@ -125,6 +125,9 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
             .HasMaxLength(1000)
             .HasColumnName("extracted_symptoms");
 
+        builder.Property(e => e.LastSymptomUpdateAt)
+            .HasColumnName("last_symptom_update_at");
+
         // SOS grace period (set by AnalyzeAsync; null until AI analysis completes)
         builder.Property(e => e.GraceExpiresAt)
             .HasColumnName("grace_expires_at");
@@ -133,5 +136,10 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         // Used by CancelIncidentAsync to clean up scheduled jobs
         builder.Property(e => e.DispatchJobIds)
             .HasColumnName("dispatch_job_ids");
+
+        builder.Property(e => e.DispatchVersion)
+            .IsRequired()
+            .HasDefaultValue(0)
+            .HasColumnName("dispatch_version");
     }
 }

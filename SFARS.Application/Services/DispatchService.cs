@@ -186,7 +186,44 @@ public class DispatchService : IDispatchService
 
         await _unitOfWork.SaveChangesAsync();
 
-        _logger.LogWarning("SOS Fallback triggered for IncidentId={Id}. Status=Unassigned.", incidentId);
+        // Schedule an automatic closure to prevent "Ghost SOS" if no rescuer ever accepts
+        _jobs.Schedule<IDispatchService>(
+            s => s.AutoCloseAbandonedIncidentAsync(incidentId), 
+            TimeSpan.FromHours(DispatchConstants.AbandonedIncidentExpiryHours));
+
+        _logger.LogWarning("SOS Fallback triggered for IncidentId={Id}. Status=Unassigned. Auto-close scheduled in {H}h.", 
+            incidentId, DispatchConstants.AbandonedIncidentExpiryHours);
+    }
+
+    /// <inheritdoc />
+    [Queue(DispatchConstants.HangfireQueue)]
+    public async Task AutoCloseAbandonedIncidentAsync(Guid incidentId)
+    {
+        var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
+        if (incident == null || incident.CurrentStatus != IncidentStatus.Unassigned)
+        {
+            return; // Already handled, assigned, or cancelled
+        }
+
+        _logger.LogWarning("Auto-closing abandoned incident {Id} after {H} hours of inactivity.", 
+            incidentId, DispatchConstants.AbandonedIncidentExpiryHours);
+
+        var oldStatus = incident.CurrentStatus;
+        incident.CurrentStatus = IncidentStatus.Closed;
+        incident.UpdatedAt = DateTime.UtcNow;
+
+        await _unitOfWork.Repository<IncidentStatusHistory, Guid>().AddAsync(new IncidentStatusHistory
+        {
+            Id = Guid.NewGuid(),
+            IncidentId = incidentId,
+            StatusFrom = oldStatus,
+            StatusTo = IncidentStatus.Closed,
+            ChangedBy = Guid.Empty, // System
+            ChangeReason = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Reason0010),
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _unitOfWork.SaveChangesAsync();
     }
 
     private async Task RunTierInternalAsync(
@@ -302,22 +339,20 @@ public class DispatchService : IDispatchService
 
             var bodyMsg = string.Format(DispatchConstants.PushBodyTemplate, topSnake, Math.Round(distKm, 1));
 
-            var data = new Dictionary<string, string>
+            var jsonOpts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            var serializedDto = JsonSerializer.Serialize(dto, jsonOpts);
+            var parsedPayload = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(serializedDto);
+
+            var data = new Dictionary<string, string>();
+            if (parsedPayload != null)
             {
-                { "incidentId", incidentId.ToString() },
-                { "lat", incident.Location.Y.ToString() },
-                { "lng", incident.Location.X.ToString() },
-                { "severity", incident.PriorityLevel.ToString() },
-                { "type", DispatchConstants.FcmSosDispatchTitleKey },
-                
-                // Pass enriched AI summary to FCM Notification Click Payload
-                { "imageUrl", imageUrl ?? "" },
-                { "isAiSkipped", isAiSkipped.ToString() },
-                { "aiPrimarySnakeName", aiName ?? "" },
-                { "toxinGroup", toxin ?? "" },
-                { "minutesSinceBite", incident.MinutesSinceBite?.ToString() ?? "" },
-                { "extractedSymptoms", incident.ExtractedSymptoms ?? "" }
-            };
+                foreach (var kvp in parsedPayload)
+                {
+                    data[kvp.Key] = kvp.Value.ValueKind == JsonValueKind.Null ? string.Empty : kvp.Value.ToString() ?? string.Empty;
+                }
+            }
+            
+            data["type"] = DispatchConstants.FcmSosDispatchTitleKey;
 
             await _fcmService.SendToUserAsync(rescuer.Id, baseTitleMsg, bodyMsg, data);
 

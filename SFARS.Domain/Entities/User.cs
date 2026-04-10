@@ -29,6 +29,12 @@ public class User : BaseEntity
     public Point? CurrentLocation { get; set; }
     public DateTime? LocationUpdatedAt { get; set; }
     public double? LocationAccuracyMeters { get; set; }
+    
+    /// <summary>
+    /// The distance in meters moved since the previous location update.
+    /// Used by mission watchdog to detect micro-stagnation ("Ghosting").
+    /// </summary>
+    public double? LastLocationDeltaMeters { get; set; }
 
     // Email Verification
     public string? EmailVerificationCode { get; set; }

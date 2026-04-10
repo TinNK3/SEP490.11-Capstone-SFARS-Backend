@@ -1,3 +1,7 @@
+using DocumentFormat.OpenXml.InkML;
+using Hangfire;
+using Hangfire.Common;
+using Hangfire.States;
 using MapsterMapper;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -8,12 +12,14 @@ using SFARS.Application.Common;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.User;
 using SFARS.Application.Events;
+using SFARS.Application.Interfaces.Services;
 using SFARS.Application.Utils;
 using SFARS.Application.Validations;
 using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
+using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
@@ -21,7 +27,6 @@ using SFARS.Domain.Specifications.Params;
 using SFARS.Domain.Specifications.Users;
 using SFARS.Infrastructure.Helpers;
 using System.Text.Json;
-using SFARS.Domain.Interfaces.Infrastructure;
 
 namespace SFARS.Application.Services
 {
@@ -30,6 +35,7 @@ namespace SFARS.Application.Services
         private readonly IPublisher _publisher;
         private readonly IAdminAuditLogService _auditLogService;
         private readonly IFileStorageService _fileStorageService;
+        private readonly IBackgroundJobClient _backgroundJobClient;
 
         public UserService(
             ISystemMessageService msgService,
@@ -38,11 +44,13 @@ namespace SFARS.Application.Services
             ILogger<UserService> logger,
             IPublisher publisher,
             IFileStorageService fileStorageService,
+            IBackgroundJobClient backgroundJobClient,
             IAdminAuditLogService auditLogService) : base(msgService, unitOfWork, mapper, logger)
         {
             _publisher = publisher;
             _auditLogService = auditLogService;
             _fileStorageService = fileStorageService;
+            _backgroundJobClient = backgroundJobClient;
         }
 
         /// <summary>
@@ -104,6 +112,93 @@ namespace SFARS.Application.Services
                 await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
                 dto
             );
+        }
+
+        /// <inheritdoc />
+        public async Task<IServiceResult> GetRescuersForMapAsync()
+        {
+            var threshold = DateTime.UtcNow.AddHours(-LocationConstants.LocationMapStaleHours);
+
+            var rescuers = await _unitOfWork.Repository<RescuerProfile, Guid>()
+                .GetQueryable()
+                .AsNoTracking()
+                .Where(rp => rp.IsVerified && 
+                             rp.IsAvailable && 
+                             rp.User.CurrentLocation != null &&
+                             rp.User.LocationUpdatedAt >= threshold)
+                .Select(rp => new RescuerMapDto
+                {
+                    Id = rp.UserId,
+                    Latitude = rp.User.CurrentLocation!.Y,
+                    Longitude = rp.User.CurrentLocation!.X
+                })
+                .ToListAsync();
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                rescuers
+            );
+        }
+
+        /// <inheritdoc />
+        public async Task<IServiceResult> GetRescuerDetailAsync(Guid rescuerId, double userLat, double userLng)
+        {
+            // 1. Fetch Rescuer and User info (Optimized with NoTracking)
+            var rescuer = await _unitOfWork.Repository<RescuerProfile, Guid>()
+                .GetQueryable(false)
+                .Include(rp => rp.User)
+                .Where(rp => rp.UserId == rescuerId && rp.IsVerified)
+                .FirstOrDefaultAsync();
+
+            if (rescuer == null)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
+            }
+
+            // 2. Fetch Total Missions separately to avoid complex Expression Tree issues
+            // This is clean, safe, and has negligible performance impact for a single record view.
+            var totalMissions = await _unitOfWork.Repository<RescueMission, Guid>()
+                .CountAsync(new BaseSpecification<RescueMission>(m => 
+                    m.RescuerId == rescuerId && m.Status == RescueStatus.Completed));
+
+            var factory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+            var userLocation = factory.CreatePoint(new Coordinate(userLng, userLat));
+            
+            double distanceMeters = 0;
+            if (rescuer.User.CurrentLocation != null)
+            {
+                distanceMeters = rescuer.User.CurrentLocation.Distance(userLocation);
+            }
+
+            // Calculations: Convert KM/H to Meters/Minute for more natural urban calculation
+            double distanceKM = Math.Round(distanceMeters / 1000.0, 2);
+            double speedMetersPerMin = (LocationConstants.AverageRescueSpeedKmH * 1000.0) / 60.0;
+            
+            int etaMinutes = (int)Math.Ceiling(distanceMeters / speedMetersPerMin);
+
+            var dto = new RescuerDetailDto
+            {
+                FullName = rescuer.User.FullName,
+                Avatar = rescuer.User.Avatar,
+                Phone = rescuer.User.Phone,
+                Gender = rescuer.User.Gender,
+                Address = rescuer.User.Address,
+                ExperienceYears = rescuer.ExperienceYears,
+                LicensePlate = rescuer.LicensePlate,
+                VehicleType = rescuer.VehicleType,
+                TotalMissions = totalMissions,
+                DistanceKM = distanceKM,
+                EtaMinutes = etaMinutes,
+                LocationUpdatedAt = rescuer.User.LocationUpdatedAt
+            };
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                dto);
         }
 
         /// <summary>
@@ -269,28 +364,42 @@ namespace SFARS.Application.Services
             user.Avatar = uploadResult.Url;
             user.UpdatedAt = DateTime.UtcNow;
 
-            // Persist to database
-            await _unitOfWork.Repository<User, Guid>().UpdateAsync(user);
-            await _unitOfWork.SaveChangesAsync();
-
-            // Delete old avatar from Cloudinary (after DB save succeeds)
-            // Wrap in try-catch: deletion failure should not fail the overall operation
-            if (!string.IsNullOrEmpty(oldAvatarUrl))
+            try
             {
+                // Persist to database
+                await _unitOfWork.Repository<User, Guid>().UpdateAsync(user);
+                await _unitOfWork.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to save new avatar to DB. Rolling back Cloudinary upload for User {UserId}",
+                    userId);
+
                 try
                 {
-                    await _fileStorageService.DeleteByUrlAsync(oldAvatarUrl);
+                    await _fileStorageService.DeleteByUrlAsync(uploadResult.Url);
                 }
-                catch (Exception ex)
+                catch (Exception rollbackEx)
                 {
-                    // Log the failure but don't throw - old file deletion is non-critical
                     _logger.LogWarning(
-                        ex,
-                        "Failed to delete old avatar from Cloudinary for User {UserId}. URL: {OldAvatarUrl}",
+                        rollbackEx,
+                        "Failed to rollback uploaded avatar on Cloudinary for User {UserId}. URL: {UploadedAvatarUrl}",
                         userId,
-                        oldAvatarUrl
-                    );
+                        uploadResult.Url);
                 }
+
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Fail0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
+            }
+
+            // Enqueue old avatar cleanup so the response is not blocked by Cloudinary delete latency.
+            if (!string.IsNullOrEmpty(oldAvatarUrl))
+            {
+                _backgroundJobClient.Enqueue<IFileStorageService>(storage =>
+                    storage.DeleteByUrlAsync(oldAvatarUrl));
             }
 
             // Return updated user DTO
@@ -495,6 +604,12 @@ namespace SFARS.Application.Services
 
             if (shouldSyncDb)
             {
+                // Calculate Delta (distance moved since last DB update)
+                if (user.CurrentLocation != null)
+                {
+                    user.LastLocationDeltaMeters = user.CurrentLocation.Distance(newLocation);
+                }
+
                 // Update user location fields in Entity
                 user.CurrentLocation = newLocation;
                 user.LocationUpdatedAt = newUpdateAt;
@@ -790,6 +905,15 @@ namespace SFARS.Application.Services
                 AssignedAt = DateTime.UtcNow
             });
 
+            await _unitOfWork.Repository<RescuerProfile, Guid>().AddAsync(new RescuerProfile
+            {
+                UserId = newUser.Id,
+                IsVerified = true,
+                IsAvailable = true,
+                CoverageRadiusKM = 30,
+                VehicleType = VehicleType.Motorbike
+            });
+
             // 5. Persist with transaction
             if (await _unitOfWork.SaveChangesWithTransactionAsync() > 0)
             {
@@ -812,6 +936,8 @@ namespace SFARS.Application.Services
                         Status    = newUser.Status.ToString()
                     }));
 
+                await SendRoleAssignmentNotificationIfNeededAsync(newUser, roleEntity.RoleName, dto.Password!);
+
                 return new ServiceResult(
                     ResultCodeConst.SYS_Success0001,
                     await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0001),
@@ -821,6 +947,29 @@ namespace SFARS.Application.Services
             return new ServiceResult(
                 ResultCodeConst.SYS_Fail0001,
                 await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
+        }
+
+        private Task SendRoleAssignmentNotificationIfNeededAsync(User user, string roleName, string password)
+        {
+            if (!ShouldNotifyRescuerRole(roleName) || string.IsNullOrWhiteSpace(user.Email))
+            {
+                return Task.CompletedTask;
+            }
+
+            _backgroundJobClient.Create(
+                Job.FromExpression<IEmailJobService>(emailJobService =>
+                    emailJobService.SendRescuerRoleAssignedEmailAsync(user.Email, user.FirstName, user.LastName, password)),
+                new EnqueuedState("dispatch"));
+
+            return Task.CompletedTask;
+        }
+
+        private static bool ShouldNotifyRescuerRole(string roleName)
+        {
+            return string.Equals(
+                roleName,
+                RoleType.Rescuer.ToString(),
+                StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>

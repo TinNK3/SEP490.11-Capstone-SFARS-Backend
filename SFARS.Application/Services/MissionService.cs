@@ -1,9 +1,13 @@
 using Hangfire;
+using System.Text.Json;
+using MapsterMapper;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SFARS.Application.Common;
+using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Dispatch;
+using SFARS.Application.Dtos.Mission;
 using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
@@ -11,6 +15,7 @@ using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
+using SFARS.Domain.Specifications.Params;
 using SFARS.Infrastructure.Hubs;
 
 namespace SFARS.Application.Services;
@@ -23,6 +28,8 @@ public class MissionService : IMissionService
     private readonly ISystemMessageService _msgService;
     private readonly ILogger<MissionService> _logger;
     private readonly IFcmPushService _fcmService;
+    private readonly IDistributedLockProvider _distributedLockProvider;
+    private readonly IMapper _mapper;
 
     public MissionService(
         IUnitOfWork unitOfWork,
@@ -30,7 +37,9 @@ public class MissionService : IMissionService
         IHubContext<LocationTrackingHub> locationHub,
         ISystemMessageService msgService,
         ILogger<MissionService> logger,
-        IFcmPushService fcmService)
+        IFcmPushService fcmService,
+        IDistributedLockProvider distributedLockProvider,
+        IMapper mapper)
     {
         _unitOfWork = unitOfWork;
         _jobs = jobs;
@@ -38,6 +47,45 @@ public class MissionService : IMissionService
         _msgService = msgService;
         _logger = logger;
         _fcmService = fcmService;
+        _distributedLockProvider = distributedLockProvider;
+        _mapper = mapper;
+    }
+
+    public async Task<IServiceResult> GetMyMissionsAsync(Guid rescuerId, MissionSpecParams specParams)
+    {
+        if (rescuerId == Guid.Empty)
+        {
+            return new ServiceResult(
+                ResultCodeConst.Auth_Warning0013,
+                await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0013)
+            );
+        }
+
+        var countSpec = new MissionSpecification(specParams, rescuerId, isCount: true);
+        var totalItems = await _unitOfWork.Repository<RescueMission, Guid>().CountAsync(countSpec);
+
+        var spec = new MissionSpecification(specParams, rescuerId, isCount: false);
+
+        var entities = await _unitOfWork.Repository<RescueMission, Guid>().GetAllWithSpecAsync(spec);
+        var dtos = _mapper.Map<IEnumerable<MissionDto>>(entities);
+
+        var limit = specParams.GetTake();
+        var page = specParams.GetPage();
+        var totalPages = limit > 0 ? (int)Math.Ceiling(totalItems / (double)limit) : 0;
+
+        var pagedResult = new PaginatedResultDto<MissionDto>(
+            dtos,
+            page,
+            limit,
+            totalPages,
+            totalItems
+        );
+
+        return new ServiceResult(
+            ResultCodeConst.SYS_Success0002,
+            await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+            pagedResult
+        );
     }
 
     public async Task<IServiceResult> AcceptMissionAsync(Guid incidentId, Guid rescuerId)
@@ -48,14 +96,14 @@ public class MissionService : IMissionService
 
         // Refactor: Prevent rescuer spam accept / active mission overlap
         var activeMissionsSpec = new BaseSpecification<RescueMission>(m => 
-            m.RescuerId == rescuerId && 
-            (m.Status == RescueStatus.Pending || m.Status == RescueStatus.Accepted));
+           m.RescuerId == rescuerId && 
+           (m.Status == RescueStatus.Pending || m.Status == RescueStatus.Accepted));
         var activeMissions = await _unitOfWork.Repository<RescueMission, Guid>().GetAllWithSpecAsync(activeMissionsSpec);
         
         if (activeMissions.Any())
         {
-            _logger.LogWarning("AcceptMissionAsync: Rescuer {RescuerId} tried to accept but already has an active mission.", rescuerId);
-            return new ServiceResult(ResultCodeConst.Incident_Warning0007, await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0007)); // Or a new strict warning code like "Already on mission"
+           _logger.LogWarning("AcceptMissionAsync: Rescuer {RescuerId} tried to accept but already has an active mission.", rescuerId);
+           return new ServiceResult(ResultCodeConst.Incident_Warning0007, await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0007)); // Or a new strict warning code like "Already on mission"
         }
 
         var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
@@ -72,11 +120,13 @@ public class MissionService : IMissionService
         try 
         {
             rowsAffected = await _unitOfWork.ExecuteSqlRawAsync(
-                @"UPDATE Incidents SET current_status = {0}, updated_at = {1}
+                @"UPDATE Incident SET current_status = {0}, updated_at = {1}
                   WHERE id = {2} AND current_status IN ({3}, {4}, {5}, {6})",
-                (int)IncidentStatus.EnRoute, DateTime.UtcNow, incidentId,
-                (int)IncidentStatus.Dispatching_Tier1, (int)IncidentStatus.Dispatching_Tier2,
-                (int)IncidentStatus.Dispatching_Tier3, (int)IncidentStatus.Unassigned);
+                IncidentStatus.EnRoute.ToString(), DateTime.UtcNow, incidentId,
+                IncidentStatus.Dispatching_Tier1.ToString(),
+                IncidentStatus.Dispatching_Tier2.ToString(),
+                IncidentStatus.Dispatching_Tier3.ToString(),
+                IncidentStatus.Unassigned.ToString());
         }
         catch (Exception ex)
         {
@@ -119,6 +169,9 @@ public class MissionService : IMissionService
             IncidentId = incidentId,
             RescuerId = rescuerId,
             Status = RescueStatus.Pending,
+            InitialDistanceMeters = dist, // Captured at line 110
+            LastCheckedDistanceMeters = dist,
+            NextCheckAt = DateTime.UtcNow.AddMinutes(DispatchConstants.WatchdogInitialGraceMins),
             CreatedAt = DateTime.UtcNow,
             CreatedBy = rescuerId
         };
@@ -181,7 +234,7 @@ public class MissionService : IMissionService
         // Step 5: Schedule claim timeout job
         _jobs.Schedule<IMissionService>(
             s => s.ClaimTimeoutAsync(mission.Id), 
-            TimeSpan.FromMinutes(DispatchConstants.ClaimTimeoutMinutes));
+            TimeSpan.FromMinutes(DispatchConstants.WatchdogInitialGraceMins));
 
         await _unitOfWork.SaveChangesAsync();
 
@@ -195,6 +248,35 @@ public class MissionService : IMissionService
         await _locationHub.Clients
             .Group(LocationConstants.SignalRGroupPrefix + incidentId)
             .SendAsync(DispatchConstants.EventAssigned, dto);
+
+        // Case 4: Race Condition — detect if victim updated symptoms while rescuer was deciding
+        if (incident.LastSymptomUpdateAt.HasValue && incident.LastSymptomUpdateAt > incident.CreatedAt)
+        {
+            var symptomPayload = new
+            {
+                IncidentId = incidentId,
+                IncidentCode = incident.Code,
+                MinutesSinceBite = incident.MinutesSinceBite,
+                Symptoms = incident.ExtractedSymptoms,
+                UpdatedAt = incident.LastSymptomUpdateAt
+            };
+
+            await _locationHub.Clients
+                .Group(DispatchConstants.RescuerGroupPrefix + rescuerId)
+                .SendAsync(DispatchConstants.EventSymptomUpdated, symptomPayload);
+
+            var symptomBody = string.Format(DispatchConstants.PushSymptomBody, incident.Code);
+            var symptomData = new Dictionary<string, string>
+            {
+                { "incidentId", incidentId.ToString() },
+                { "type", DispatchConstants.FcmSymptomUpdateTitleKey }
+            };
+            await _fcmService.SendToUserAsync(rescuerId, DispatchConstants.PushSymptomTitle, symptomBody, symptomData);
+
+            _logger.LogInformation(
+                "Case4 Race Condition: Symptom update detected during accept. Rescuer={RescuerId}, Incident={IncidentId}, SymptomUpdate={T}",
+                rescuerId, incidentId, incident.LastSymptomUpdateAt);
+        }
 
         _logger.LogInformation("Mission {MissionId} successfully claimed by Rescuer {RescuerId} for Incident {IncidentId}", mission.Id, rescuerId, incidentId);
         
@@ -214,120 +296,127 @@ public class MissionService : IMissionService
     [Queue(DispatchConstants.HangfireQueue)]
     public async Task ClaimTimeoutAsync(Guid missionId)
     {
+        // 1. DISTRIBUTED LOCK: Anti-race condition for multi-node environments
+        await using var @lock = await _distributedLockProvider.TryAcquireLockAsync(
+            $"mission_watchdog_{missionId}",
+            TimeSpan.FromSeconds(30));
+
+        if (@lock == null)
+        {
+            _logger.LogWarning("Watchdog: Could not acquire lock for Mission {MissionId}. Skipping execution.", missionId);
+            return;
+        }
+
+        // 2. LOAD DATA: Include Rescuer and Incident to evaluate real-world progress
         var spec = new BaseSpecification<RescueMission>(m => m.Id == missionId);
         spec.ApplyInclude(q => q.Include(m => m.Rescuer));
-        
-        var mission = await _unitOfWork.Repository<RescueMission, Guid>()
-            .GetWithSpecAsync(spec);
+        spec.ApplyInclude(q => q.Include(m => m.Incident));
 
-        if (mission == null) return;
-        if (mission.Status != RescueStatus.Pending) return;
+        var mission = await _unitOfWork.Repository<RescueMission, Guid>().GetWithSpecAsync(spec);
 
-        var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(mission.IncidentId);
-        if (incident == null || (incident.CurrentStatus != IncidentStatus.Assigned && incident.CurrentStatus != IncidentStatus.EnRoute)) return;
+        if (mission == null || mission.Status != RescueStatus.Pending) return;
+        var incident = mission.Incident;
+        if (incident.CurrentStatus != IncidentStatus.Assigned && incident.CurrentStatus != IncidentStatus.EnRoute) return;
 
-        // Has rescuer ghosted without refreshing location?
-        // Check if the last location update is older than the configured timeout limit
-        var timeSinceLastUpdate = DateTime.UtcNow - (mission.Rescuer.LocationUpdatedAt ?? mission.CreatedAt);
-        
-        if (timeSinceLastUpdate > TimeSpan.FromMinutes(DispatchConstants.ClaimTimeoutMinutes))
+        var utcNow = DateTime.UtcNow;
+
+        // 3. STAGNATION DETECTION (GHOSTING & COFFEE-SHOP CHECKS)
+        var timeSinceLastUpdate = utcNow - (mission.Rescuer.LocationUpdatedAt ?? mission.CreatedAt);
+        bool isGhosted = timeSinceLastUpdate.TotalMinutes > DispatchConstants.WatchdogHeartbeatTimeoutMins;
+
+        bool hasNoProgress = false;
+        if (!isGhosted && mission.Rescuer.CurrentLocation != null && incident.Location != null)
         {
-            _logger.LogWarning("ClaimTimeout: Rescuer {RescuerId} ghosted Mission {MissionId}. Last update {Time} mins ago. Reverting...", mission.RescuerId, mission.Id, timeSinceLastUpdate.TotalMinutes);
+            var currentDistToVictim = mission.Rescuer.CurrentLocation.Distance(incident.Location);
             
-            // Revert state
-            mission.Status = RescueStatus.Rejected;
-            mission.UpdatedAt = DateTime.UtcNow;
+            // Micro-Check: Did they move >= 15m since their OWN last location ping?
+            var microMovementDelta = mission.Rescuer.LastLocationDeltaMeters ?? 0;
+            bool microStalled = microMovementDelta < DispatchConstants.WatchdogMicroMovementThresholdMeters;
 
-            var oldStatus = incident.CurrentStatus;
-            incident.CurrentStatus = IncidentStatus.Unassigned;
-            
-            // Revert review snapshot so new rescuer can review
-            if (incident.CurrentAiReviewStatus == AiReviewStatus.Pending || incident.CurrentAiReviewStatus == AiReviewStatus.Deferred)
+            // Macro-Check: Did they get >= 500m closer to the victim since OUR last watchdog check (10m ago)?
+            var lastCheckedDist = mission.LastCheckedDistanceMeters ?? currentDistToVictim;
+            var macroProgress = lastCheckedDist - currentDistToVictim;
+            bool macroStalled = macroProgress < DispatchConstants.WatchdogMacroProgressThresholdMeters;
+
+            // Stall criteria: If they move < 15m AND didn't make significant progress towards victim
+            if (microStalled && macroStalled)
             {
-                if (incident.CurrentAiReviewId.HasValue)
+                hasNoProgress = true;
+            }
+            
+            // Update the macro-baseline for the next interval
+            mission.LastCheckedDistanceMeters = currentDistToVictim;
+        }
+
+        if (isGhosted || hasNoProgress)
+        {
+            _logger.LogWarning("Watchdog: Rescuer {RescuerId} stalled (Ghosted: {Ghosted}, Stalled: {Stalled}) for Mission {MissionId}. Reverting...", 
+                mission.RescuerId, isGhosted, hasNoProgress, mission.Id);
+
+            // 4. ATOMIC REVERSION & RE-DISPATCH
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                // Increment version to invalidate any stale accept attempts
+                incident.DispatchVersion++;
+                incident.CurrentStatus = IncidentStatus.Unassigned;
+                incident.UpdatedAt = utcNow;
+
+                mission.Status = RescueStatus.Rejected;
+                mission.UpdatedAt = utcNow;
+
+                // Reset AI review snapshot if still pending
+                if (incident.CurrentAiReviewStatus == AiReviewStatus.Pending || incident.CurrentAiReviewStatus == AiReviewStatus.Deferred)
                 {
-                    var oldReview = await _unitOfWork.Repository<AiInferenceReview, Guid>().GetByIdAsync(incident.CurrentAiReviewId.Value);
-                    if (oldReview != null)
-                    {
-                        // Abandon the unfinalized review
-                        oldReview.ReviewStatus = AiReviewStatus.Abandoned;
-                        oldReview.Comment = "Invalidated due to mission timeout";
-                        oldReview.UpdatedAt = DateTime.UtcNow;
-                        oldReview.UpdatedBy = null; // System
-                        
-                        await _unitOfWork.Repository<AiInferenceReview, Guid>().UpdateAsync(oldReview);
-                    }
+                    incident.CurrentAiReviewId = null;
+                    incident.CurrentAiReviewStatus = null;
                 }
 
-                incident.CurrentAiReviewId = null;
-                incident.CurrentAiReviewStatus = null;
-                
-                // Clear any rogue human snapshot that might have been set incorrectly
-                incident.HumanReviewedSnakeId = null;
-                incident.HumanReviewedToxinGroup = null;
+                // Append Audit Trail
+                await _unitOfWork.Repository<IncidentStatusHistory, Guid>().AddAsync(new IncidentStatusHistory
+                {
+                    Id = Guid.NewGuid(),
+                    IncidentId = incident.Id,
+                    StatusFrom = IncidentStatus.Assigned,
+                    StatusTo = IncidentStatus.Unassigned,
+                    ChangedBy = Guid.Empty,
+                    ChangeReason = await _msgService.GetMessageAsync(isGhosted ? ResultCodeConst.Incident_Reason0006 : ResultCodeConst.Incident_Reason0011),
+                    CreatedAt = utcNow
+                });
+
+                // 5. TRANSACTIONAL OUTBOX: Schedule notifications as side-effects
+                var outboxMsg = new OutboxMessage
+                {
+                    Id = Guid.NewGuid(),
+                    EventType = "MissionReverted",
+                    Payload = JsonSerializer.Serialize(new { IncidentId = incident.Id, MissionId = missionId, RescuerId = mission.RescuerId }),
+                    CreatedAt = utcNow
+                };
+                await _unitOfWork.Repository<OutboxMessage, Guid>().AddAsync(outboxMsg);
+
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitTransactionAsync();
+
+                // Re-trigger dispatch search immediately
+                _jobs.Enqueue<IDispatchService>(s => s.StartDispatchAsync(incident.Id));
             }
-            incident.UpdatedAt = DateTime.UtcNow;
-
-            // Audit Trail for Timeout Revert
-            await _unitOfWork.Repository<IncidentStatusHistory, Guid>().AddAsync(new IncidentStatusHistory
+            catch (Exception ex)
             {
-                Id = Guid.NewGuid(),
-                IncidentId = incident.Id,
-                StatusFrom = oldStatus,
-                StatusTo = IncidentStatus.Unassigned,
-                ChangedBy = Guid.Empty, // System-initiated
-                ChangeReason = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Reason0006),
-                CreatedAt = DateTime.UtcNow
-            });
-
+                await _unitOfWork.RollbackTransactionAsync();
+                _logger.LogError(ex, "Watchdog: Transaction failed for Mission {MissionId}", missionId);
+            }
+        }
+        else
+        {
+            // 6. RECURSIVE CHAIN: Everything looks good, schedule the next check
+            mission.NextCheckAt = utcNow.AddMinutes(DispatchConstants.WatchdogStandardIntervalMins);
             await _unitOfWork.SaveChangesAsync();
-
-            // Notify victim that rescuer cancelled/timed out, searching... (could trigger RunTier1 again, but for now just fallback to Unassigned)
-            var message = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Notify0005);
-            var title = "Hệ thống - Ca cứu hộ";
-            var dto = new SosFallbackDto
-            {
-                IncidentId = incident.Id,
-                Message = message
-            };
-            await _locationHub.Clients
-                .Group(LocationConstants.SignalRGroupPrefix + incident.Id)
-                .SendAsync(DispatchConstants.EventFallback, dto);
+System.Diagnostics.Debug.WriteLine($"Watchdog scheduled at {mission.Id}");
+            _jobs.Schedule<IMissionService>(
+                s => s.ClaimTimeoutAsync(missionId), 
+                TimeSpan.FromMinutes(DispatchConstants.WatchdogStandardIntervalMins));
             
-            // FCM Notification & NotificationLog for Victim
-            await _fcmService.SendToUserAsync(incident.VictimId, title, message);
-            await _unitOfWork.Repository<NotificationLog, Guid>().AddAsync(new NotificationLog
-            {
-                Id = Guid.NewGuid(),
-                UserId = incident.VictimId,
-                Title = title,
-                Message = message,
-                Type = NotificationType.Mission,
-                IsRead = false,
-                SentAt = DateTime.UtcNow,
-                CreatedAt = DateTime.UtcNow
-            });
-
-            // FCM Notification & NotificationLog for Rescuer
-            var rescuerMsg = await _msgService.GetMessageAsync(ResultCodeConst.Mission_Notify0002);
-            await _fcmService.SendToUserAsync(mission.RescuerId, title, rescuerMsg);
-            await _unitOfWork.Repository<NotificationLog, Guid>().AddAsync(new NotificationLog
-            {
-                Id = Guid.NewGuid(),
-                UserId = mission.RescuerId,
-                Title = title,
-                Message = rescuerMsg,
-                Type = NotificationType.Mission,
-                IsRead = false,
-                SentAt = DateTime.UtcNow,
-                CreatedAt = DateTime.UtcNow
-            });
-
-            await _unitOfWork.SaveChangesAsync(); // save logs
-            
-            // Re-trigger dispatch?
-            // To ensure reliability, we can enqueue StartDispatchAsync.
-            _jobs.Enqueue<IDispatchService>(s => s.StartDispatchAsync(incident.Id));
+            _logger.LogInformation("Watchdog: Mission {MissionId} validated. Next check scheduled at {Next}", missionId, mission.NextCheckAt);
         }
     }
 
