@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SFARS.Infrastructure.Data.Context;
@@ -12,13 +13,15 @@ using SFARS.Infrastructure.Data.Context;
 namespace SFARS.Infrastructure.Migrations
 {
     [DbContext(typeof(SFARSDbContext))]
-    partial class SFARSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260409094151_AddVectorEmbeddings")]
+    partial class AddVectorEmbeddings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.11")
+                .HasAnnotation("ProductVersion", "9.0.1")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -540,18 +543,6 @@ namespace SFARS.Infrastructure.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
-                    b.Property<int>("ShareCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("share_count");
-
-                    b.Property<Guid?>("SharedPostId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("SharedReelId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(250)
@@ -587,10 +578,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasName("PK_ContentPost_Id");
 
                     b.HasIndex("AuthorId");
-
-                    b.HasIndex("SharedPostId");
-
-                    b.HasIndex("SharedReelId");
 
                     b.HasIndex("Slug")
                         .IsUnique()
@@ -1868,9 +1855,6 @@ namespace SFARS.Infrastructure.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
-                    b.Property<int>("ShareCount")
-                        .HasColumnType("int");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -2448,54 +2432,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasDatabaseName("IX_Role_RoleName");
 
                     b.ToTable("Role", (string)null);
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.ShareLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Content")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("PostId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("ReelId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PostId");
-
-                    b.HasIndex("ReelId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Shares", (string)null);
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.Snake", b =>
@@ -3405,21 +3341,7 @@ namespace SFARS.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_ContentPost_User_AuthorId");
 
-                    b.HasOne("SFARS.Domain.Entities.ContentPost", "SharedPost")
-                        .WithMany()
-                        .HasForeignKey("SharedPostId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("SFARS.Domain.Entities.Reel", "SharedReel")
-                        .WithMany()
-                        .HasForeignKey("SharedReelId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
                     b.Navigation("Author");
-
-                    b.Navigation("SharedPost");
-
-                    b.Navigation("SharedReel");
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.FirstAidDetail", b =>
@@ -3813,31 +3735,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Navigation("Reviewer");
 
                     b.Navigation("Target");
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.ShareLog", b =>
-                {
-                    b.HasOne("SFARS.Domain.Entities.ContentPost", "Post")
-                        .WithMany()
-                        .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("SFARS.Domain.Entities.Reel", "Reel")
-                        .WithMany()
-                        .HasForeignKey("ReelId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("SFARS.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Post");
-
-                    b.Navigation("Reel");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.SnakeChangeLog", b =>

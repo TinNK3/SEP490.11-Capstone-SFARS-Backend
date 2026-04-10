@@ -189,6 +189,8 @@ namespace SFARS.API.Payloads
             // [GET]
             public const string GetSessions = Base + "/chat/sessions";
             public const string GetMessages = Base + "/chat/sessions/{id}/messages";
+            // [DELETE]
+            public const string DeleteSession = Base + "/chat/sessions/{id}";
         }
 
         /// <summary>
@@ -379,6 +381,17 @@ namespace SFARS.API.Payloads
 
             // [PATCH]
             public const string AdminUpdateStatus = AdminBase + "/{id}/status";
+        }
+
+        /// <summary>
+        /// Video Call endpoints
+        /// </summary>
+        public static class VideoCall
+        {
+            private const string VideoBase = Base + "/video-call";
+            // [POST]
+            public const string GetToken = VideoBase + "/token/{incidentId}";
+            public const string Initiate = VideoBase + "/initiate/{incidentId}";
         }
     }
 }

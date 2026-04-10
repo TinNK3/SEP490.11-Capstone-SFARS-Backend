@@ -138,6 +138,12 @@ namespace SFARS.Application.Common
         public const string Incident_Success0008 = "Incident.Success0008"; // Symptom update saved
         public const string Incident_Warning0010 = "Incident.Warning0010"; // Cannot update symptoms on closed/cancelled
         public const string Incident_Notify0006  = "Incident.Notify0006";  // Symptom updated — notify rescuer
+
+        // SMS Gateway Fallback
+        public const string Incident_Warning0011 = "Incident.Warning0011"; // Invalid Gateway Secret Key
+        public const string Incident_Warning0012 = "Incident.Warning0012"; // Invalid SOS format
+        public const string Incident_Warning0013 = "Incident.Warning0013"; // Invalid coordinates format in SMS
+        public const string Incident_Warning0014 = "Incident.Warning0014"; // No user corresponds to this phone number
         #endregion
 
         #region AI
@@ -164,6 +170,7 @@ namespace SFARS.Application.Common
         #region Chat
         public const string Chat_Success0001 = "Chat.Success0001";   // Message sent
         public const string Chat_Warning0001 = "Chat.Warning0001";   // Session ended
+        public const string Chat_Warning0002 = "Chat.Warning0002";   // Rate limit exceeded
         public const string Chat_Fail0001 = "Chat.Fail0001";         // AI unavailable
         public const string Chat_Guard0001 = "Chat.Guard0001";       // Guardrail fallback
         #endregion
@@ -230,6 +237,14 @@ namespace SFARS.Application.Common
         public const string Analytics_Success0001 = "Analytics.Success0001"; // Heatmap hotspot ping sent to community
         public const string Analytics_Warning0001 = "Analytics.Warning0001"; // No users with device tokens found – ping skipped
         #endregion
+
+        #region VideoCall
+        public const string VideoCall_Success0001 = "VideoCall.Success0001";
+        public const string VideoCall_Warning0001 = "VideoCall.Warning0001";
+        public const string VideoCall_Warning0002 = "VideoCall.Warning0002";
+        public const string VideoCall_Warning0003 = "VideoCall.Warning0003";
+        #endregion
+
         // AI Voice Messages (Symptom Tracking)
         public const string Voice_BreathingDifficulty = "Voice.BreathingDifficulty";
         public const string Voice_Ptosis = "Voice.Ptosis";

@@ -5,6 +5,7 @@ using SFARS.API.Extensions;
 using SFARS.API.Payloads;
 using SFARS.API.Payloads.Request.Chat;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Domain.Specifications.Params;
 
 namespace SFARS.API.Controller;
 
@@ -39,12 +40,10 @@ public class ChatController : ControllerBase
     /// </summary>
     [Authorize]
     [HttpGet(APIRoute.Chat.GetSessions, Name = nameof(GetChatSessionsAsync))]
-    public async Task<IActionResult> GetChatSessionsAsync(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetChatSessionsAsync([FromQuery] BaseSpecParams specParams)
     {
         var userId = User.GetUserId();
-        var result = await _chatService.GetSessionsAsync(userId, page, pageSize);
+        var result = await _chatService.GetSessionsAsync(userId, specParams);
         return this.ToIActionResult(result);
     }
 
@@ -55,11 +54,22 @@ public class ChatController : ControllerBase
     [HttpGet(APIRoute.Chat.GetMessages, Name = nameof(GetChatMessagesAsync))]
     public async Task<IActionResult> GetChatMessagesAsync(
         [FromRoute] Guid id,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50)
+        [FromQuery] BaseSpecParams specParams)
     {
         var userId = User.GetUserId();
-        var result = await _chatService.GetMessagesAsync(userId, id, page, pageSize);
+        var result = await _chatService.GetMessagesAsync(userId, id, specParams);
+        return this.ToIActionResult(result);
+    }
+
+    /// <summary>
+    /// Delete a chat session
+    /// </summary>
+    [Authorize]
+    [HttpDelete(APIRoute.Chat.DeleteSession, Name = nameof(DeleteChatSessionAsync))]
+    public async Task<IActionResult> DeleteChatSessionAsync([FromRoute] Guid id)
+    {
+        var userId = User.GetUserId();
+        var result = await _chatService.DeleteSessionAsync(userId, id);
         return this.ToIActionResult(result);
     }
 }

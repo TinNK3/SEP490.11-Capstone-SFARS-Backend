@@ -60,5 +60,9 @@ namespace SFARS.Domain.Interfaces.Services
         Task<IServiceResult> GetSymptomTimelineAsync(Guid userId, Guid incidentId);
 
         Task<IServiceResult> GetSosEligibilityAsync(Guid userId);
+        /// <summary>
+        /// Processes incoming SOS via SMS Webhook when the client has no internet connection.
+        /// </summary>
+        Task<IServiceResult> ProcessSmsWebhookAsync(string senderPhone, string messageBody, string secretKey);
     }
 }

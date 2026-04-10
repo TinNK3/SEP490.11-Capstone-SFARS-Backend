@@ -50,9 +50,17 @@ public static class DependencyInjection
             services.Configure<WoundDetectionOptions>(
                 configuration.GetSection(WoundDetectionOptions.SectionName));
 
+            // Configure Gemini AI options
+            services.Configure<GeminiOptions>(
+                configuration.GetSection("Gemini"));
+
             // Configure PayOS
             services.Configure<PayOSSettings>(
                 configuration.GetSection(PayOSSettings.SectionName));
+
+            // Configure Agora
+            services.Configure<AgoraOptions>(
+                configuration.GetSection("AgoraService"));
 
             // Register PayOS SDK instance as singleton
             services.AddSingleton(sp =>
@@ -97,6 +105,7 @@ public static class DependencyInjection
             // SOS-specific services
             services.AddSingleton<ISosSpamGuardService, SosSpamGuardService>();
             services.AddScoped<IFcmPushService, FcmPushService>();
+            services.AddScoped<IAgoraService, AgoraService>();
             services.AddScoped<IDistributedLockProvider, SqlDistributedLockProvider>();
 
             // Hangfire — background job processing for tiered dispatch

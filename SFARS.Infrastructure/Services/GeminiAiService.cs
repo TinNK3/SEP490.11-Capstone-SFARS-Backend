@@ -18,6 +18,10 @@ public class GeminiAiService : IGeminiAiService
     private readonly GeminiOptions _options;
     private readonly HttpClient _httpClient;
 
+    // Static tracker to share "current working" key index across all service instances
+    private static int _currentKeyIndex = 0;
+    private static readonly object _keyLock = new();
+
     public string ModelName => _options.Model;
 
     public GeminiAiService(
@@ -31,7 +35,101 @@ public class GeminiAiService : IGeminiAiService
         _httpClient.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
     }
 
-    #region Snake Detection (Gemini Vision — replaces binary ONNX model)
+    #region Resilience & Key Rotation
+
+    private string GetApiKey()
+    {
+        lock (_keyLock)
+        {
+            if (_options.ApiKeys == null || _options.ApiKeys.Count == 0)
+                throw new InvalidOperationException("No Gemini API keys configured.");
+
+            // Ensure index is within bounds (in case list was modified)
+            if (_currentKeyIndex >= _options.ApiKeys.Count)
+                _currentKeyIndex = 0;
+
+            return _options.ApiKeys[_currentKeyIndex];
+        }
+    }
+
+    private void RotateApiKey()
+    {
+        lock (_keyLock)
+        {
+            if (_options.ApiKeys.Count <= 1) return;
+
+            int oldIndex = _currentKeyIndex;
+            _currentKeyIndex = (_currentKeyIndex + 1) % _options.ApiKeys.Count;
+            _logger.LogWarning("API Key Exhausted/Failed at index {OldIndex}. Rotating to index {NewIndex}.", 
+                oldIndex, _currentKeyIndex);
+        }
+    }
+
+    /// <summary>
+    /// Executes an API call with automatic key rotation on 429 (Too Many Requests) or 403 (Quota).
+    /// </summary>
+    private async Task<string> ExecuteWithRotationAsync(Func<string, Task<HttpResponseMessage>> callFunc)
+    {
+        int totalKeys = _options.ApiKeys.Count;
+        int attempts = totalKeys;
+
+        for (int i = 0; i < attempts; i++)
+        {
+            var currentKey = GetApiKey();
+            try
+            {
+                var response = await callFunc(currentKey);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorBody = await response.Content.ReadAsStringAsync();
+
+                    // 400 Bad Request (Usually payload error - stop rotating)
+                    if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                    {
+                        _logger.LogError("Gemini 400 Bad Request. Payload Issue. Google Details: {Error}", errorBody);
+                        throw new HttpRequestException($"Gemini API Error 400: {errorBody}", null, System.Net.HttpStatusCode.BadRequest);
+                    }
+
+                    // 404 Not Found (Usually Model/URL issue - stop rotating)
+                    if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        _logger.LogError("Gemini 404 Not Found. Model/URL Issue. Google Details: {Error}", errorBody);
+                        throw new HttpRequestException($"Gemini API Error 404: {errorBody}", null, System.Net.HttpStatusCode.NotFound);
+                    }
+
+                    // 429: Too Many Requests / 403: Forbidden (Quota/Project Blocked) -> Rotate
+                    if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests || 
+                        response.StatusCode == System.Net.HttpStatusCode.Forbidden ||
+                        errorBody.Contains("quota", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _logger.LogWarning("Key quota exceeded or forbidden. Rotating... Status: {Status}", response.StatusCode);
+                        RotateApiKey();
+                        continue;
+                    }
+
+                    // Other status codes (404, 5xx) - allow EnsureSuccessStatusCode to throw and maybe catch for rotation if transient
+                    response.EnsureSuccessStatusCode();
+                }
+
+                return await response.Content.ReadAsStringAsync();
+            }
+            catch (HttpRequestException ex) when (i < attempts - 1 && 
+                ex.StatusCode != System.Net.HttpStatusCode.BadRequest && 
+                ex.StatusCode != System.Net.HttpStatusCode.NotFound)
+            {
+                _logger.LogWarning(ex, "API call failed (Transient). Attempting rotation.");
+                RotateApiKey();
+                await Task.Delay(500); 
+            }
+        }
+
+        throw new InvalidOperationException("Gemini API failed after exhausting all available API keys.");
+    }
+
+    #endregion
+
+    #region Snake Detection (Gemini Vision)
 
     private const string SnakeDetectionSystemPrompt =
         """
@@ -78,83 +176,34 @@ public class GeminiAiService : IGeminiAiService
             },
             generationConfig = new
             {
-                temperature = 0.1,   // Low temperature for deterministic classification
-                maxOutputTokens = 256 // Short response expected
+                temperature = 0.1,
+                maxOutputTokens = 256
             }
         };
 
-        var url = $"{_options.BaseUrl}/models/{_options.Model}:generateContent?key={_options.ApiKey}";
+        var jsonBody = JsonSerializer.Serialize(body);
 
-        int maxRetries = _options.MaxRetries + 1;
-        int delay = 500;
-
-        for (int attempt = 0; attempt < maxRetries; attempt++)
+        string responseContent = await ExecuteWithRotationAsync(async (key) =>
         {
-            try
+            var url = $"{_options.BaseUrl}/models/{_options.Model}:generateContent?key={key}";
+            var request = new HttpRequestMessage(HttpMethod.Post, url)
             {
-                using var requestMsg = new HttpRequestMessage(HttpMethod.Post, url)
-                {
-                    Content = new StringContent(
-                        JsonSerializer.Serialize(body),
-                        Encoding.UTF8,
-                        "application/json")
-                };
+                Content = new StringContent(jsonBody, Encoding.UTF8, "application/json")
+            };
+            return await _httpClient.SendAsync(request);
+        });
 
-                var response = await _httpClient.SendAsync(requestMsg);
+        var geminiResponse = JsonSerializer.Deserialize<GeminiApiResponse>(responseContent);
+        var resultText = geminiResponse?.Candidates?[0]?.Content?.Parts?[0]?.Text;
 
-                if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
-                {
-                    if (attempt < maxRetries - 1)
-                    {
-                        _logger.LogWarning(
-                            "Gemini 503 (snake detection), retry {Attempt} after {Delay}ms",
-                            attempt + 1, delay);
-                        await Task.Delay(delay);
-                        delay *= 2;
-                        continue;
-                    }
-                }
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogError(
-                        "Gemini snake detection API error {StatusCode}: {Error}",
-                        response.StatusCode, errorContent);
-                }
-
-                response.EnsureSuccessStatusCode();
-
-                var responseContent = await response.Content.ReadAsStringAsync();
-                _logger.LogDebug("Gemini snake detection raw response: {Response}", responseContent);
-
-                var geminiResponse = JsonSerializer.Deserialize<GeminiApiResponse>(responseContent);
-                var resultText = geminiResponse?.Candidates?[0]?.Content?.Parts?[0]?.Text;
-
-                if (string.IsNullOrEmpty(resultText))
-                {
-                    throw new InvalidOperationException("Gemini returned empty response for snake detection.");
-                }
-
-                return ParseSnakeDetectionResponse(resultText);
-            }
-            catch (HttpRequestException ex) when (attempt < maxRetries - 1)
-            {
-                _logger.LogWarning(ex, "Gemini snake detection HTTP error, retry {Attempt}", attempt + 1);
-                await Task.Delay(delay);
-                delay *= 2;
-            }
+        if (string.IsNullOrEmpty(resultText))
+        {
+            throw new InvalidOperationException("Gemini returned empty response for snake detection.");
         }
 
-        // Exhausted retries — fallback: assume snake to be safe (avoid missing real emergencies)
-        _logger.LogWarning("Gemini snake detection failed after all retries, falling back to empty box (Not Sure)");
-        return new GeminiSnakeDetectionResult(IsSnake: true, Box2D: new List<int> { 0, 0, 1000, 1000 }); // Provide full image bounding box as fallback
+        return ParseSnakeDetectionResponse(resultText);
     }
 
-    /// <summary>
-    /// Parse Gemini's text response into a structured detection result.
-    /// Handles markdown code fences and case-insensitive JSON properties.
-    /// </summary>
     private GeminiSnakeDetectionResult ParseSnakeDetectionResponse(string text)
     {
         var jsonText = StripMarkdownCodeFence(text);
@@ -178,7 +227,6 @@ public class GeminiAiService : IGeminiAiService
         catch (JsonException ex)
         {
             _logger.LogWarning(ex, "Failed to parse Gemini snake box detection response: {Text}", jsonText);
-            // Safe fallback: assume snake
             return new GeminiSnakeDetectionResult(IsSnake: true, Box2D: new List<int> { 0, 0, 1000, 1000 });
         }
     }
@@ -209,19 +257,6 @@ public class GeminiAiService : IGeminiAiService
         }
         """;
 
-    private sealed class VoiceExtractionJsonResponse
-    {
-        [JsonPropertyName("transcript")]
-        public string? Transcript { get; set; }
-
-        [JsonPropertyName("minutes_since_bite")]
-        public int? MinutesSinceBite { get; set; }
-
-        [JsonPropertyName("symptoms")]
-        public List<string>? Symptoms { get; set; }
-    }
-
-    /// <inheritdoc />
     public async Task<AudioExtractionResult?> ExtractAudioSymptomsAsync(byte[] audioBytes, string mimeType)
     {
         var base64Audio = Convert.ToBase64String(audioBytes);
@@ -259,181 +294,101 @@ public class GeminiAiService : IGeminiAiService
             }
         };
 
-        var url = $"{_options.BaseUrl}/models/{_options.Model}:generateContent?key={_options.ApiKey}";
+        var jsonBody = JsonSerializer.Serialize(body);
 
-        int maxRetries = _options.MaxRetries;
-        int delay = 500;
-
-        for (int attempt = 0; attempt < maxRetries; attempt++)
+        try 
         {
-            try
+            string responseContent = await ExecuteWithRotationAsync(async (key) =>
             {
-                using var requestMsg = new HttpRequestMessage(HttpMethod.Post, url)
+                var url = $"{_options.BaseUrl}/models/{_options.Model}:generateContent?key={key}";
+                var request = new HttpRequestMessage(HttpMethod.Post, url)
                 {
-                    Content = new StringContent(
-                        JsonSerializer.Serialize(body),
-                        Encoding.UTF8,
-                        "application/json"
-                    )
+                    Content = new StringContent(jsonBody, Encoding.UTF8, "application/json")
                 };
+                return await _httpClient.SendAsync(request);
+            });
 
-                var response = await _httpClient.SendAsync(requestMsg);
-                if (!response.IsSuccessStatusCode)
-                {
-                    var error = await response.Content.ReadAsStringAsync();
-                    _logger.LogWarning("Gemini STT API error {StatusCode}: {Error}", response.StatusCode, error);
-                    response.EnsureSuccessStatusCode();
-                }
+            var geminiResponse = JsonSerializer.Deserialize<GeminiApiResponse>(responseContent);
+            var resultText = geminiResponse?.Candidates?[0]?.Content?.Parts?[0]?.Text;
 
-                var responseContent = await response.Content.ReadAsStringAsync();
-                var geminiResponse = JsonSerializer.Deserialize<GeminiApiResponse>(responseContent);
-                var resultText = geminiResponse?.Candidates?[0]?.Content?.Parts?[0]?.Text;
+            if (string.IsNullOrWhiteSpace(resultText)) return null;
 
-                if (string.IsNullOrWhiteSpace(resultText)) return null;
+            var options = new JsonSerializerOptions 
+            { 
+                PropertyNameCaseInsensitive = true,
+                ReadCommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true
+            };
+            var jsonText = StripMarkdownCodeFence(resultText);
+            var parsed = JsonSerializer.Deserialize<VoiceExtractionJsonResponse>(jsonText, options);
 
-                var options = new JsonSerializerOptions 
-                { 
-                    PropertyNameCaseInsensitive = true,
-                    ReadCommentHandling = JsonCommentHandling.Skip,
-                    AllowTrailingCommas = true
-                };
-                var jsonText = StripMarkdownCodeFence(resultText);
-                var parsed = JsonSerializer.Deserialize<VoiceExtractionJsonResponse>(jsonText, options);
+            if (parsed == null) return null;
 
-                if (parsed == null) return null;
-
-                return new AudioExtractionResult(
-                    Transcript: string.IsNullOrWhiteSpace(parsed.Transcript) ? null : parsed.Transcript.Trim(),
-                    MinutesSinceBite: parsed.MinutesSinceBite,
-                    Symptoms: parsed.Symptoms ?? new List<string>()
-                );
-            }
-            catch (Exception ex) when (attempt < maxRetries - 1)
-            {
-                _logger.LogWarning(ex, "Gemini STT HTTP error, retry {Attempt}", attempt + 1);
-                await Task.Delay(delay);
-                delay *= 2;
-            }
+            return new AudioExtractionResult(
+                Transcript: string.IsNullOrWhiteSpace(parsed.Transcript) ? null : parsed.Transcript.Trim(),
+                MinutesSinceBite: parsed.MinutesSinceBite,
+                Symptoms: parsed.Symptoms ?? new List<string>()
+            );
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Gemini STT failed after all retries.");
+            return null;
+        }
+    }
 
-        _logger.LogWarning("Gemini STT failed after all retries.");
-        return null;
+    private sealed class VoiceExtractionJsonResponse
+    {
+        [JsonPropertyName("transcript")]
+        public string? Transcript { get; set; }
+
+        [JsonPropertyName("minutes_since_bite")]
+        public int? MinutesSinceBite { get; set; }
+
+        [JsonPropertyName("symptoms")]
+        public List<string>? Symptoms { get; set; }
     }
 
     #endregion
+
+    #region Snake Bite Analysis
 
     public async Task<GeminiAnalysisResult> AnalyzeSnakeBiteAsync(GeminiAnalysisRequest request)
     {
         var systemPrompt = BuildSystemPrompt();
         var userPayload = BuildUserPayload(request);
-        
-        var body = new
+        var jsonBody = JsonSerializer.Serialize(new
         {
-            systemInstruction = new  // ← camelCase, not snake_case!
-            {
-                parts = new[]
-                {
-                    new { text = systemPrompt }
-                }
-            },
-            contents = new[]
-            {
-                new
-                {
-                    role = "user",
-                    parts = new[]
-                    {
-                        new { text = JsonSerializer.Serialize(userPayload) }
-                    }
-                }
-            },
-            generationConfig = new
-            {
-                temperature = _options.Temperature,
-                maxOutputTokens = 1024
-            }
-        };
-
-        var url = $"{_options.BaseUrl}/models/{_options.Model}:generateContent?key={_options.ApiKey}";
+            systemInstruction = new { parts = new[] { new { text = systemPrompt } } },
+            contents = new[] { new { role = "user", parts = new[] { new { text = JsonSerializer.Serialize(userPayload) } } } },
+            generationConfig = new { temperature = _options.Temperature, maxOutputTokens = 1024 }
+        });
 
         try
         {
-            // Retry logic for 503 (high demand) - matching TS reference code
-            int maxRetries = 3;
-            int delay = 500; // ms
-            
-            for (int attempt = 0; attempt < maxRetries; attempt++)
+            string responseContent = await ExecuteWithRotationAsync(async (key) =>
             {
-                using var request_msg = new HttpRequestMessage(HttpMethod.Post, url)
+                var url = $"{_options.BaseUrl}/models/{_options.Model}:generateContent?key={key}";
+                var req = new HttpRequestMessage(HttpMethod.Post, url)
                 {
-                    Content = new StringContent(
-                        JsonSerializer.Serialize(body),
-                        Encoding.UTF8,
-                        "application/json")
+                    Content = new StringContent(jsonBody, Encoding.UTF8, "application/json")
                 };
+                return await _httpClient.SendAsync(req);
+            });
 
-                var response = await _httpClient.SendAsync(request_msg);
-                
-                // Log error response if not successful
-                if (!response.IsSuccessStatusCode)
-                {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("Gemini API error {StatusCode}: {Error}", response.StatusCode, errorContent);
-                }
-                
-                // Retry on 503 (Service Unavailable / high demand)
-                if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
-                {
-                    if (attempt < maxRetries - 1)
-                    {
-                        _logger.LogWarning("Gemini 503 (high demand), retry lần {Attempt} sau {Delay}ms", attempt + 1, delay);
-                        await Task.Delay(delay);
-                        delay *= 2; // exponential backoff: 500ms, 1000ms, 2000ms
-                        continue;
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Gemini 503 after {Max} retries, using fallback", maxRetries);
-                    }
-                }
-                
-                response.EnsureSuccessStatusCode();
-
-                var responseContent = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation("Gemini raw response: {Response}", responseContent);
-                
-                var geminiResponse = JsonSerializer.Deserialize<GeminiApiResponse>(responseContent);
-
-                var resultText = geminiResponse?.Candidates?[0]?.Content?.Parts?[0]?.Text;
-                if (string.IsNullOrEmpty(resultText))
-                {
-                    _logger.LogWarning("Gemini response structure: Candidates={CandidatesCount}, Content={HasContent}", 
-                        geminiResponse?.Candidates?.Count ?? 0,
-                        geminiResponse?.Candidates?[0]?.Content != null);
-                    throw new InvalidOperationException($"Gemini returned empty response. Full response: {responseContent}");
-                }
-
-                _logger.LogInformation("Gemini result text: {ResultText}", resultText);
-                
-                var jsonText = StripMarkdownCodeFence(resultText);
-                
-                var result = JsonSerializer.Deserialize<GeminiAnalysisResult>(jsonText);
-                if (result == null)
-                {
-                    throw new InvalidOperationException($"Failed to parse Gemini response: {jsonText}");
-                }
-
-                _logger.LogInformation("Gemini analysis completed successfully");
-                return result;
-            }
+            var geminiResponse = JsonSerializer.Deserialize<GeminiApiResponse>(responseContent);
+            var resultText = geminiResponse?.Candidates?[0]?.Content?.Parts?[0]?.Text;
             
-            throw new InvalidOperationException("Retry logic exhausted");
+            if (string.IsNullOrEmpty(resultText)) throw new InvalidOperationException("Empty AI response.");
+
+            var jsonText = StripMarkdownCodeFence(resultText);
+            var result = JsonSerializer.Deserialize<GeminiAnalysisResult>(jsonText);
+            
+            return result ?? throw new InvalidOperationException("Failed to parse analysis result.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Gemini API call failed");
-            
-            // Return fallback response
+            _logger.LogError(ex, "Gemini Analysis failed.");
             return new GeminiAnalysisResult(
                 DangerSummary: $"⚠️ {GetDangerLevel(request.ToxicityLevel)} - {request.ToxinGroup}",
                 FirstAidSteps: GetFallbackFirstAid(),
@@ -496,177 +451,161 @@ Response format (JSON):
     {
         return new List<FirstAidStep>
         {
-            new(1, "GỌI CẤP CỨU NGAY", "Gọi 115 hoặc đưa nạn nhân đến bệnh viện GẤP"),
-            new(2, "GIỮ TĨNH TẠI VÀ NẰM YÊN", "Không vận động, nằm xuống để độc lan chậm"),
-            new(3, "RỬA VẾT THƯƠNG", "Rửa nhẹ bằng nước sạch, không chà xát"),
-            new(4, "KHÔNG TỰ XỬ LÝ", "Không bóp, cắt, hút độc - rất nguy hiểm")
+            new(1, "🚑 GỌI CẤP CỨU NGAY", "Gọi 115 hoặc đưa nạn nhân đến bệnh viện GẤP"),
+            new(2, "🧘 GIỮ TĨNH TẠI VÀ NẰM YÊN", "Không vận động, nằm xuống để độc lan chậm"),
+            new(3, "🧼 RỬA VẾT THƯƠNG", "Rửa nhẹ bằng nước sạch, không chà xát"),
+            new(4, "🚫 KHÔNG TỰ XỬ LÝ", "Không bóp, cắt, hút độc - rất nguy hiểm")
         };
     }
 
-    /// <summary>
-    /// RAG-based chat with Gemini. Sends system prompt + DB context + conversation history.
-    /// </summary>
+    #endregion
+
+    #region RAG Chat & Embeddings
+
     public async Task<string> ChatWithContextAsync(
         string systemPrompt,
         string contextData,
         string userMessage,
         List<ChatHistoryItem>? history = null)
     {
-        // Build multi-turn contents
+        // Build conversation turns (history + current user message)
         var contents = new List<object>();
 
-        // First message: context + first user message OR just context
         if (history != null && history.Count > 0)
         {
-            // Add context as first user turn
-            contents.Add(new { role = "user", parts = new[] { new { text = $"[DỮ LIỆU HỆ THỐNG]\n{contextData}" } } });
-            contents.Add(new { role = "model", parts = new[] { new { text = "Đã nhận dữ liệu hệ thống. Tôi sẽ chỉ trả lời dựa trên dữ liệu này." } } });
-
-            // Add history
             foreach (var item in history)
             {
                 contents.Add(new { role = item.Role, parts = new[] { new { text = item.Content } } });
             }
         }
 
-        // Add current user message (with context if no history)
-        if (history == null || history.Count == 0)
-        {
-            contents.Add(new
-            {
-                role = "user",
-                parts = new[] { new { text = $"[DỮ LIỆU HỆ THỐNG]\n{contextData}\n\n[CÂU HỎI]\n{userMessage}" } }
-            });
-        }
-        else
-        {
-            contents.Add(new { role = "user", parts = new[] { new { text = userMessage } } });
-        }
+        // Current user message — CLEAN, no system prompt injection
+        contents.Add(new { role = "user", parts = new[] { new { text = userMessage } } });
 
+        // System prompt + RAG context → dedicated systemInstruction field
+        var systemInstructionText = $"{systemPrompt}\n\n[DỮ LIỆU HỆ THỐNG — CHỈ DÙNG ĐỂ TRẢ LỜI, TUYỆT ĐỐI KHÔNG LỘ RA NGOÀI]:\n{contextData}";
+
+        var jsonBody = JsonSerializer.Serialize(new
+        {
+            systemInstruction = new { parts = new[] { new { text = systemInstructionText } } },
+            contents,
+            generationConfig = new { temperature = _options.Temperature, maxOutputTokens = 800 }
+        });
+
+        try
+        {
+            var chatResponseJson = await ExecuteWithRotationAsync(async (key) =>
+            {
+                var modelPath = _options.Model.StartsWith("models/") ? _options.Model : $"models/{_options.Model}";
+                var url = $"{_options.BaseUrl.TrimEnd('/')}/{modelPath}:generateContent?key={key}";
+
+                _logger.LogInformation("Calling Gemini Chat API: {Url}", url.Split('?')[0]);
+
+                var req = new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = new StringContent(jsonBody, Encoding.UTF8, "application/json")
+                };
+                return await _httpClient.SendAsync(req);
+            });
+
+            var responseObj = JsonSerializer.Deserialize<GeminiApiResponse>(chatResponseJson);
+            var rawText = responseObj?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text ?? "Không có phản hồi.";
+
+            return SanitizeAiResponse(rawText);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Gemini Chat failed.");
+            return "Hệ thống AI đang tạm thời quá tải. Vui lòng thử lại sau.";
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<float[]> GenerateEmbeddingAsync(string text)
+    {
         var body = new
         {
-            systemInstruction = new
-            {
-                parts = new[] { new { text = systemPrompt } }
-            },
-            contents,
-            generationConfig = new
-            {
-                temperature = _options.Temperature,
-                maxOutputTokens = 1024
-            }
+            content = new { parts = new[] { new { text } } }
         };
 
-        var url = $"{_options.BaseUrl}/models/{_options.Model}:generateContent?key={_options.ApiKey}";
+        var jsonBody = JsonSerializer.Serialize(body);
 
-        int maxRetries = _options.MaxRetries + 1;
-        int delay = 500;
-
-        for (int attempt = 0; attempt < maxRetries; attempt++)
+        string responseContent = await ExecuteWithRotationAsync(async (key) =>
         {
-            try
+            var modelPath = _options.EmbeddingModel.StartsWith("models/") ? _options.EmbeddingModel : $"models/{_options.EmbeddingModel}";
+            var url = $"{_options.BaseUrl.TrimEnd('/')}/{modelPath}:embedContent?key={key}";
+            
+            _logger.LogInformation("Calling Gemini Embedding API: {Url}", url.Split('?')[0]);
+
+            var request = new HttpRequestMessage(HttpMethod.Post, url)
             {
-                using var requestMsg = new HttpRequestMessage(HttpMethod.Post, url)
-                {
-                    Content = new StringContent(
-                        JsonSerializer.Serialize(body),
-                        Encoding.UTF8,
-                        "application/json")
-                };
+                Content = new StringContent(jsonBody, Encoding.UTF8, "application/json")
+            };
+            return await _httpClient.SendAsync(request);
+        });
 
-                var response = await _httpClient.SendAsync(requestMsg);
-
-                if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
-                {
-                    if (attempt < maxRetries - 1)
-                    {
-                        _logger.LogWarning("Gemini 503 (chat), retry {Attempt} after {Delay}ms", attempt + 1, delay);
-                        await Task.Delay(delay);
-                        delay *= 2;
-                        continue;
-                    }
-                }
-
-                response.EnsureSuccessStatusCode();
-
-                var json = await response.Content.ReadAsStringAsync();
-
-                var options = new JsonSerializerOptions 
-                { 
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    PropertyNameCaseInsensitive = true
-                };
-                var result = JsonSerializer.Deserialize<GeminiApiResponse>(json, options);
-                var text = result?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
-
-                return text ?? "Xin lỗi, mình không thể trả lời lúc này. Vui lòng thử lại.";
-            }
-            catch (HttpRequestException ex) when (attempt < maxRetries - 1)
-            {
-                _logger.LogWarning(ex, "Gemini chat HTTP error, retry {Attempt}", attempt + 1);
-                await Task.Delay(delay);
-                delay *= 2;
-            }
-        }
-
-        return "Hệ thống AI đang tạm thời quá tải. Vui lòng thử lại sau.";
+        using var doc = JsonDocument.Parse(responseContent);
+        var values = doc.RootElement.GetProperty("embedding").GetProperty("values");
+        
+        return values.EnumerateArray().Select(x => x.GetSingle()).ToArray();
     }
+
+    #endregion
 
     #region Shared Helpers
 
-    /// <summary>
-    /// Strip markdown code fences (```json ... ``` or ``` ... ```) from Gemini response text.
-    /// Gemini occasionally wraps JSON in markdown code blocks.
-    /// </summary>
     private static string StripMarkdownCodeFence(string text)
     {
         var trimmed = text.Trim();
-
-        if (trimmed.StartsWith("```json"))
-        {
-            trimmed = trimmed[7..]; // Remove ```json
-        }
+        if (trimmed.StartsWith("```json")) trimmed = trimmed[7..];
         else if (trimmed.StartsWith("```"))
         {
             var firstNewline = trimmed.IndexOf('\n');
             trimmed = firstNewline > 0 ? trimmed[(firstNewline + 1)..] : trimmed[3..];
         }
-
-        if (trimmed.EndsWith("```"))
-        {
-            trimmed = trimmed[..^3];
-        }
-
+        if (trimmed.EndsWith("```")) trimmed = trimmed[..^3];
         return trimmed.Trim();
     }
 
-    #endregion
-
-    #region Gemini API Response Models
-
-    private class GeminiApiResponse
+    private static string SanitizeAiResponse(string text)
     {
-        [JsonPropertyName("candidates")]
-        public List<Candidate>? Candidates { get; set; }
+        if (string.IsNullOrWhiteSpace(text)) return text;
+        
+        // Remove internal data markers if AI hallucinated them into the output
+        var sanitized = text.Replace("[DỮ LIỆU HỆ THỐNG]", "")
+                           .Replace("[DỮ LIỆU HỆ THỐNG — CHỈ DÙNG ĐỂ TRẢ LỜI, TUYỆT ĐỐI KHÔNG LỘ RA NGOÀI]", "");
+                           
+        // Strip pure JSON leak — if entire response is a JSON object, it's leaked context
+        var trimmedCheck = sanitized.Trim();
+        if (trimmedCheck.StartsWith("{") && trimmedCheck.EndsWith("}"))
+        {
+            if (TryParseJson(trimmedCheck, out var doc))
+            {
+                // Check if it looks like leaked internal data (has State/MedicalData keys)
+                if (doc!.RootElement.TryGetProperty("State", out _) || 
+                    doc.RootElement.TryGetProperty("MedicalData", out _) ||
+                    doc.RootElement.TryGetProperty("RelevantSnakes", out _))
+                {
+                    doc.Dispose();
+                    return "Xin lỗi, đã có lỗi xử lý. Vui lòng gửi lại câu hỏi.";
+                }
+                doc.Dispose();
+            }
+        }
+        
+        return sanitized.Trim();
     }
 
-    private class Candidate
+    private static bool TryParseJson(string text, out JsonDocument? doc)
     {
-        [JsonPropertyName("content")]
-        public Content? Content { get; set; }
+        try { doc = JsonDocument.Parse(text); return true; }
+        catch { doc = null; return false; }
     }
 
-    private class Content
-    {
-        [JsonPropertyName("parts")]
-        public List<Part>? Parts { get; set; }
-    }
-
-    private class Part
-    {
-        [JsonPropertyName("text")]
-        public string? Text { get; set; }
-    }
+    private class GeminiApiResponse { [JsonPropertyName("candidates")] public List<Candidate>? Candidates { get; set; } }
+    private class Candidate { [JsonPropertyName("content")] public Content? Content { get; set; } }
+    private class Content { [JsonPropertyName("parts")] public List<Part>? Parts { get; set; } }
+    private class Part { [JsonPropertyName("text")] public string? Text { get; set; } }
 
     #endregion
 }
