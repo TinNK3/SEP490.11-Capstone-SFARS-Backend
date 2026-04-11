@@ -17,6 +17,7 @@ namespace SFARS.Domain.Specifications.Community
         {
             var spec = new CommunityPostSpecification(post => 
                 (post.Type == PostType.Community || post.Type == PostType.SharedContent) && 
+                !post.IsHiddenByAdmin &&
                 (post.IsPublished || (currentUserId.HasValue && post.AuthorId == currentUserId.Value)));
 
             ApplySearchFilter(spec, p.Search);
@@ -44,6 +45,7 @@ namespace SFARS.Domain.Specifications.Community
         {
             var spec = new CommunityPostSpecification(post => 
                 (post.Type == PostType.Community || post.Type == PostType.SharedContent) && 
+                !post.IsHiddenByAdmin &&
                 (post.IsPublished || (currentUserId.HasValue && post.AuthorId == currentUserId.Value)));
             ApplySearchFilter(spec, p.Search);
             return spec;

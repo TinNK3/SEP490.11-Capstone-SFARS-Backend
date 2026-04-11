@@ -9,6 +9,8 @@ public class Reel : BaseEntity
     public string CloudinaryPublicId { get; set; } = null!;
     public string? Caption { get; set; }
     public bool IsHidden { get; set; } = false;
+    public bool IsHiddenByAdmin { get; set; } = false;
+    public string? AdminNote { get; set; }
 
     public int LikeCount { get; set; }
     public int CommentCount { get; set; }

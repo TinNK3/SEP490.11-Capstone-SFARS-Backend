@@ -24,4 +24,6 @@ public interface ICommunityPostService
     // Get both Reels and Posts
     Task<IServiceResult> GetUserContentAsync(Guid targetUserId, Guid? currentUserId, int pageNumber, int pageSize);
     Task<IServiceResult> SharePostAsync(Guid postId, Guid userId, string? content);
+    Task<IServiceResult> AdminHidePostAsync(Guid postId, Guid adminId, string reason);
+    Task<IServiceResult> AdminUnhidePostAsync(Guid postId, Guid adminId);
 }

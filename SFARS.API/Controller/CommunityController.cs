@@ -99,4 +99,16 @@ public class CommunityController : ControllerBase
     [HttpPost(APIRoute.Community.Share, Name = nameof(SharePostAsync))]
     public async Task<IActionResult> SharePostAsync(Guid id, [FromBody] ShareRequest req)
         => this.ToIActionResult(await _svc.SharePostAsync(id, User.GetUserId(), req.Content));
+
+    /// <summary>Admin ẩn bài viết (có lý do)</summary>
+    [HttpPatch(APIRoute.Community.AdminHidePost, Name = nameof(AdminHidePostAsync))]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> AdminHidePostAsync(Guid id, [FromBody] SFARS.API.Payloads.Request.Admin.AdminModerationRequest req)
+        => this.ToIActionResult(await _svc.AdminHidePostAsync(id, User.GetUserId(), req.Reason));
+
+    /// <summary>Admin bỏ ẩn bài viết</summary>
+    [HttpPatch(APIRoute.Community.AdminUnhidePost, Name = nameof(AdminUnhidePostAsync))]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> AdminUnhidePostAsync(Guid id)
+        => this.ToIActionResult(await _svc.AdminUnhidePostAsync(id, User.GetUserId()));
 }

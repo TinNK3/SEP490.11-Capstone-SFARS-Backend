@@ -20,6 +20,13 @@ public class ReelConfiguration : IEntityTypeConfiguration<Reel>
         builder.Property(r => r.CloudinaryPublicId)
             .IsRequired();
 
+        builder.Property(r => r.IsHiddenByAdmin)
+            .HasDefaultValue(false);
+
+        builder.Property(r => r.AdminNote)
+            .HasMaxLength(1000)
+            .IsRequired(false);
+
         // Relationships
         builder.HasOne(r => r.User)
             .WithMany() // Assuming User doesn't need to know all Reels

@@ -453,4 +453,41 @@ public class ReelService : IReelService
 
         return new ServiceResult(ResultCodeConst.SYS_Success0002, "Chia sẻ Reel thành công.");
     }
+
+    public async Task<IServiceResult> AdminHideReelAsync(Guid reelId, Guid adminId, string reason)
+    {
+        var repo = _uow.Repository<Reel, Guid>();
+        var reel = await repo.GetByIdAsync(reelId);
+        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel không tồn tại.");
+
+        reel.IsHiddenByAdmin = true;
+        reel.AdminNote = reason;
+        reel.UpdatedAt = DateTime.UtcNow;
+        reel.UpdatedBy = adminId;
+
+        repo.Update(reel);
+        await _uow.SaveChangesAsync();
+
+        // Gửi thông báo cho tác giả
+        await _notificationService.SendNotificationAsync(reel.UserId, "Thước phim bị ẩn", "Thước phim của bạn đã bị ẩn bởi quản trị viên do: " + reason, NotificationType.System, reel.Id);
+
+        return new ServiceResult(ResultCodeConst.SYS_Success0001, "Ẩn thước phim thành công (Admin)");
+    }
+
+    public async Task<IServiceResult> AdminUnhideReelAsync(Guid reelId, Guid adminId)
+    {
+        var repo = _uow.Repository<Reel, Guid>();
+        var reel = await repo.GetByIdAsync(reelId);
+        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel không tồn tại.");
+
+        reel.IsHiddenByAdmin = false;
+        reel.AdminNote = null;
+        reel.UpdatedAt = DateTime.UtcNow;
+        reel.UpdatedBy = adminId;
+
+        repo.Update(reel);
+        await _uow.SaveChangesAsync();
+
+        return new ServiceResult(ResultCodeConst.SYS_Success0001, "Bỏ ẩn thước phim thành công (Admin)");
+    }
 }

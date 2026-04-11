@@ -218,4 +218,54 @@ public class ReelServiceTests
 
         _notificationServiceMock.Verify(n => n.NotifyShareAsync(authorId, userId, reelId, true), Times.Once);
     }
+
+    #region Tests cho Admin Moderation
+    [Fact]
+    public async Task AdminHideReelAsync_HopLe_AnReelVaGuiThongBao()
+    {
+        // Arrange
+        var reelId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var reel = new Reel { Id = reelId, UserId = authorId, IsHiddenByAdmin = false };
+
+        _reelRepoMock.Setup(r => r.GetByIdAsync(reelId)).ReturnsAsync(reel);
+        _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Act
+        var result = await _sut.AdminHideReelAsync(reelId, adminId, "Nội dung phản cảm");
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
+        reel.IsHiddenByAdmin.Should().BeTrue();
+        reel.AdminNote.Should().Be("Nội dung phản cảm");
+
+        _notificationServiceMock.Verify(n => n.SendNotificationAsync(
+            authorId, 
+            "Thước phim bị ẩn", 
+            It.Is<string>(s => s.Contains("Nội dung phản cảm")), 
+            NotificationType.System, 
+            reelId), Times.Once);
+    }
+
+    [Fact]
+    public async Task AdminUnhideReelAsync_HopLe_BoAnReel()
+    {
+        // Arrange
+        var reelId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+        var reel = new Reel { Id = reelId, IsHiddenByAdmin = true, AdminNote = "Old reason" };
+
+        _reelRepoMock.Setup(r => r.GetByIdAsync(reelId)).ReturnsAsync(reel);
+        _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Act
+        var result = await _sut.AdminUnhideReelAsync(reelId, adminId);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
+        reel.IsHiddenByAdmin.Should().BeFalse();
+        reel.AdminNote.Should().BeNull();
+    }
+    #endregion
 }

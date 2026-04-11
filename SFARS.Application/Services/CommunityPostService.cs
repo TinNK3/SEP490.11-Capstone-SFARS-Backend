@@ -677,6 +677,43 @@ public class CommunityPostService : ICommunityPostService
         totalReplies
     );
 
+    public async Task<IServiceResult> AdminHidePostAsync(Guid postId, Guid adminId, string reason)
+    {
+        var post = await _uow.Repository<ContentPost, Guid>().GetByIdAsync(postId);
+        if (post is null)
+            return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Bài đăng không tồn tại.");
+
+        post.IsHiddenByAdmin = true;
+        post.AdminNote = reason;
+        post.UpdatedAt = DateTime.UtcNow;
+        post.UpdatedBy = adminId;
+
+        _uow.Repository<ContentPost, Guid>().Update(post);
+        await _uow.SaveChangesAsync();
+
+        // Gửi thông báo cho tác giả (Author)
+        await _notificationService.SendNotificationAsync(post.AuthorId, "Nội dung bị ẩn", "Bài viết của bạn đã bị ẩn bởi quản trị viên do: " + reason, NotificationType.System, post.Id);
+
+        return new ServiceResult(ResultCodeConst.SYS_Success0001, "Ẩn bài đăng thành công (Admin)", true);
+    }
+
+    public async Task<IServiceResult> AdminUnhidePostAsync(Guid postId, Guid adminId)
+    {
+        var post = await _uow.Repository<ContentPost, Guid>().GetByIdAsync(postId);
+        if (post is null)
+            return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Bài đăng không tồn tại.");
+
+        post.IsHiddenByAdmin = false;
+        post.AdminNote = null;
+        post.UpdatedAt = DateTime.UtcNow;
+        post.UpdatedBy = adminId;
+
+        _uow.Repository<ContentPost, Guid>().Update(post);
+        await _uow.SaveChangesAsync();
+
+        return new ServiceResult(ResultCodeConst.SYS_Success0001, "Bỏ ẩn bài bài đăng thành công (Admin)", true);
+    }
+
     private static string TruncateContent(string? s, int max) => s?.Length > max ? s[..max] + "…" : s ?? string.Empty;
 
     private static string GuessContentType(string url)

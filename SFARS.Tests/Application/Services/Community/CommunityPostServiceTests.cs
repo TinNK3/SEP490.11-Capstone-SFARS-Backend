@@ -573,4 +573,54 @@ public class CommunityPostServiceTests
         _notificationServiceMock.Verify(n => n.NotifyShareAsync(authorId, userId, postId, false), Times.Once);
     }
     #endregion
+
+    #region Tests cho Admin Moderation
+    [Fact]
+    public async Task AdminHidePostAsync_HopLe_AnPostVaGuiThongBao()
+    {
+        // Arrange
+        var postId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var post = new ContentPost { Id = postId, AuthorId = authorId, IsHiddenByAdmin = false };
+
+        _postRepoMock.Setup(r => r.GetByIdAsync(postId)).ReturnsAsync(post);
+        _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Act
+        var result = await _sut.AdminHidePostAsync(postId, adminId, "Vi phạm tiêu chuẩn");
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
+        post.IsHiddenByAdmin.Should().BeTrue();
+        post.AdminNote.Should().Be("Vi phạm tiêu chuẩn");
+        
+        _notificationServiceMock.Verify(n => n.SendNotificationAsync(
+            authorId, 
+            "Nội dung bị ẩn", 
+            It.Is<string>(s => s.Contains("Vi phạm tiêu chuẩn")), 
+            NotificationType.System, 
+            postId), Times.Once);
+    }
+
+    [Fact]
+    public async Task AdminUnhidePostAsync_HopLe_BoAnPost()
+    {
+        // Arrange
+        var postId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+        var post = new ContentPost { Id = postId, IsHiddenByAdmin = true, AdminNote = "Old reason" };
+
+        _postRepoMock.Setup(r => r.GetByIdAsync(postId)).ReturnsAsync(post);
+        _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Act
+        var result = await _sut.AdminUnhidePostAsync(postId, adminId);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
+        post.IsHiddenByAdmin.Should().BeFalse();
+        post.AdminNote.Should().BeNull();
+    }
+    #endregion
 }

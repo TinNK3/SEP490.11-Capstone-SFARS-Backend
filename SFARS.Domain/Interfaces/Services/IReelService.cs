@@ -24,4 +24,6 @@ public interface IReelService
     Task<IServiceResult> GetSubCommentsAsync(Guid parentCommentId, int pageNumber, int pageSize);
     Task<IServiceResult> DeleteCommentAsync(Guid currentUserId, Guid commentId);
     Task<IServiceResult> ShareReelAsync(Guid reelId, Guid userId, string? content);
+    Task<IServiceResult> AdminHideReelAsync(Guid reelId, Guid adminId, string reason);
+    Task<IServiceResult> AdminUnhideReelAsync(Guid reelId, Guid adminId);
 }
