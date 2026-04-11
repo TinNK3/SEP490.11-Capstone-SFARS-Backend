@@ -11,7 +11,6 @@ public class CommunityIncidentSpecification : BaseSpecification<Incident>
             x.CurrentStatus == IncidentStatus.Assigned ||
             x.CurrentStatus == IncidentStatus.EnRoute ||
             x.CurrentStatus == IncidentStatus.Arrived ||
-            x.CurrentStatus == IncidentStatus.Handover ||
             x.CurrentStatus == IncidentStatus.Closed)
     {
         if (!isCount)

@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 
 namespace SFARS.Domain.Common.Enum
 {
@@ -17,7 +17,6 @@ namespace SFARS.Domain.Common.Enum
         [Description("Đã phân công")]            Assigned,
         [Description("Đang tới")]                EnRoute,
         [Description("Đã đến nơi")]              Arrived,
-        [Description("Bàn giao cơ sở y tế")]     Handover,
         [Description("Đã đóng ca")]              Closed,
         [Description("Đã huỷ")]                  Cancelled
     }

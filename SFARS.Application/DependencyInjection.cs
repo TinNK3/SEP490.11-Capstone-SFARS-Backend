@@ -62,6 +62,7 @@ public static class DependencyInjection
 
         // Admin services — methods added directly to IUserService / UserService
         services.AddScoped<IAdminAuditLogService, AdminAuditLogService>();
+        services.AddScoped<IGeminiApiKeyService, GeminiApiKeyService>();
         services.AddScoped<IDataSetExportService, DataSetExportService>();
         services.AddScoped<IRetrainOrchestrationService, RetrainOrchestrationService>();
 

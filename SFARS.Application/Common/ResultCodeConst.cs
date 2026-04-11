@@ -138,6 +138,7 @@ namespace SFARS.Application.Common
         public const string Incident_Success0008 = "Incident.Success0008"; // Symptom update saved
         public const string Incident_Warning0010 = "Incident.Warning0010"; // Cannot update symptoms on closed/cancelled
         public const string Incident_Notify0006  = "Incident.Notify0006";  // Symptom updated — notify rescuer
+        public const string Incident_Notify0007  = "Incident.Notify0007";  // AI re-analyze — notify rescuer
 
         // SMS Gateway Fallback
         public const string Incident_Warning0011 = "Incident.Warning0011"; // Invalid Gateway Secret Key
@@ -243,6 +244,16 @@ namespace SFARS.Application.Common
         public const string VideoCall_Warning0001 = "VideoCall.Warning0001";
         public const string VideoCall_Warning0002 = "VideoCall.Warning0002";
         public const string VideoCall_Warning0003 = "VideoCall.Warning0003";
+        #endregion
+
+        #region GeminiKey
+        public const string GeminiKey_Success0001 = "GeminiKey.Success0001"; // Key added
+        public const string GeminiKey_Success0002 = "GeminiKey.Success0002"; // Key toggled
+        public const string GeminiKey_Success0003 = "GeminiKey.Success0003"; // Key deleted
+        public const string GeminiKey_Success0004 = "GeminiKey.Success0004"; // Exhausted keys reset
+        public const string GeminiKey_Warning0001 = "GeminiKey.Warning0001"; // Duplicate key
+        public const string GeminiKey_Warning0002 = "GeminiKey.Warning0002"; // Cannot delete last active key
+        public const string GeminiKey_Warning0003 = "GeminiKey.Warning0003"; // Low active key count alert
         #endregion
 
         // AI Voice Messages (Symptom Tracking)

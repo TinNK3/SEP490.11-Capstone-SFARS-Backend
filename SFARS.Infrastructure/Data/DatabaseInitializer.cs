@@ -62,6 +62,9 @@ namespace SFARS.Infrastructure.Data
             // [Users] - Seed missing users (check by email)
             await SeedUsersAsync();
 
+            // [GeminiApiKeys] - Migrate config keys to DB
+            await SeedGeminiApiKeysAsync();
+
             // [SystemMessages] - For result codes/messages (Sync Data)
             await SeedSystemMessagesAsync();
 
@@ -847,6 +850,47 @@ namespace SFARS.Infrastructure.Data
             await _context.SaveChangesAsync();
             _logger.LogInformation("[Seeding] Analytics demo data seeded: {Incidents} incidents, {Missions} missions, {Txns} donations.",
                 incidents.Count, missionDefs.Count + activeMissions.Count, donationAmounts.Length);
+        }
+
+        private async Task SeedGeminiApiKeysAsync()
+        {
+            if (await _context.GeminiApiKeys.AnyAsync()) return;
+
+            var defaultKeys = new[]
+            {
+                "AIzaSyCEbn67X__3Lbv-93nFz_l9Ex4auoQd4EY",
+                "AIzaSyCgWRGJXisSYZhHklzjDKwE1aGvBvTVhHU",
+                "AIzaSyBmX6xj6hHh8NDA-tiauFLmIKrEiyJCwqA",
+                "AIzaSyAmiGcTjJ_ZblIyFqTM3HOMkecu6Y_7tjU",
+                "AIzaSyBKr0_t4QQhPLgsHPFOzYqDC8EXumM7Igs",
+                "AIzaSyD8l5zobi8GgVi77IUhITfCwsTAoTtitcA",
+                "AIzaSyBvq_J5AyTW6MATgqySKKRmuUxRM9wG554",
+                "AIzaSyBeAgNG5lByj-VvkcG9j8ne4y5y0DG9YR0",
+                "AIzaSyDie-gFbCNvIaoabbnbVOaD-7e0JDxnD-k",
+                "AIzaSyDvV-y3BsmGHgFrWNjhfy9e41D6Ip7FHx0"
+            };
+
+            var adminUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == "admin@sfars.com" || u.Email == "[EMAIL_ADDRESS]");
+            var adminId = adminUser?.Id;
+
+            for (int i = 0; i < defaultKeys.Length; i++)
+            {
+                await _context.GeminiApiKeys.AddAsync(new GeminiApiKey
+                {
+                    Id = Guid.NewGuid(),
+                    KeyValue = defaultKeys[i],
+                    Label = $"Migrated Key #{i + 1}",
+                    IsActive = true,
+                    IsExhausted = false,
+                    TotalUsageCount = 0,
+                    ConsecutiveFailures = 0,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = adminId
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("[Seeding] Migrated {Count} Gemini API Keys to DB.", defaultKeys.Length);
         }
 
     }

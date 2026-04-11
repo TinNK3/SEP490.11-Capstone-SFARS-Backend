@@ -59,6 +59,7 @@ public partial class SFARSDbContext : DbContext
     // Admin
     public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
     public DbSet<Faq> Faqs { get; set; }
+    public DbSet<GeminiApiKey> GeminiApiKeys { get; set; }
 
     public DbSet<AiInference> AiInferences { get; set; }
     public DbSet<AiInferenceCandidate> AiInferenceCandidates { get; set; }

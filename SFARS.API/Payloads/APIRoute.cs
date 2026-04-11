@@ -244,6 +244,16 @@ namespace SFARS.API.Payloads
             public const string UpdateFaq = Base + "/admin/faqs/{id}";
             // [DELETE]
             public const string DeleteFaq = Base + "/admin/faqs/{id}";
+
+            // Gemini API Key Management
+            // [GET]
+            public const string GetAllGeminiKeys = Base + "/admin/gemini-keys";
+            // [POST]
+            public const string CreateGeminiKey = Base + "/admin/gemini-keys";
+            // [PATCH]
+            public const string ToggleGeminiKey = Base + "/admin/gemini-keys/{id}/toggle";
+            // [DELETE]
+            public const string DeleteGeminiKey = Base + "/admin/gemini-keys/{id}";
         }
 
         /// <summary>
