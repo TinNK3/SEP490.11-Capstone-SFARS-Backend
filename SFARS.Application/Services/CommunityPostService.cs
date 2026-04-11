@@ -470,7 +470,30 @@ public class CommunityPostService : ICommunityPostService
 
         comment.IsDeleted = true;
         comment.UpdatedAt = DateTime.UtcNow;
-        _uow.Repository<PostComment, Guid>().Update(comment);
+        var commentRepo = _uow.Repository<PostComment, Guid>();
+        commentRepo.Update(comment);
+
+        // Tìm và ẩn tất cả các reply trực tiếp (nếu có)
+        var repliesSpec = new BaseSpecification<PostComment>(r => r.ParentId == commentId && !r.IsDeleted);
+        var replies = await commentRepo.GetAllWithSpecAsync(repliesSpec);
+        int deletedCount = 1 + replies.Count(); // 1 cha + n con
+
+        foreach (var reply in replies)
+        {
+            reply.IsDeleted = true;
+            reply.UpdatedAt = DateTime.UtcNow;
+            commentRepo.Update(reply);
+        }
+
+        // Giảm CommentCount của Post theo tổng số lượng bị ẩn
+        var post = await _uow.Repository<ContentPost, Guid>().GetByIdAsync(comment.PostId);
+        if (post != null)
+        {
+            post.CommentCount = Math.Max(0, post.CommentCount - deletedCount);
+            post.UpdatedAt = DateTime.UtcNow;
+            _uow.Repository<ContentPost, Guid>().Update(post);
+        }
+
         await _uow.SaveChangesAsync();
 
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Xóa thành công", true);

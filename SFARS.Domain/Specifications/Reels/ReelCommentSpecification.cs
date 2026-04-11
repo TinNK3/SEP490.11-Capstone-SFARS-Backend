@@ -10,7 +10,7 @@ namespace SFARS.Domain.Specifications.Reels
 
         public static ReelCommentSpecification ParentComments(Guid reelId, int skip, int take)
         {
-            var spec = new ReelCommentSpecification(c => c.ReelId == reelId && c.ParentCommentId == null);
+            var spec = new ReelCommentSpecification(c => c.ReelId == reelId && c.ParentCommentId == null && !c.IsDeleted);
             spec.AddOrderByDescending(c => c.CreatedAt);
             spec.ApplyPaging(take, skip);
             spec.ApplyInclude(q => q.Include(c => c.User).Include(c => c.SubComments));
@@ -19,7 +19,7 @@ namespace SFARS.Domain.Specifications.Reels
 
         public static ReelCommentSpecification SubComments(Guid parentCommentId, int skip, int take)
         {
-            var spec = new ReelCommentSpecification(c => c.ParentCommentId == parentCommentId);
+            var spec = new ReelCommentSpecification(c => c.ParentCommentId == parentCommentId && !c.IsDeleted);
             spec.AddOrderBy(c => c.CreatedAt);
             spec.ApplyPaging(take, skip);
             spec.ApplyInclude(q => q.Include(c => c.User));
@@ -28,12 +28,12 @@ namespace SFARS.Domain.Specifications.Reels
 
         public static ReelCommentSpecification ForCount(Guid reelId)
         {
-            return new ReelCommentSpecification(c => c.ReelId == reelId && c.ParentCommentId == null);
+            return new ReelCommentSpecification(c => c.ReelId == reelId && c.ParentCommentId == null && !c.IsDeleted);
         }
 
         public static ReelCommentSpecification ForSubCount(Guid parentCommentId)
         {
-            return new ReelCommentSpecification(c => c.ParentCommentId == parentCommentId);
+            return new ReelCommentSpecification(c => c.ParentCommentId == parentCommentId && !c.IsDeleted);
         }
     }
 }

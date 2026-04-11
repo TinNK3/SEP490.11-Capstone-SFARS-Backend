@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SFARS.Infrastructure.Data.Context;
@@ -12,9 +13,11 @@ using SFARS.Infrastructure.Data.Context;
 namespace SFARS.Infrastructure.Migrations
 {
     [DbContext(typeof(SFARSDbContext))]
-    partial class SFARSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260411114532_AddSoftDeleteToReelComment")]
+    partial class AddSoftDeleteToReelComment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -679,10 +682,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("created_by");
-
-                    b.Property<string>("EmbeddingJson")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("embedding_json");
 
                     b.Property<string>("ImageUrl")
                         .HasMaxLength(500)
@@ -2549,10 +2548,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<string>("DistributionNote")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("distribution_note");
-
-                    b.Property<string>("EmbeddingJson")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("embedding_json");
 
                     b.Property<string>("Habitat")
                         .HasColumnType("nvarchar(max)")
