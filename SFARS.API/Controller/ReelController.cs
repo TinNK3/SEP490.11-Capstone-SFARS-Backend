@@ -35,17 +35,17 @@ public class ReelController : ControllerBase
     /// <summary>Lấy danh sách Feed Reel (Vuốt đến đâu load đến đó)</summary>
     [HttpGet(APIRoute.Reels.GetFeed, Name = nameof(GetReelsFeedAsync))]
     [AllowAnonymous]
-    public async Task<IActionResult> GetReelsFeedAsync([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 5)
+    public async Task<IActionResult> GetReelsFeedAsync([FromQuery] SFARS.Domain.Specifications.Params.ReelSpecParams specParams)
     {
-        return this.ToIActionResult(await _svc.GetReelsFeedAsync(User.GetUserIdOrNull(), pageNumber, pageSize));
+        return this.ToIActionResult(await _svc.GetReelsFeedAsync(User.GetUserIdOrNull(), specParams));
     }
 
     /// <summary>Lấy danh sách Reel của một User cụ thể</summary>
     [HttpGet(APIRoute.Reels.GetByUser, Name = nameof(GetReelsByUserIdAsync))]
     [AllowAnonymous]
-    public async Task<IActionResult> GetReelsByUserIdAsync(Guid userId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 5)
+    public async Task<IActionResult> GetReelsByUserIdAsync(Guid userId, [FromQuery] SFARS.Domain.Specifications.Params.ReelSpecParams specParams)
     {
-        return this.ToIActionResult(await _svc.GetReelsByUserIdAsync(User.GetUserIdOrNull(), userId, pageNumber, pageSize));
+        return this.ToIActionResult(await _svc.GetReelsByUserIdAsync(User.GetUserIdOrNull(), userId, specParams));
     }
 
     /// <summary>Lấy thông tin chi tiết 1 Reel (Nếu có URL chia sẻ)</summary>

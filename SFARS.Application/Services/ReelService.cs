@@ -67,12 +67,12 @@ public class ReelService : IReelService
         }
     }
 
-    public async Task<IServiceResult> GetReelsFeedAsync(Guid? currentUserId, int pageNumber, int pageSize)
+    public async Task<IServiceResult> GetReelsFeedAsync(Guid? currentUserId, SFARS.Domain.Specifications.Params.ReelSpecParams specParams)
     {
         var repo = _uow.Repository<Reel, Guid>();
         
-        var totalCount = await repo.CountAsync(ReelSpecification.ForCount());
-        var reels = await repo.GetAllWithSpecAsync(ReelSpecification.Feed(currentUserId, (pageNumber - 1) * pageSize, pageSize), tracked: false);
+        var totalCount = await repo.CountAsync(ReelSpecification.ForCount(specParams));
+        var reels = await repo.GetAllWithSpecAsync(new ReelSpecification(specParams), tracked: false);
 
         var likeRepo = _uow.Repository<ReelLike, object>();
         var reelList = new List<ReelResponseDto>();
@@ -95,16 +95,16 @@ public class ReelService : IReelService
             });
         }
 
-        var response = new ReelListResponse(reelList, totalCount, pageNumber, pageSize);
+        var response = new ReelListResponse(reelList, totalCount, specParams.GetPage(), specParams.GetTake());
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Success", response);
     }
 
-    public async Task<IServiceResult> GetReelsByUserIdAsync(Guid? currentUserId, Guid targetUserId, int pageNumber, int pageSize)
+    public async Task<IServiceResult> GetReelsByUserIdAsync(Guid? currentUserId, Guid targetUserId, SFARS.Domain.Specifications.Params.ReelSpecParams specParams)
     {
         var repo = _uow.Repository<Reel, Guid>();
 
-        var totalCount = await repo.CountAsync(ReelSpecification.ForCount(targetUserId));
-        var reels = await repo.GetAllWithSpecAsync(ReelSpecification.ByUserId(targetUserId, (pageNumber - 1) * pageSize, pageSize), tracked: false);
+        var totalCount = await repo.CountAsync(ReelSpecification.ForCount(specParams, targetUserId));
+        var reels = await repo.GetAllWithSpecAsync(new ReelSpecification(specParams, targetUserId), tracked: false);
 
         var likeRepo = _uow.Repository<ReelLike, object>();
         var reelList = new List<ReelResponseDto>();
@@ -127,7 +127,7 @@ public class ReelService : IReelService
             });
         }
 
-        var response = new ReelListResponse(reelList, totalCount, pageNumber, pageSize);
+        var response = new ReelListResponse(reelList, totalCount, specParams.GetPage(), specParams.GetTake());
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Success", response);
     }
 

@@ -9,6 +9,7 @@ using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Specifications.Interfaces;
 using SFARS.Domain.Interfaces.Repositories.Base;
 using SFARS.Application.Interfaces.Services;
+using SFARS.Domain.Specifications.Params;
 using System.Linq.Expressions;
 using SFARS.Domain.Common.Enum;
 
@@ -61,7 +62,7 @@ public class ReelServiceTests
         _likeRepoMock.Setup(l => l.AnyAsync(It.IsAny<Expression<Func<ReelLike, bool>>>())).ReturnsAsync(false);
 
         // Act
-        var result = await _sut.GetReelsFeedAsync(null, 1, 5);
+        var result = await _sut.GetReelsFeedAsync(null, new ReelSpecParams { Page = 1, PageSize = 5 });
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
@@ -87,7 +88,7 @@ public class ReelServiceTests
         _likeRepoMock.Setup(l => l.AnyAsync(It.IsAny<Expression<Func<ReelLike, bool>>>())).ReturnsAsync(true);
 
         // Act
-        var result = await _sut.GetReelsFeedAsync(userId, 1, 5);
+        var result = await _sut.GetReelsFeedAsync(userId, new ReelSpecParams { Page = 1, PageSize = 5 });
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
@@ -109,7 +110,7 @@ public class ReelServiceTests
         _reelRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<Reel>>(), false)).ReturnsAsync(reels);
 
         // Act
-        var result = await _sut.GetReelsByUserIdAsync(Guid.NewGuid(), targetUserId, 1, 5);
+        var result = await _sut.GetReelsByUserIdAsync(Guid.NewGuid(), targetUserId, new ReelSpecParams { Page = 1, PageSize = 5 });
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
@@ -306,6 +307,23 @@ public class ReelServiceTests
 
         // Kiểm tra 1 cha + 3 con đều được cập nhật
         _commentRepoMock.Verify(r => r.Update(It.IsAny<ReelComment>()), Times.Exactly(4));
+    }
+    #endregion
+
+    #region Tests cho Search và Filter
+    [Fact]
+    public async Task GetReelsFeedAsync_VoiSearch_ApDungFilterVaoCountSpec()
+    {
+        // Arrange
+        _reelRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<Reel>>())).ReturnsAsync(0);
+
+        // Act
+        var result = await _sut.GetReelsFeedAsync(null, new ReelSpecParams { Search = "snake" });
+
+        // Assert
+        // Result code 0001 vì Service trả về Success với danh sách rỗng (hoặc list response)
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
+        _reelRepoMock.Verify(r => r.CountAsync(It.IsAny<ISpecification<Reel>>()), Times.Once);
     }
     #endregion
 }
