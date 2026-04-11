@@ -518,6 +518,21 @@ System.Diagnostics.Debug.WriteLine($"Watchdog scheduled at {mission.Id}");
             await _locationHub.Clients
                 .Group(LocationConstants.SignalRGroupPrefix + incident.Id)
                 .SendAsync(LocationConstants.SignalRMissionStatusUpdated, payload);
+
+            // FCM push to victim (app may be backgrounded during rescue)
+            var fcmTitle = newStatus == IncidentStatus.Arrived
+                ? DispatchConstants.PushMissionArrivedTitle
+                : DispatchConstants.PushMissionClosedTitle;
+            var fcmBody = newStatus == IncidentStatus.Arrived
+                ? DispatchConstants.PushMissionArrivedBody
+                : DispatchConstants.PushMissionClosedBody;
+            var fcmData = new Dictionary<string, string>
+            {
+                { "incidentId", incident.Id.ToString() },
+                { "type", DispatchConstants.FcmMissionStatusTitleKey },
+                { "newStatus", newStatus.ToString() }
+            };
+            await _fcmService.SendToUserAsync(incident.VictimId, fcmTitle, fcmBody, fcmData);
         }
 
         return new ServiceResult(ResultCodeConst.Mission_Success0001, await _msgService.GetMessageAsync(ResultCodeConst.Mission_Success0001));

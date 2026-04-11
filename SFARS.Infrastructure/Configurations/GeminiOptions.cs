@@ -5,7 +5,6 @@ namespace SFARS.Infrastructure.Configurations;
 /// </summary>
 public class GeminiOptions
 {
-    public List<string> ApiKeys { get; set; } = new();
     public string Model { get; set; } = "gemini-2.0-flash";
     public string EmbeddingModel { get; set; } = "text-embedding-004";
     public string BaseUrl { get; set; } = "https://generativelanguage.googleapis.com/v1beta";

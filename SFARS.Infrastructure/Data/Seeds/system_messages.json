@@ -996,6 +996,12 @@
     "Vi": "Không tìm thấy người dùng tương ứng với số điện thoại này."
   },
   {
+    "MsgId": "Incident.Notify0007",
+    "MsgContent": "Victim has retaken a photo. AI analysis has been updated. Please check the latest information.",
+    "En": "Victim has retaken a photo. AI analysis has been updated. Please check the latest information.",
+    "Vi": "Nạn nhân đã chụp lại ảnh. Kết quả nhận diện AI đã được cập nhật. Vui lòng kiểm tra thông tin mới nhất."
+  },
+  {
     "MsgId": "VideoCall.Success0001",
     "MsgContent": "Video call token generated.",
     "En": "Video call token generated.",
@@ -1018,5 +1024,47 @@
     "MsgContent": "Video call configuration is missing.",
     "En": "Video call configuration is missing.",
     "Vi": "Cấu hình cuộc gọi video bị thiếu."
+  },
+  {
+    "MsgId": "GeminiKey.Success0001",
+    "MsgContent": "API key added successfully.",
+    "En": "API key added successfully.",
+    "Vi": "Đã thêm API key thành công."
+  },
+  {
+    "MsgId": "GeminiKey.Success0002",
+    "MsgContent": "API key status updated.",
+    "En": "API key status updated.",
+    "Vi": "Đã cập nhật trạng thái API key."
+  },
+  {
+    "MsgId": "GeminiKey.Success0003",
+    "MsgContent": "API key deleted.",
+    "En": "API key deleted.",
+    "Vi": "Đã xóa API key."
+  },
+  {
+    "MsgId": "GeminiKey.Success0004",
+    "MsgContent": "Exhausted keys have been reset.",
+    "En": "Exhausted keys have been reset.",
+    "Vi": "Các key hết quota đã được khôi phục."
+  },
+  {
+    "MsgId": "GeminiKey.Warning0001",
+    "MsgContent": "This API key already exists.",
+    "En": "This API key already exists.",
+    "Vi": "API key này đã tồn tại trong hệ thống."
+  },
+  {
+    "MsgId": "GeminiKey.Warning0002",
+    "MsgContent": "Cannot delete the last active API key.",
+    "En": "Cannot delete the last active API key.",
+    "Vi": "Không thể xóa API key hoạt động cuối cùng."
+  },
+  {
+    "MsgId": "GeminiKey.Warning0003",
+    "MsgContent": "Low active API key count. Please add more keys to ensure service availability.",
+    "En": "Low active API key count. Please add more keys to ensure service availability.",
+    "Vi": "Số lượng API key khả dụng đang thấp. Vui lòng thêm key mới để đảm bảo hoạt động."
   }
 ]

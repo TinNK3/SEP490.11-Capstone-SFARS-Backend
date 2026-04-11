@@ -15,6 +15,9 @@ using SFARS.Infrastructure.Configurations;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
+using Microsoft.AspNetCore.SignalR;
+using SFARS.Infrastructure.Hubs;
+using System.Text.Json;
 
 namespace SFARS.Application.Services;
 
@@ -35,6 +38,9 @@ public class AiInferenceService : IAiInferenceService
     private readonly ISpeciesClassificationService _classificationService;
     private readonly IWoundDetectionService _woundDetectionService;
     private readonly IOptions<WoundDetectionOptions> _woundOptions;
+    private readonly IHubContext<RescueDispatchHub> _rescueHub;
+    private readonly IHubContext<LocationTrackingHub> _locationHub;
+    private readonly IFcmPushService _fcmService;
 
     /// <summary>
     /// Class name used by the EfficientNetV2 classifier for non-snake objects.
@@ -58,7 +64,10 @@ public class AiInferenceService : IAiInferenceService
         IOptions<StorageOptions> storageOptions,
         IOptions<YoloDetectionOptions> yoloOptions,
         IOptions<WoundDetectionOptions> woundOptions,
-        IBackgroundJobClient backgroundJobClient)
+        IBackgroundJobClient backgroundJobClient,
+        IHubContext<RescueDispatchHub> rescueHub,
+        IHubContext<LocationTrackingHub> locationHub,
+        IFcmPushService fcmService)
     {
         _msgService = msgService;
         _unitOfWork = unitOfWork;
@@ -71,6 +80,9 @@ public class AiInferenceService : IAiInferenceService
         _yoloOptions = yoloOptions;
         _woundOptions = woundOptions;
         _backgroundJobClient = backgroundJobClient;
+        _rescueHub = rescueHub;
+        _locationHub = locationHub;
+        _fcmService = fcmService;
     }
 
     /// <summary>
@@ -126,6 +138,16 @@ public class AiInferenceService : IAiInferenceService
                 await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0003)
             );
         }
+
+        // Determine re-analyze context:
+        // ── First analyze: no grace period set yet (very first AI call on this incident)
+        // ── Grace-period retry: user retakes photo before countdown completes → reset grace + cancel old dispatch
+        // ── Post-dispatch: dispatch already running or rescuer assigned → update AI only, notify rescuer
+        var isFirstAnalyze = incident.GraceExpiresAt == null;
+        var isInGracePeriod = !isFirstAnalyze
+                              && incident.CurrentStatus == IncidentStatus.Pending
+                              && incident.GraceExpiresAt > DateTime.UtcNow;
+        var isPostDispatch = incident.CurrentStatus != IncidentStatus.Pending;
 
         var storageOpt = _storageOptions.Value;
         bool isSkip = imageStream == null || fileSize == null || fileSize <= 0;
@@ -432,7 +454,12 @@ public class AiInferenceService : IAiInferenceService
                     primarySnake?.ToxicityLevel);
             }
 
-            incident.GraceExpiresAt = now + SosConstants.GracePeriod + TimeSpan.FromSeconds(3);
+            // Only reset grace period on first analyze or grace-period retry.
+            // Post-dispatch re-analyze must NOT reset the grace window.
+            if (isFirstAnalyze || isInGracePeriod)
+            {
+                incident.GraceExpiresAt = now + SosConstants.GracePeriod + TimeSpan.FromSeconds(3);
+            }
             incident.UpdatedAt = now;
             incident.UpdatedBy = userId;
 
@@ -492,13 +519,41 @@ public class AiInferenceService : IAiInferenceService
                 );
             }
 
-            // Schedule dispatch to start AFTER grace period expires.
-            // StartDispatchAsync handles fail-fast + the full Hangfire chain internally.
-            // Delay = GracePeriod (10s) + 3s buffer for network round-trip.
-            var dispatchDelay = SosConstants.GracePeriod + TimeSpan.FromSeconds(3);
-            _backgroundJobClient.Schedule<IDispatchService>(
-                s => s.StartDispatchAsync(incidentId),
-                dispatchDelay);
+            // ── Conditional dispatch scheduling ─────────────────────────────────
+            if (isFirstAnalyze || isInGracePeriod)
+            {
+                // Grace-period retry: cancel the old pending dispatch job to prevent stale data being pushed.
+                if (isInGracePeriod && !string.IsNullOrWhiteSpace(incident.DispatchJobIds))
+                {
+                    var pendingJobIds = JsonSerializer.Deserialize<string[]>(incident.DispatchJobIds);
+                    if (pendingJobIds != null)
+                    {
+                        foreach (var jobId in pendingJobIds)
+                            BackgroundJob.Delete(jobId);
+                    }
+                    incident.DispatchJobIds = null;
+                    _logger.LogInformation("Cancelled previous dispatch jobs for grace-period retry. IncidentId={Id}", incidentId);
+                }
+
+                // Schedule dispatch to start AFTER grace period expires.
+                // StartDispatchAsync handles fail-fast + the full Hangfire chain internally.
+                // Delay = GracePeriod (10s) + 3s buffer for network round-trip.
+                var dispatchDelay = SosConstants.GracePeriod + TimeSpan.FromSeconds(3);
+                _backgroundJobClient.Schedule<IDispatchService>(
+                    s => s.StartDispatchAsync(incidentId),
+                    dispatchDelay);
+            }
+            else if (isPostDispatch)
+            {
+                //  Post-dispatch re-analyze: dispatch is already running.
+                //  Tier jobs auto-pick up fresh data from DB on next execution.
+                //  Here we notify rescuers who already received the OLD AI result.
+                _logger.LogInformation(
+                    "Re-analyze after dispatch for IncidentId={Id} (status={S}). Notifying rescuers.",
+                    incidentId, incident.CurrentStatus);
+
+                await NotifyRescuersOfReAnalyzeAsync(incident);
+            }
 
             isLowConfidence = !isSkip && isSnakeClassified && topConfidence < AiInferenceConstants.ConfidenceDisplayThreshold;
 
@@ -580,6 +635,83 @@ public class AiInferenceService : IAiInferenceService
                 await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001)
             );
         }
+    }
+
+    /// <summary>
+    /// Notifies rescuers when the victim retakes a photo (re-analyze) during an active incident.
+    /// <para>
+    ///   • <b>Assigned/EnRoute/Arrived</b> — targets the single assigned rescuer via active mission lookup.
+    /// </para>
+    /// <para>
+    ///   • <b>Dispatching_Tier*</b> / <b>Unassigned</b> — broadcasts to the incident tracking group
+    ///     so any rescuer viewing the dispatch card receives updated info.
+    ///     Subsequent tier jobs will auto-pick up new AI data from DB.
+    /// </para>
+    /// </summary>
+    private async Task NotifyRescuersOfReAnalyzeAsync(Incident incident)
+    {
+        var payload = new
+        {
+            IncidentId = incident.Id,
+            IncidentCode = incident.Code,
+            NewPrediction = incident.AiPredictionResult,
+            NewConfidence = incident.AiConfidenceScore,
+            NewPriority = incident.PriorityLevel.ToString(),
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var topSnake = incident.AiPredictionResult ?? DispatchConstants.PushUnknownSnake;
+        var fcmBody = string.Format(DispatchConstants.PushAiReanalyzeBody, incident.Code, topSnake);
+        var fcmData = new Dictionary<string, string>
+        {
+            { "incidentId", incident.Id.ToString() },
+            { "type", DispatchConstants.FcmAiReanalyzeTitleKey }
+        };
+
+        // Case 1: Rescuer assigned → direct private notification
+        if (incident.CurrentStatus is IncidentStatus.Assigned
+            or IncidentStatus.EnRoute or IncidentStatus.Arrived)
+        {
+            var activeMission = await _unitOfWork.Repository<RescueMission, Guid>()
+                .GetAllAsync(tracked: false);
+            var mission = activeMission.FirstOrDefault(m =>
+                m.IncidentId == incident.Id
+                && (m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Pending));
+
+            if (mission != null)
+            {
+                // SignalR (rescuer has app open)
+                await _rescueHub.Clients
+                    .Group(DispatchConstants.RescuerGroupPrefix + mission.RescuerId)
+                    .SendAsync(DispatchConstants.EventAiUpdated, payload);
+
+                // FCM (always — even if app is in background)
+                await _fcmService.SendToUserAsync(
+                    mission.RescuerId,
+                    DispatchConstants.PushAiReanalyzeTitle,
+                    fcmBody,
+                    fcmData);
+
+                await _unitOfWork.Repository<NotificationLog, Guid>().AddAsync(new NotificationLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = mission.RescuerId,
+                    Title = DispatchConstants.PushAiReanalyzeTitle,
+                    Message = fcmBody,
+                    Type = NotificationType.Mission,
+                    IsRead = false,
+                    SentAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow
+                });
+                await _unitOfWork.SaveChangesAsync();
+            }
+        }
+
+        // Case 2: Dispatching / Unassigned → broadcast to incident tracking group.
+        // Subsequent tier jobs will get fresh data from DB automatically.
+        await _locationHub.Clients
+            .Group(LocationConstants.SignalRGroupPrefix + incident.Id)
+            .SendAsync(DispatchConstants.EventAiUpdated, payload);
     }
 
     #region First Aid — DB Queries

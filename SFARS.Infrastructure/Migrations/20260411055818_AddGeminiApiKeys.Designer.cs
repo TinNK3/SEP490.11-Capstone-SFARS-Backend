@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SFARS.Infrastructure.Data.Context;
@@ -12,9 +13,11 @@ using SFARS.Infrastructure.Data.Context;
 namespace SFARS.Infrastructure.Migrations
 {
     [DbContext(typeof(SFARSDbContext))]
-    partial class SFARSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260411055818_AddGeminiApiKeys")]
+    partial class AddGeminiApiKeys
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -502,11 +505,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id");
 
-                    b.Property<string>("AdminNote")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)")
-                        .HasColumnName("admin_note");
-
                     b.Property<Guid>("AuthorId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("author_id");
@@ -528,12 +526,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("created_by");
-
-                    b.Property<bool>("IsHiddenByAdmin")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_hidden_by_admin");
 
                     b.Property<bool>("IsPublished")
                         .HasColumnType("bit")
@@ -1919,10 +1911,6 @@ namespace SFARS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("AdminNote")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
                     b.Property<string>("Caption")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -1942,11 +1930,6 @@ namespace SFARS.Infrastructure.Migrations
 
                     b.Property<bool>("IsHidden")
                         .HasColumnType("bit");
-
-                    b.Property<bool>("IsHiddenByAdmin")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
 
                     b.Property<int>("LikeCount")
                         .HasColumnType("int");
@@ -1996,9 +1979,6 @@ namespace SFARS.Infrastructure.Migrations
 
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
 
                     b.Property<Guid?>("ParentCommentId")
                         .HasColumnType("uniqueidentifier");

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SFARS.Domain.Interfaces.Infrastructure;
@@ -17,68 +18,49 @@ public class GeminiAiService : IGeminiAiService
     private readonly ILogger<GeminiAiService> _logger;
     private readonly GeminiOptions _options;
     private readonly HttpClient _httpClient;
-
-    // Static tracker to share "current working" key index across all service instances
-    private static int _currentKeyIndex = 0;
-    private static readonly object _keyLock = new();
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public string ModelName => _options.Model;
 
     public GeminiAiService(
         ILogger<GeminiAiService> logger,
         IOptions<GeminiOptions> options,
-        HttpClient httpClient)
+        HttpClient httpClient,
+        IServiceScopeFactory scopeFactory)
     {
         _logger = logger;
         _options = options.Value;
         _httpClient = httpClient;
+        _scopeFactory = scopeFactory;
+        
         _httpClient.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
     }
 
     #region Resilience & Key Rotation
 
-    private string GetApiKey()
-    {
-        lock (_keyLock)
-        {
-            if (_options.ApiKeys == null || _options.ApiKeys.Count == 0)
-                throw new InvalidOperationException("No Gemini API keys configured.");
-
-            // Ensure index is within bounds (in case list was modified)
-            if (_currentKeyIndex >= _options.ApiKeys.Count)
-                _currentKeyIndex = 0;
-
-            return _options.ApiKeys[_currentKeyIndex];
-        }
-    }
-
-    private void RotateApiKey()
-    {
-        lock (_keyLock)
-        {
-            if (_options.ApiKeys.Count <= 1) return;
-
-            int oldIndex = _currentKeyIndex;
-            _currentKeyIndex = (_currentKeyIndex + 1) % _options.ApiKeys.Count;
-            _logger.LogWarning("API Key Exhausted/Failed at index {OldIndex}. Rotating to index {NewIndex}.", 
-                oldIndex, _currentKeyIndex);
-        }
-    }
-
     /// <summary>
-    /// Executes an API call with automatic key rotation on 429 (Too Many Requests) or 403 (Quota).
+    /// Executes an API call with automatic DB-driven key rotation on 429 (Too Many Requests) or 403 (Quota).
     /// </summary>
     private async Task<string> ExecuteWithRotationAsync(Func<string, Task<HttpResponseMessage>> callFunc)
     {
-        int totalKeys = _options.ApiKeys.Count;
-        int attempts = totalKeys;
+        using var scope = _scopeFactory.CreateScope();
+        var keyService = scope.ServiceProvider.GetRequiredService<IGeminiApiKeyService>();
 
-        for (int i = 0; i < attempts; i++)
+        int maxAttempts = 5; // Prevent hard infinite loops
+
+        for (int i = 0; i < maxAttempts; i++)
         {
-            var currentKey = GetApiKey();
+            var activeKey = await keyService.AcquireNextAvailableKeyAsync();
+            
+            if (activeKey == null)
+            {
+                _logger.LogCritical("No active Gemini API keys available in the database.");
+                throw new InvalidOperationException("Gemini API failed: No active/available API keys.");
+            }
+
             try
             {
-                var response = await callFunc(currentKey);
+                var response = await callFunc(activeKey.KeyValue);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -103,8 +85,8 @@ public class GeminiAiService : IGeminiAiService
                         response.StatusCode == System.Net.HttpStatusCode.Forbidden ||
                         errorBody.Contains("quota", StringComparison.OrdinalIgnoreCase))
                     {
-                        _logger.LogWarning("Key quota exceeded or forbidden. Rotating... Status: {Status}", response.StatusCode);
-                        RotateApiKey();
+                        _logger.LogWarning("Key {KeyId} quota exceeded or forbidden. Status: {Status}", activeKey.Id, response.StatusCode);
+                        await keyService.MarkKeyExhaustedAsync(activeKey.Id);
                         continue;
                     }
 
@@ -112,19 +94,21 @@ public class GeminiAiService : IGeminiAiService
                     response.EnsureSuccessStatusCode();
                 }
 
+                // Success
+                await keyService.MarkKeySuccessAsync(activeKey.Id);
                 return await response.Content.ReadAsStringAsync();
             }
-            catch (HttpRequestException ex) when (i < attempts - 1 && 
+            catch (HttpRequestException ex) when (i < maxAttempts - 1 && 
                 ex.StatusCode != System.Net.HttpStatusCode.BadRequest && 
                 ex.StatusCode != System.Net.HttpStatusCode.NotFound)
             {
-                _logger.LogWarning(ex, "API call failed (Transient). Attempting rotation.");
-                RotateApiKey();
+                _logger.LogWarning(ex, "API call failed (Transient - Key {KeyId}). Attempting rotation.", activeKey.Id);
+                await keyService.MarkKeyExhaustedAsync(activeKey.Id);
                 await Task.Delay(500); 
             }
         }
 
-        throw new InvalidOperationException("Gemini API failed after exhausting all available API keys.");
+        throw new InvalidOperationException("Gemini API failed after exhausting all attempts with available API keys.");
     }
 
     #endregion
