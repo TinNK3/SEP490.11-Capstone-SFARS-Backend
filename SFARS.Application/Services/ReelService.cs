@@ -371,15 +371,31 @@ public class ReelService : IReelService
         if (comment.UserId != currentUserId)
             return new ServiceResult(ResultCodeConst.SYS_Warning0007, "Not authorized to delete this comment");
 
+        comment.IsDeleted = true;
+        comment.UpdatedAt = DateTime.UtcNow;
+        repo.Update(comment);
+
+        // Tìm và ẩn tất cả sub-comments (nếu có)
+        var subSpec = new ReelCommentSpecification(c => c.ParentCommentId == commentId && !c.IsDeleted);
+        var subComments = await repo.GetAllWithSpecAsync(subSpec);
+        int totalDeleted = 1 + subComments.Count();
+
+        foreach (var sub in subComments)
+        {
+            sub.IsDeleted = true;
+            sub.UpdatedAt = DateTime.UtcNow;
+            repo.Update(sub);
+        }
+
         var reelRepo = _uow.Repository<Reel, Guid>();
         var reel = await reelRepo.GetByIdAsync(comment.ReelId);
         if (reel != null)
         {
-            reel.CommentCount = Math.Max(0, reel.CommentCount - 1);
+            reel.CommentCount = Math.Max(0, reel.CommentCount - totalDeleted);
+            reel.UpdatedAt = DateTime.UtcNow;
             reelRepo.Update(reel);
         }
-
-        await repo.DeleteAsync(commentId);
+        
         await _uow.SaveChangesAsync();
 
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Comment deleted successfully");

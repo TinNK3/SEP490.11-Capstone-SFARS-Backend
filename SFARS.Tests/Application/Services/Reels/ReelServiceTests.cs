@@ -268,4 +268,44 @@ public class ReelServiceTests
         reel.AdminNote.Should().BeNull();
     }
     #endregion
+
+    #region Tests cho DeleteCommentAsync
+    [Fact]
+    public async Task DeleteCommentAsync_XoaCmtChaCoCon_SeGiamTongSoTuongUng()
+    {
+        // Arrange
+        var reelId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var parentId = Guid.NewGuid();
+        
+        var reel = new Reel { Id = reelId, CommentCount = 20 };
+        var parentComment = new ReelComment { Id = parentId, ReelId = reelId, UserId = userId, IsDeleted = false };
+        
+        // Giả lập có 3 sub-comment
+        var subComments = new List<ReelComment>
+        {
+            new ReelComment { Id = Guid.NewGuid(), ParentCommentId = parentId, IsDeleted = false },
+            new ReelComment { Id = Guid.NewGuid(), ParentCommentId = parentId, IsDeleted = false },
+            new ReelComment { Id = Guid.NewGuid(), ParentCommentId = parentId, IsDeleted = false }
+        };
+
+        _commentRepoMock.Setup(r => r.GetByIdAsync(parentId)).ReturnsAsync(parentComment);
+        _commentRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<ReelComment>>(), It.IsAny<bool>()))
+            .ReturnsAsync(subComments);
+            
+        _reelRepoMock.Setup(r => r.GetByIdAsync(reelId)).ReturnsAsync(reel);
+        _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Act
+        var result = await _sut.DeleteCommentAsync(userId, parentId);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
+        parentComment.IsDeleted.Should().BeTrue();
+        reel.CommentCount.Should().Be(16); // 20 - (1 cha + 3 con) = 16
+
+        // Kiểm tra 1 cha + 3 con đều được cập nhật
+        _commentRepoMock.Verify(r => r.Update(It.IsAny<ReelComment>()), Times.Exactly(4));
+    }
+    #endregion
 }

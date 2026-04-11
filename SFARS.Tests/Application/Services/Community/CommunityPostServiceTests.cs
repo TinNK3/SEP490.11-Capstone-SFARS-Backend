@@ -623,4 +623,43 @@ public class CommunityPostServiceTests
         post.AdminNote.Should().BeNull();
     }
     #endregion
+
+    #region Tests cho DeleteCommentAsync
+    [Fact]
+    public async Task DeleteCommentAsync_XoaCmtChaCoCon_SeGiamTongSoTuongUng()
+    {
+        // Arrange
+        var postId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();
+        var parentId = Guid.NewGuid();
+        
+        var post = new ContentPost { Id = postId, CommentCount = 10 };
+        var parentComment = new PostComment { Id = parentId, PostId = postId, AuthorId = authorId, IsDeleted = false };
+        
+        // Giả lập có 2 reply trực tiếp
+        var replies = new List<PostComment>
+        {
+            new PostComment { Id = Guid.NewGuid(), ParentId = parentId, IsDeleted = false },
+            new PostComment { Id = Guid.NewGuid(), ParentId = parentId, IsDeleted = false }
+        };
+
+        _commentRepoMock.Setup(r => r.GetByIdAsync(parentId)).ReturnsAsync(parentComment);
+        _commentRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<PostComment>>(), It.IsAny<bool>()))
+            .ReturnsAsync(replies);
+            
+        _postRepoMock.Setup(r => r.GetByIdAsync(postId)).ReturnsAsync(post);
+        _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Act
+        var result = await _sut.DeleteCommentAsync(parentId, authorId);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
+        parentComment.IsDeleted.Should().BeTrue();
+        post.CommentCount.Should().Be(7); // 10 - (1 cha + 2 con) = 7
+        
+        // Kiểm tra xem tất cả các bản ghi (cha và 2 con) đều được bảo lưu soft delete
+        _commentRepoMock.Verify(r => r.Update(It.IsAny<PostComment>()), Times.Exactly(3)); 
+    }
+    #endregion
 }

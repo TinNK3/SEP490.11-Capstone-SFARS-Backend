@@ -8,6 +8,7 @@ public class ReelComment : BaseEntity
     public Guid UserId { get; set; }
     public Guid? ParentCommentId { get; set; }
     public string Content { get; set; } = null!;
+    public bool IsDeleted { get; set; }
 
     public virtual Reel Reel { get; set; } = null!;
     public virtual User User { get; set; } = null!;
