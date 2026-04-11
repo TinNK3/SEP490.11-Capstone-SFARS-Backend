@@ -12,6 +12,8 @@ public class ContentPost : BaseEntity
     public string? ThumbnailUrl { get; set; }
     public Guid AuthorId { get; set; }
     public bool IsPublished { get; set; }
+    public bool IsHiddenByAdmin { get; set; } = false;
+    public string? AdminNote { get; set; }
 
     public int LikeCount { get; set; }
     public int CommentCount { get; set; }

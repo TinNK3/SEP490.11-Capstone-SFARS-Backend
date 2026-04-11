@@ -38,6 +38,8 @@ public class ContentPostConfiguration : IEntityTypeConfiguration<ContentPost>
             .HasColumnName("thumbnail_url");
 
         builder.Property(e => e.IsPublished).HasColumnName("is_published");
+        builder.Property(e => e.IsHiddenByAdmin).HasColumnName("is_hidden_by_admin").HasDefaultValue(false);
+        builder.Property(e => e.AdminNote).HasColumnName("admin_note").HasMaxLength(1000);
 
         builder.Property(e => e.LikeCount).HasColumnName("like_count").HasDefaultValue(0);
         builder.Property(e => e.CommentCount).HasColumnName("comment_count").HasDefaultValue(0);

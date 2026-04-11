@@ -10,7 +10,7 @@ namespace SFARS.Domain.Specifications.Reels
 
         public static ReelSpecification Feed(Guid? currentUserId, int skip, int take)
         {
-            var spec = new ReelSpecification(r => !r.IsHidden);
+            var spec = new ReelSpecification(r => !r.IsHidden && !r.IsHiddenByAdmin);
             spec.AddOrderByDescending(r => r.CreatedAt);
             spec.ApplyPaging(take, skip);
             spec.ApplyInclude(q => q.Include(r => r.User));
@@ -19,7 +19,7 @@ namespace SFARS.Domain.Specifications.Reels
 
         public static ReelSpecification ByUserId(Guid targetUserId, int skip, int take)
         {
-            var spec = new ReelSpecification(r => r.UserId == targetUserId && !r.IsHidden);
+            var spec = new ReelSpecification(r => r.UserId == targetUserId && !r.IsHidden && !r.IsHiddenByAdmin);
             spec.AddOrderByDescending(r => r.CreatedAt);
             spec.ApplyPaging(take, skip);
             spec.ApplyInclude(q => q.Include(r => r.User));
@@ -30,9 +30,9 @@ namespace SFARS.Domain.Specifications.Reels
         {
             if (targetUserId.HasValue)
             {
-                return new ReelSpecification(r => r.UserId == targetUserId.Value && !r.IsHidden);
+                return new ReelSpecification(r => r.UserId == targetUserId.Value && !r.IsHidden && !r.IsHiddenByAdmin);
             }
-            return new ReelSpecification(r => !r.IsHidden);
+            return new ReelSpecification(r => !r.IsHidden && !r.IsHiddenByAdmin);
         }
     }
 }

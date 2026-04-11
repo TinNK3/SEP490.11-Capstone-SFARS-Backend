@@ -107,10 +107,25 @@ public class ReelController : ControllerBase
         return this.ToIActionResult(await _svc.DeleteCommentAsync(User.GetUserId(), id));
     }
 
-    /// <summary>Chia sẻ Reel</summary>
     [HttpPost(APIRoute.Reels.Share, Name = nameof(ShareReelAsync))]
     public async Task<IActionResult> ShareReelAsync(Guid id, [FromBody] ShareRequest req)
     {
         return this.ToIActionResult(await _svc.ShareReelAsync(id, User.GetUserId(), req.Content));
+    }
+
+    /// <summary>Admin ẩn Reel (có lý do)</summary>
+    [HttpPatch(APIRoute.Reels.AdminHide, Name = nameof(AdminHideReelAsync))]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> AdminHideReelAsync(Guid id, [FromBody] SFARS.API.Payloads.Request.Admin.AdminModerationRequest req)
+    {
+        return this.ToIActionResult(await _svc.AdminHideReelAsync(id, User.GetUserId(), req.Reason));
+    }
+
+    /// <summary>Admin bỏ ẩn Reel</summary>
+    [HttpPatch(APIRoute.Reels.AdminUnhide, Name = nameof(AdminUnhideReelAsync))]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> AdminUnhideReelAsync(Guid id)
+    {
+        return this.ToIActionResult(await _svc.AdminUnhideReelAsync(id, User.GetUserId()));
     }
 }

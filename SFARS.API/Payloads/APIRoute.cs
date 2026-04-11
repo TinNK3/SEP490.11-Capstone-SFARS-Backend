@@ -99,6 +99,10 @@ namespace SFARS.API.Payloads
             // [DELETE]
             public const string DeletePost = Base + "/posts/{id}";
             public const string DeleteComment = Base + "/posts/comments/{commentId}";
+
+            private const string AdminBase = "api/admin/community";
+            public const string AdminHidePost = AdminBase + "/posts/{id}/hide";
+            public const string AdminUnhidePost = AdminBase + "/posts/{id}/unhide";
         }
 
         /// <summary>
@@ -127,6 +131,10 @@ namespace SFARS.API.Payloads
             // [DELETE]
             public const string Delete = Base + "/{id}";
             public const string DeleteComment = Base + "/comments/{id}";
+
+            private const string AdminBase = "api/admin/reels";
+            public const string AdminHide = AdminBase + "/{id}/hide";
+            public const string AdminUnhide = AdminBase + "/{id}/unhide";
         }
 
         /// <summary>
