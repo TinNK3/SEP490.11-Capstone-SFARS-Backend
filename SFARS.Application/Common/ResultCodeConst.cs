@@ -256,6 +256,17 @@ namespace SFARS.Application.Common
         public const string GeminiKey_Warning0003 = "GeminiKey.Warning0003"; // Low active key count alert
         #endregion
 
+        #region FirstAid
+        public const string FirstAid_Success0001 = "FirstAid.Success0001"; // Created
+        public const string FirstAid_Success0002 = "FirstAid.Success0002"; // Updated
+        public const string FirstAid_Success0003 = "FirstAid.Success0003"; // Deleted
+        public const string FirstAid_Warning0001 = "FirstAid.Warning0001"; // Not found
+        public const string FirstAid_Warning0002 = "FirstAid.Warning0002"; // Duplicate step
+        public const string FirstAid_Warning0003 = "FirstAid.Warning0003"; // Invalid ToxinGroup
+        public const string FirstAid_Warning0004 = "FirstAid.Warning0004"; // Invalid LanguageCode
+        public const string FirstAid_Warning0005 = "FirstAid.Warning0005"; // Snake not found
+        #endregion
+
         // AI Voice Messages (Symptom Tracking)
         public const string Voice_BreathingDifficulty = "Voice.BreathingDifficulty";
         public const string Voice_Ptosis = "Voice.Ptosis";

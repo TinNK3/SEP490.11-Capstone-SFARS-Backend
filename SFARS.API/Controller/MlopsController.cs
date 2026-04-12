@@ -6,6 +6,7 @@ using SFARS.API.Extensions;
 using SFARS.API.Payloads;
 using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Domain.Specifications.Params;
 using SFARS.Infrastructure.Configurations;
 
 namespace SFARS.API.Controller.Admin
@@ -34,16 +35,16 @@ namespace SFARS.API.Controller.Admin
             _mlopsOptions = mlopsOptions.Value;
         }
 
-        // ── Snake Species Pipeline ──────────────────────────────────────
+        // Snake Species Pipeline
 
         /// <summary>
         /// [Admin] Export human-verified snake training data for AI retraining.
         /// </summary>
         [HttpGet(APIRoute.AdminMlops.ExportData, Name = nameof(ExportDataAsync))]
-        public async Task<IActionResult> ExportDataAsync([FromQuery] DateTime? since = null)
+        public async Task<IActionResult> ExportDataAsync([FromQuery] BaseSpecParams specParams)
         {
-            var result = await _exportService.ExportTrainingDataAsync(since);
-            return Ok(result);
+            var result = await _exportService.ExportTrainingDataAsync(specParams);
+            return this.ToIActionResult(result);
         }
 
         /// <summary>
@@ -53,13 +54,13 @@ namespace SFARS.API.Controller.Admin
         [HttpGet(APIRoute.AdminMlops.ExportByKey, Name = nameof(ExportDataByApiKeyAsync))]
         public async Task<IActionResult> ExportDataByApiKeyAsync(
             [FromHeader(Name = "X-Api-Key")] string apiKey,
-            [FromQuery] DateTime? since = null)
+            [FromQuery] BaseSpecParams specParams)
         {
             if (string.IsNullOrEmpty(_mlopsOptions.ApiKey) || apiKey != _mlopsOptions.ApiKey)
                 return Unauthorized(new { message = "Invalid API Key" });
 
-            var result = await _exportService.ExportTrainingDataAsync(since);
-            return Ok(result);
+            var result = await _exportService.ExportTrainingDataAsync(specParams);
+            return this.ToIActionResult(result);
         }
 
         /// <summary>
@@ -82,16 +83,16 @@ namespace SFARS.API.Controller.Admin
             return Accepted(new { message = "Snake species retrain pipeline has been queued." });
         }
 
-        // ── Wound Classification Pipeline ───────────────────────────────
+        // Wound Classification Pipeline
 
         /// <summary>
         /// [Admin] Export human-verified wound training data for AI retraining.
         /// </summary>
         [HttpGet(APIRoute.AdminMlops.ExportWoundData, Name = nameof(ExportWoundDataAsync))]
-        public async Task<IActionResult> ExportWoundDataAsync([FromQuery] DateTime? since = null)
+        public async Task<IActionResult> ExportWoundDataAsync([FromQuery] BaseSpecParams specParams)
         {
-            var result = await _exportService.ExportWoundTrainingDataAsync(since);
-            return Ok(result);
+            var result = await _exportService.ExportWoundTrainingDataAsync(specParams);
+            return this.ToIActionResult(result);
         }
 
         /// <summary>
@@ -101,13 +102,13 @@ namespace SFARS.API.Controller.Admin
         [HttpGet(APIRoute.AdminMlops.ExportWoundByKey, Name = nameof(ExportWoundDataByApiKeyAsync))]
         public async Task<IActionResult> ExportWoundDataByApiKeyAsync(
             [FromHeader(Name = "X-Api-Key")] string apiKey,
-            [FromQuery] DateTime? since = null)
+            [FromQuery] BaseSpecParams specParams)
         {
             if (string.IsNullOrEmpty(_mlopsOptions.ApiKey) || apiKey != _mlopsOptions.ApiKey)
                 return Unauthorized(new { message = "Invalid API Key" });
 
-            var result = await _exportService.ExportWoundTrainingDataAsync(since);
-            return Ok(result);
+            var result = await _exportService.ExportWoundTrainingDataAsync(specParams);
+            return this.ToIActionResult(result);
         }
 
         /// <summary>

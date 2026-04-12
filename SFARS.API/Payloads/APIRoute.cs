@@ -212,6 +212,16 @@ namespace SFARS.API.Payloads
         }
 
         /// <summary>
+        /// First Aid Detail endpoints (Public read)
+        /// </summary>
+        public static class FirstAidDetail
+        {
+            // [GET]
+            public const string GetAll = Base + "/first-aid-details";
+            public const string GetById = Base + "/first-aid-details/{id}";
+        }
+
+        /// <summary>
         /// Admin — User Management endpoints
         /// </summary>
         public static class Admin
@@ -254,6 +264,17 @@ namespace SFARS.API.Payloads
             public const string ToggleGeminiKey = Base + "/admin/gemini-keys/{id}/toggle";
             // [DELETE]
             public const string DeleteGeminiKey = Base + "/admin/gemini-keys/{id}";
+
+            // First Aid Detail Management
+            // [GET]
+            public const string GetAllFirstAidDetails = Base + "/admin/first-aid-details";
+            public const string GetFirstAidDetailById = Base + "/admin/first-aid-details/{id}";
+            // [POST]
+            public const string CreateFirstAidDetail = Base + "/admin/first-aid-details";
+            // [PUT]
+            public const string UpdateFirstAidDetail = Base + "/admin/first-aid-details/{id}";
+            // [DELETE]
+            public const string DeleteFirstAidDetail = Base + "/admin/first-aid-details/{id}";
         }
 
         /// <summary>
