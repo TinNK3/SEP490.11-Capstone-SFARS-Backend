@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using SFARS.Application.Common;
+using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.AiInference;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
+using SFARS.Domain.Specifications.Params;
 
 namespace SFARS.Application.Services;
 
@@ -21,11 +23,9 @@ public class DataSetExportService : IDataSetExportService
     }
 
     /// <inheritdoc />
-    public async Task<IServiceResult> ExportTrainingDataAsync(DateTime? since = null)
+    public async Task<IServiceResult> ExportTrainingDataAsync(BaseSpecParams specParams)
     {
-        // Only export verified inferences from SNAKE photos (not wound photos)
-        var verifiedInferences = await (
-            from ai in _unitOfWork.Repository<AiInference, Guid>().GetQueryable(tracked: false)
+        var query = from ai in _unitOfWork.Repository<AiInference, Guid>().GetQueryable(tracked: false)
                 .Include(a => a.Incident)
                 .Include(a => a.IncidentMedia)
                 .Include(a => a.SelectedSnake)
@@ -34,17 +34,19 @@ public class DataSetExportService : IDataSetExportService
             join r in _unitOfWork.Repository<AiInferenceReview, Guid>().GetQueryable(tracked: false)
                 on ai.Id equals r.AiInferenceId
             where (r.ReviewStatus == AiReviewStatus.ConfirmedCorrect || r.ReviewStatus == AiReviewStatus.Corrected)
-                  && (since == null || r.ReviewedAt >= since)
-            select new { ai, r }
-        ).ToListAsync();
+                  && (specParams.CreatedFrom == null || r.ReviewedAt >= specParams.CreatedFrom)
+                  && (specParams.CreatedTo == null || r.ReviewedAt <= specParams.CreatedTo)
+            select new { ai, r };
 
-        var result = new DataSetExportResultDto
-        {
-            ExportDate = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"),
-            TotalSamples = verifiedInferences.Count
-        };
+        var count = await query.CountAsync();
+        var pagedItems = await query
+            .OrderByDescending(x => x.r.ReviewedAt)
+            .Skip(specParams.GetSkip())
+            .Take(specParams.GetTake())
+            .ToListAsync();
 
-        foreach (var item in verifiedInferences)
+        var dtos = new List<DataSetTrainingSampleDto>();
+        foreach (var item in pagedItems)
         {
             var ai = item.ai;
             var review = item.r;
@@ -65,7 +67,7 @@ public class DataSetExportService : IDataSetExportService
                 toxinGroup = review.CorrectedToxinGroup ?? ToxinGroup.Unknown;
             }
 
-            result.Samples.Add(new DataSetTrainingSampleDto
+            dtos.Add(new DataSetTrainingSampleDto
             {
                 InferenceId = ai.Id,
                 ImageUrl = ai.IncidentMedia?.MediaUrl ?? "",
@@ -77,49 +79,49 @@ public class DataSetExportService : IDataSetExportService
             });
         }
 
+        int totalPages = count == 0 ? 0 : (int)Math.Ceiling(count / (double)specParams.GetTake());
+        var result = new PaginatedResultDto<DataSetTrainingSampleDto>(dtos, specParams.GetPage(), specParams.GetTake(), totalPages, count);
+
         return new ServiceResult(ResultCodeConst.SYS_Success0001,
             await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0001), result);
     }
 
     /// <inheritdoc />
-    public async Task<IServiceResult> ExportWoundTrainingDataAsync(DateTime? since = null)
+    public async Task<IServiceResult> ExportWoundTrainingDataAsync(BaseSpecParams specParams)
     {
-        // Only export verified inferences from WOUND photos
-        var verifiedInferences = await (
-            from ai in _unitOfWork.Repository<AiInference, Guid>().GetQueryable(tracked: false)
+        var query = from ai in _unitOfWork.Repository<AiInference, Guid>().GetQueryable(tracked: false)
                 .Include(a => a.Incident)
                 .Include(a => a.IncidentMedia)
                 .Where(a => a.Incident.CurrentAiReviewId != null)
                 .Where(a => a.IncidentMedia != null && a.IncidentMedia.MediaType == MediaType.BiteWoundPhoto)
-                .Where(a => a.IsSnakeBite != null) // Must have an AI prediction to compare against
+                .Where(a => a.IsSnakeBite != null)
             join r in _unitOfWork.Repository<AiInferenceReview, Guid>().GetQueryable(tracked: false)
                 on ai.Id equals r.AiInferenceId
             where (r.ReviewStatus == AiReviewStatus.ConfirmedCorrect || r.ReviewStatus == AiReviewStatus.Corrected)
-                  && (since == null || r.ReviewedAt >= since)
-            select new { ai, r }
-        ).ToListAsync();
+                  && (specParams.CreatedFrom == null || r.ReviewedAt >= specParams.CreatedFrom)
+                  && (specParams.CreatedTo == null || r.ReviewedAt <= specParams.CreatedTo)
+            select new { ai, r };
 
-        var result = new WoundDataSetExportResultDto
-        {
-            ExportDate = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"),
-            TotalSamples = verifiedInferences.Count
-        };
+        var count = await query.CountAsync();
+        var pagedItems = await query
+            .OrderByDescending(x => x.r.ReviewedAt)
+            .Skip(specParams.GetSkip())
+            .Take(specParams.GetTake())
+            .ToListAsync();
 
-        foreach (var item in verifiedInferences)
+        var dtos = new List<WoundTrainingSampleDto>();
+        foreach (var item in pagedItems)
         {
             var ai = item.ai;
             var review = item.r;
 
-            // Determine ground truth label:
-            // - ConfirmedCorrect → AI was right → use AI's IsSnakeBite value
-            // - Corrected → AI was wrong → flip AI's IsSnakeBite value
             bool groundTruthIsSnakeBite = review.ReviewStatus == AiReviewStatus.ConfirmedCorrect
                 ? ai.IsSnakeBite!.Value
                 : !ai.IsSnakeBite!.Value;
 
             string confirmedLabel = groundTruthIsSnakeBite ? "Snake_Bite" : "Non_Snake_Bite";
 
-            result.Samples.Add(new WoundTrainingSampleDto
+            dtos.Add(new WoundTrainingSampleDto
             {
                 InferenceId = ai.Id,
                 ImageUrl = ai.IncidentMedia?.MediaUrl ?? "",
@@ -129,6 +131,9 @@ public class DataSetExportService : IDataSetExportService
                 VerifiedAt = review.ReviewedAt ?? DateTime.UtcNow
             });
         }
+
+        int totalPages = count == 0 ? 0 : (int)Math.Ceiling(count / (double)specParams.GetTake());
+        var result = new PaginatedResultDto<WoundTrainingSampleDto>(dtos, specParams.GetPage(), specParams.GetTake(), totalPages, count);
 
         return new ServiceResult(ResultCodeConst.SYS_Success0001,
             await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0001), result);

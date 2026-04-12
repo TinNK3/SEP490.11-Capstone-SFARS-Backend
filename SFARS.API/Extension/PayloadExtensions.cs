@@ -12,6 +12,7 @@ using SFARS.Application.Dtos.Analytics;
 using SFARS.Application.Dtos.Auth;
 using SFARS.Application.Dtos.Facility;
 using SFARS.Application.Dtos.Faq;
+using SFARS.Application.Dtos.FirstAidDetail;
 using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Dtos.Rescuer;
 using SFARS.Application.Dtos.Transaction;
@@ -276,6 +277,38 @@ namespace SFARS.API.Extensions
                 Longitude = req.Longitude,
                 CustomMessage = req.CustomMessage
             };
+        #endregion
+
+        #region FirstAidDetail
+        // Mapping from typeof(CreateFirstAidDetailRequest) to typeof(FirstAidDetailDto)
+        public static FirstAidDetailDto ToFirstAidDetailDto(this CreateFirstAidDetailRequest req)
+        {
+            return new FirstAidDetailDto
+            {
+                ToxinGroup = req.ToxinGroup,
+                SnakeId = req.SnakeId,
+                StepOrder = req.StepOrder,
+                Title = req.Title,
+                ContentMarkdown = req.ContentMarkdown,
+                ImageUrl = req.ImageUrl,
+                LanguageCode = req.LanguageCode
+            };
+        }
+
+        // Mapping from typeof(UpdateFirstAidDetailRequest) to typeof(FirstAidDetailDto)
+        public static FirstAidDetailDto ToFirstAidDetailDto(this UpdateFirstAidDetailRequest req)
+        {
+            return new FirstAidDetailDto
+            {
+                ToxinGroup = req.ToxinGroup,
+                SnakeId = req.SnakeId,
+                StepOrder = req.StepOrder,
+                Title = req.Title,
+                ContentMarkdown = req.ContentMarkdown,
+                ImageUrl = req.ImageUrl,
+                LanguageCode = req.LanguageCode
+            };
+        }
         #endregion
     }
 }

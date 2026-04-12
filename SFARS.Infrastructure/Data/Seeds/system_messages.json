@@ -1066,5 +1066,53 @@
     "MsgContent": "Low active API key count. Please add more keys to ensure service availability.",
     "En": "Low active API key count. Please add more keys to ensure service availability.",
     "Vi": "Số lượng API key khả dụng đang thấp. Vui lòng thêm key mới để đảm bảo hoạt động."
+  },
+  {
+    "MsgId": "FirstAid.Success0001",
+    "MsgContent": "First aid detail created successfully.",
+    "En": "First aid detail created successfully.",
+    "Vi": "Tạo hướng dẫn sơ cứu thành công."
+  },
+  {
+    "MsgId": "FirstAid.Success0002",
+    "MsgContent": "First aid detail updated successfully.",
+    "En": "First aid detail updated successfully.",
+    "Vi": "Cập nhật hướng dẫn sơ cứu thành công."
+  },
+  {
+    "MsgId": "FirstAid.Success0003",
+    "MsgContent": "First aid detail deleted successfully.",
+    "En": "First aid detail deleted successfully.",
+    "Vi": "Xóa hướng dẫn sơ cứu thành công."
+  },
+  {
+    "MsgId": "FirstAid.Warning0001",
+    "MsgContent": "First aid detail not found.",
+    "En": "First aid detail not found.",
+    "Vi": "Không tìm thấy hướng dẫn sơ cứu."
+  },
+  {
+    "MsgId": "FirstAid.Warning0002",
+    "MsgContent": "A first aid step with the same ToxinGroup, LanguageCode, StepOrder and SnakeId already exists.",
+    "En": "A first aid step with the same ToxinGroup, LanguageCode, StepOrder and SnakeId already exists.",
+    "Vi": "Bước sơ cứu với cùng nhóm độc tố, ngôn ngữ, thứ tự bước và loài rắn đã tồn tại."
+  },
+  {
+    "MsgId": "FirstAid.Warning0003",
+    "MsgContent": "Invalid ToxinGroup value.",
+    "En": "Invalid ToxinGroup value.",
+    "Vi": "Giá trị nhóm độc tố không hợp lệ."
+  },
+  {
+    "MsgId": "FirstAid.Warning0004",
+    "MsgContent": "Invalid LanguageCode value.",
+    "En": "Invalid LanguageCode value.",
+    "Vi": "Giá trị mã ngôn ngữ không hợp lệ."
+  },
+  {
+    "MsgId": "FirstAid.Warning0005",
+    "MsgContent": "The specified snake was not found.",
+    "En": "The specified snake was not found.",
+    "Vi": "Không tìm thấy loài rắn được chỉ định."
   }
 ]
