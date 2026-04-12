@@ -212,13 +212,13 @@ namespace SFARS.API.Payloads
         }
 
         /// <summary>
-        /// First Aid Detail endpoints (Public read)
+        /// First Aid endpoints (Public read)
         /// </summary>
-        public static class FirstAidDetail
+        public static class FirstAid
         {
             // [GET]
-            public const string GetAll = Base + "/first-aid-details";
-            public const string GetById = Base + "/first-aid-details/{id}";
+            public const string GetAllProcedures = Base + "/first-aids";
+            public const string GetProcedureById = Base + "/first-aids/{id}";
         }
 
         /// <summary>

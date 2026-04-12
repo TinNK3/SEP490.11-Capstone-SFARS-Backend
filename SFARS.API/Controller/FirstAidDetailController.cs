@@ -26,22 +26,22 @@ public class FirstAidDetailController : ControllerBase
     private Guid CurrentUserId => User.GetUserId();
 
     /// <summary>
-    /// [Public] Get all first aid details (paginated, searchable)
+    /// [Public] Get all first aid procedures grouped by ToxinGroup
     /// </summary>
     [AllowAnonymous]
-    [HttpGet(APIRoute.FirstAidDetail.GetAll, Name = nameof(GetAllFirstAidDetailsAsync))]
-    public async Task<IActionResult> GetAllFirstAidDetailsAsync([FromQuery] BaseSpecParams specParams)
+    [HttpGet(APIRoute.FirstAid.GetAllProcedures, Name = nameof(GetAllFirstAidsGroupedAsync))]
+    public async Task<IActionResult> GetAllFirstAidsGroupedAsync([FromQuery] string? toxinGroup)
     {
-        var result = await _service.GetAllAsync(specParams);
+        var result = await _service.GetAllGroupedAsync(toxinGroup);
         return this.ToIActionResult(result);
     }
 
     /// <summary>
-    /// [Public] Get a single first aid detail by ID
+    /// [Public] Get a single first aid step by ID (Used by Admin CMS to bind edit form)
     /// </summary>
     [AllowAnonymous]
-    [HttpGet(APIRoute.FirstAidDetail.GetById, Name = nameof(GetFirstAidDetailByIdAsync))]
-    public async Task<IActionResult> GetFirstAidDetailByIdAsync(Guid id)
+    [HttpGet(APIRoute.FirstAid.GetProcedureById, Name = nameof(GetFirstAidStepByIdAsync))]
+    public async Task<IActionResult> GetFirstAidStepByIdAsync(Guid id)
     {
         var result = await _service.GetByIdAsync(id);
         return this.ToIActionResult(result);
