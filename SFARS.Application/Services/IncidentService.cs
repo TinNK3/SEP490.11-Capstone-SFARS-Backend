@@ -230,33 +230,24 @@ namespace SFARS.Application.Services
             var spec = new IncidentSpecification(specParams, userId, isCount: false);
 
             var dtos = await _unitOfWork.Repository<Incident, Guid>()
-                .GetAllWithSpecAndSelectorAsync(spec, i => new IncidentDto
+                .GetAllWithSpecAndSelectorAsync(spec, i => new IncidentHistoryDto
                 {
                     Id = i.Id,
                     Code = i.Code,
-                    Latitude = i.Location.Y,
-                    Longitude = i.Location.X,
-                    AddressString = i.AddressString,
-                    Description = i.Description,
                     CurrentStatus = i.CurrentStatus,
                     PriorityLevel = i.PriorityLevel,
-                    AiPredictionResult = i.AiPredictionResult,
-                    AiConfidenceScore = i.AiConfidenceScore,
-                    SnakeId = i.SnakeId,
-                    VictimId = i.VictimId,
-                    VictimName = i.Victim.FullName,
+                    Latitude = i.Location.Y,
+                    Longitude = i.Location.X,
+
                     CreatedAt = i.CreatedAt,
-                    SymptomAudioUrl = i.SymptomAudioUrl,
-                    SymptomText = i.SymptomText,
-                    MinutesSinceBite = i.MinutesSinceBite,
-                    ExtractedSymptoms = i.ExtractedSymptoms
+                    IncidentImage = i.Medias.OrderBy(m => m.MediaType).Select(m => m.MediaUrl).FirstOrDefault()
                 }, tracked: false);
 
             var limit = specParams.GetTake();
             var page = specParams.GetPage();
             var totalPages = limit > 0 ? (int)Math.Ceiling(totalItems / (double)limit) : 0;
 
-            var pagedResult = new PaginatedResultDto<IncidentDto>(
+            var pagedResult = new PaginatedResultDto<IncidentHistoryDto>(
                 dtos,
                 page,
                 limit,
@@ -289,16 +280,11 @@ namespace SFARS.Application.Services
                     Description = i.Description,
                     CurrentStatus = i.CurrentStatus,
                     PriorityLevel = i.PriorityLevel,
-                    AiPredictionResult = i.AiPredictionResult,
                     AiConfidenceScore = i.AiConfidenceScore,
-                    SnakeId = i.SnakeId,
+                    IncidentImage = i.Medias.OrderBy(m => m.MediaType).Select(m => m.MediaUrl).FirstOrDefault(),
                     VictimId = i.VictimId,
                     VictimName = i.Victim.FullName,
-                    CreatedAt = i.CreatedAt,
-                    SymptomAudioUrl = i.SymptomAudioUrl,
-                    SymptomText = i.SymptomText,
-                    MinutesSinceBite = i.MinutesSinceBite,
-                    ExtractedSymptoms = i.ExtractedSymptoms
+                    CreatedAt = i.CreatedAt
                 }, tracked: false);
 
             var limit = specParams.GetTake();
@@ -372,8 +358,7 @@ namespace SFARS.Application.Services
                     CurrentStatus = i.CurrentStatus,
                     PriorityLevel = i.PriorityLevel,
                     CreatedAt = i.CreatedAt,
-                    SnakeId = (i.HumanReviewedSnakeId != null) ? i.HumanReviewedSnakeId : 
-                              (i.AiConfidenceScore > 0.85) ? i.SnakeId : null
+                    IncidentImage = i.Medias.OrderBy(m => m.MediaType).Select(m => m.MediaUrl).FirstOrDefault()
                 }, tracked: false);
 
             var limit = specParams.GetTake();
@@ -415,6 +400,12 @@ namespace SFARS.Application.Services
                     i.Missions.Any(m => m.RescuerId == userId)
                 )
             );
+            spec.ApplyInclude(q => q.Include(i => i.Victim));
+            spec.ApplyInclude(q => q.Include(i => i.Medias));
+            spec.ApplyInclude(q => q.Include(i => i.Missions));
+            spec.ApplyInclude(q => q.Include(i => i.CurrentAiInference)
+                                     .ThenInclude(ai => ai.Candidates)
+                                     .ThenInclude(c => c.Snake));
 
             var incident = await _unitOfWork.Repository<Incident, Guid>()
                 .GetWithSpecAsync(spec, tracked: false);
@@ -437,22 +428,51 @@ namespace SFARS.Application.Services
                 Description = incident.Description,
                 CurrentStatus = incident.CurrentStatus,
                 PriorityLevel = incident.PriorityLevel,
-                AiPredictionResult = incident.AiPredictionResult,
                 AiConfidenceScore = incident.AiConfidenceScore,
-                SnakeId = incident.SnakeId,
-                VictimId = incident.VictimId,
-                VictimName = incident.Victim?.FullName,
+                IncidentImage = incident.Medias.OrderBy(m => m.MediaType).Select(m => m.MediaUrl).FirstOrDefault(),
                 CreatedAt = incident.CreatedAt,
-                SymptomAudioUrl = incident.SymptomAudioUrl,
-                SymptomText = incident.SymptomText,
-                MinutesSinceBite = incident.MinutesSinceBite,
-                ExtractedSymptoms = incident.ExtractedSymptoms
+                RescuerId = incident.Missions
+                    .OrderByDescending(m => m.CreatedAt)
+                    .FirstOrDefault(m => m.Status == RescueStatus.Accepted || 
+                                         m.Status == RescueStatus.Completed || 
+                                         m.Status == RescueStatus.Pending)
+                    ?.RescuerId
             };
 
-            // Get FirstAid/Prohibitions from Source-of-Truth
-            var (steps, prohibitions) = await _aiReviewService.GetEffectiveFirstAidProtocolAsync(incident);
-            dto.FirstAidSteps = steps;
-            dto.Prohibitions = prohibitions;
+            // Map AI Results if available
+            if (incident.CurrentAiInference != null)
+            {
+                // 1. Wound Analysis
+                if (incident.CurrentAiInference.IsSnakeBite.HasValue)
+                {
+                    dto.WoundAnalysis = new WoundAnalysisDto
+                    {
+                        IsWoundDetected = true, // Implicitly true if we are in this block
+                        IsSnakeBite = incident.CurrentAiInference.IsSnakeBite.Value,
+                        Confidence = incident.AiConfidenceScore ?? 0
+                    };
+                }
+
+                // 2. Snake Predictions (Trained candidates)
+                var allPredictions = incident.CurrentAiInference.Candidates
+                    .OrderBy(c => c.Rank)
+                    .Select(c => new SnakeCandidateDto
+                    {
+                        SnakeId = c.SnakeId,
+                        ScientificName = c.Snake.ScientificName,
+                        CommonName = c.Snake.CommonName,
+                        Confidence = c.Confidence,
+                        ToxicityLevel = c.Snake.ToxicityLevel,
+                        ToxinGroup = c.Snake.ToxinGroup,
+                        DangerSummary = AiInferenceConstants.GetDangerLabel(c.Snake.ToxicityLevel),
+                        TypicalSymptoms = c.Snake.TypicalSymptoms
+                    }).ToList();
+
+                dto.PrimarySnake = allPredictions.FirstOrDefault();
+                dto.OtherCandidates = allPredictions.Skip(dto.PrimarySnake != null ? 1 : 0).ToList();
+            }
+
+
 
             return new ServiceResult(
                 ResultCodeConst.SYS_Success0002,

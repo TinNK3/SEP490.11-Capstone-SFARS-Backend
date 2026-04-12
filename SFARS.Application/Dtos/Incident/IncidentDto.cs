@@ -22,9 +22,9 @@ namespace SFARS.Application.Dtos.Incident
         public SeverityLevel PriorityLevel { get; set; } = SeverityLevel.Medium;
         
         // AI Prediction
-        public string? AiPredictionResult { get; set; }
+
         public double? AiConfidenceScore { get; set; }
-        public Guid? SnakeId { get; set; }
+        public string? IncidentImage { get; set; }
         
         // Relations
         public Guid VictimId { get; set; }

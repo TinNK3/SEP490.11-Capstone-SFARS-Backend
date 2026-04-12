@@ -519,7 +519,7 @@ public class AiInferenceService : IAiInferenceService
                 );
             }
 
-            // ── Conditional dispatch scheduling ─────────────────────────────────
+            // Conditional dispatch scheduling
             if (isFirstAnalyze || isInGracePeriod)
             {
                 // Grace-period retry: cancel the old pending dispatch job to prevent stale data being pushed.
