@@ -33,42 +33,52 @@ public class FirstAidDetailService : IFirstAidDetailService
         _logger = logger;
     }
 
-    #region Admin CRUD
-
     /// <inheritdoc />
-    public async Task<IServiceResult> GetAllAsync(BaseSpecParams specParams)
+    public async Task<IServiceResult> GetAllGroupedAsync(string? toxinGroup)
     {
         var repo = _uow.Repository<FirstAidDetail, Guid>();
 
-        // Count spec
-        var countSpec = FirstAidDetailSpecification.Count(specParams);
-        var totalItems = await repo.CountAsync(countSpec);
-
-        var page = specParams.GetPage();
-        var take = specParams.GetTake();
-
-        if (totalItems == 0)
+        ToxinGroup? parsedToxin = null;
+        if (!string.IsNullOrWhiteSpace(toxinGroup))
         {
-            return new ServiceResult(
-                ResultCodeConst.SYS_Success0002,
-                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
-                new PaginatedResultDto<FirstAidDetailDto>(
-                    Enumerable.Empty<FirstAidDetailDto>(), page, take, 0, 0));
+            if (Enum.TryParse<ToxinGroup>(toxinGroup, ignoreCase: true, out var t))
+            {
+                parsedToxin = t;
+            }
+            else
+            {
+                return new ServiceResult(
+                    ResultCodeConst.FirstAid_Warning0003,
+                    await _msgService.GetMessageAsync(ResultCodeConst.FirstAid_Warning0003));
+            }
         }
 
-        // List spec
-        var spec = FirstAidDetailSpecification.List(specParams);
+        var spec = FirstAidDetailSpecification.AllGrouped(parsedToxin);
 
         var items = await repo.GetAllWithSpecAsync(spec, tracked: false);
+        
+        if (!items.Any())
+        {
+            return new ServiceResult(
+                ResultCodeConst.SYS_Warning0004,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004),
+                new Dictionary<string, List<FirstAidDetailDto>>());
+        }
+
         var dtos = _mapper.Map<IEnumerable<FirstAidDetailDto>>(items);
 
-        var totalPages = (int)Math.Ceiling((double)totalItems / take);
-        var result = new PaginatedResultDto<FirstAidDetailDto>(dtos, page, take, totalPages, totalItems);
+        // Group by ToxinGroup -> List of Steps
+        var grouped = dtos
+            .GroupBy(d => d.ToxinGroup)
+            .ToDictionary(
+                g => g.Key, 
+                g => g.OrderBy(d => d.StepOrder).ToList()
+            );
 
         return new ServiceResult(
             ResultCodeConst.SYS_Success0002,
             await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
-            result);
+            grouped);
     }
 
     /// <inheritdoc />
@@ -265,5 +275,4 @@ public class FirstAidDetailService : IFirstAidDetailService
             await _msgService.GetMessageAsync(ResultCodeConst.FirstAid_Success0003));
     }
 
-    #endregion
 }

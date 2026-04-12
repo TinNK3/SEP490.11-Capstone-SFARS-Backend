@@ -8,8 +8,8 @@ namespace SFARS.Domain.Interfaces.Services;
 /// </summary>
 public interface IFirstAidDetailService
 {
-    /// <summary>[Admin] Get all first aid details with pagination.</summary>
-    Task<IServiceResult> GetAllAsync(BaseSpecParams specParams);
+    /// <summary>[Public] Get all first aid procedures grouped by ToxinGroup.</summary>
+    Task<IServiceResult> GetAllGroupedAsync(string? toxinGroup);
 
     /// <summary>[Admin] Get a single first aid detail by ID.</summary>
     Task<IServiceResult> GetByIdAsync(Guid id);
