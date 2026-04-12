@@ -44,6 +44,7 @@ namespace SFARS.Application.Mappings
                 .Map(dest => dest.ExtractedSymptoms, src => src.ExtractedSymptoms)
                 .Ignore(dest => dest.SymptomText); // Handled by service projection to enforce Admin-only rule
 
+
             // RescuerProfile → RescuerProfileDto: include User fields via navigation property
             config.NewConfig<RescuerProfile, RescuerProfileDto>()
                 .Map(dest => dest.UserId, src => src.UserId)

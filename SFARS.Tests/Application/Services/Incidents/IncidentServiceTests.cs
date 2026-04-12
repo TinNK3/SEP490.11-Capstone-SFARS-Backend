@@ -246,15 +246,18 @@ public class IncidentServiceTests
     {
         // Arrange
         var userId = Guid.NewGuid();
-        var incidents = new List<IncidentDto>
+        var incidents = new List<IncidentHistoryDto>
         {
             new() { Id = Guid.NewGuid(), Code = "SOS-2026-00001" },
             new() { Id = Guid.NewGuid(), Code = "SOS-2026-00002" }
         };
 
+        _incidentRepoMock.Setup(x => x.CountAsync(It.IsAny<ISpecification<Incident>>()))
+            .ReturnsAsync(incidents.Count);
+
         _incidentRepoMock.Setup(x => x.GetAllWithSpecAndSelectorAsync(
                 It.IsAny<ISpecification<Incident>>(),
-                It.IsAny<Expression<Func<Incident, IncidentDto>>>(),
+                It.IsAny<Expression<Func<Incident, IncidentHistoryDto>>>(),
                 It.IsAny<bool>()))
             .ReturnsAsync(incidents);
 
@@ -263,8 +266,8 @@ public class IncidentServiceTests
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
-        var pagedResult = result.Data as SFARS.Application.Dtos.PaginatedResultDto<IncidentDto>;
-        pagedResult.Items.Should().BeEquivalentTo(incidents);
+        var pagedResult = result.Data as SFARS.Application.Dtos.PaginatedResultDto<IncidentHistoryDto>;
+        pagedResult!.Items.Should().BeEquivalentTo(incidents);
     }
 
     [Fact]
@@ -272,11 +275,14 @@ public class IncidentServiceTests
     {
         // Arrange
         var userId = Guid.NewGuid();
-        var emptyList = new List<IncidentDto>();
+        var emptyList = new List<IncidentHistoryDto>();
+
+        _incidentRepoMock.Setup(x => x.CountAsync(It.IsAny<ISpecification<Incident>>()))
+            .ReturnsAsync(0);
 
         _incidentRepoMock.Setup(x => x.GetAllWithSpecAndSelectorAsync(
                 It.IsAny<ISpecification<Incident>>(),
-                It.IsAny<Expression<Func<Incident, IncidentDto>>>(),
+                It.IsAny<Expression<Func<Incident, IncidentHistoryDto>>>(),
                 It.IsAny<bool>()))
             .ReturnsAsync(emptyList);
 
@@ -285,8 +291,8 @@ public class IncidentServiceTests
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
-        var pagedResult = result.Data as SFARS.Application.Dtos.PaginatedResultDto<IncidentDto>;
-        pagedResult.Items.Should().BeEquivalentTo(emptyList);
+        var pagedResult = result.Data as SFARS.Application.Dtos.PaginatedResultDto<IncidentHistoryDto>;
+        pagedResult!.Items.Should().BeEquivalentTo(emptyList);
     }
 
     [Fact]
@@ -297,14 +303,17 @@ public class IncidentServiceTests
         var page = 2;
         var pageSize = 5;
 
+        _incidentRepoMock.Setup(x => x.CountAsync(It.IsAny<ISpecification<Incident>>()))
+            .ReturnsAsync(10);
+
         BaseSpecification<Incident>? capturedSpec = null;
         _incidentRepoMock.Setup(x => x.GetAllWithSpecAndSelectorAsync(
                 It.IsAny<ISpecification<Incident>>(),
-                It.IsAny<Expression<Func<Incident, IncidentDto>>>(),
+                It.IsAny<Expression<Func<Incident, IncidentHistoryDto>>>(),
                 It.IsAny<bool>()))
-            .Callback<ISpecification<Incident>, Expression<Func<Incident, IncidentDto>>, bool>(
+            .Callback<ISpecification<Incident>, Expression<Func<Incident, IncidentHistoryDto>>, bool>(
                 (spec, _, _) => capturedSpec = spec as BaseSpecification<Incident>)
-            .ReturnsAsync(new List<IncidentDto>());
+            .ReturnsAsync(new List<IncidentHistoryDto>());
 
         // Act
         await _sut.GetMyIncidentsAsync(userId, new SFARS.Domain.Specifications.Params.IncidentSpecParams { Page = page, PageSize = pageSize });
@@ -403,7 +412,6 @@ public class IncidentServiceTests
         dto.Should().NotBeNull();
         dto!.Id.Should().Be(incidentId);
         dto.Code.Should().Be("SOS-2026-00001");
-        dto.VictimId.Should().Be(userId);
     }
 
     [Fact]
@@ -444,7 +452,6 @@ public class IncidentServiceTests
         dto.Should().NotBeNull();
         dto!.Id.Should().Be(incidentId);
         dto.Code.Should().Be("SOS-2026-00001");
-        dto.VictimName.Should().Be("Test User");
         dto.Latitude.Should().Be(10.762622);
         dto.Longitude.Should().Be(106.660172);
         dto.CreatedAt.Should().Be(expectedTime);

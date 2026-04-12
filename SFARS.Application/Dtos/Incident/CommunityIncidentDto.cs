@@ -17,6 +17,6 @@ public class CommunityIncidentDto
     
     public DateTime CreatedAt { get; set; }
 
-    // Display snake if verified (e.g., human reviewed or high confidence)
-    public Guid? SnakeId { get; set; }
+    // Display incident image (Snake or Wound)
+    public string? IncidentImage { get; set; }
 }
