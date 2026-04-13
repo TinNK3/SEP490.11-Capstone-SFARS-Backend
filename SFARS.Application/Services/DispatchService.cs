@@ -72,8 +72,8 @@ public class DispatchService : IDispatchService
             return;
         }
 
-        var j1 = _jobs.Schedule<IDispatchService>(
-            q => q.RunTier1Async(incidentId), DispatchConstants.Tier1Delay);
+        var j1 = _jobs.Enqueue<IDispatchService>(
+            q => q.RunTier1Async(incidentId));
         var j2 = _jobs.Schedule<IDispatchService>(
             q => q.RunTier2Async(incidentId), DispatchConstants.Tier2Delay);
         var j3 = _jobs.Schedule<IDispatchService>(
@@ -135,6 +135,8 @@ public class DispatchService : IDispatchService
             return;
         }
 
+        // Capture old status BEFORE mutation for accurate audit trail
+        var oldStatus = incident.CurrentStatus;
         incident.CurrentStatus = IncidentStatus.Unassigned;
         incident.UpdatedAt = DateTime.UtcNow;
 
@@ -143,7 +145,7 @@ public class DispatchService : IDispatchService
         {
             Id = Guid.NewGuid(),
             IncidentId = incidentId,
-            StatusFrom = incident.CurrentStatus,
+            StatusFrom = oldStatus,
             StatusTo = IncidentStatus.Unassigned,
             ChangedBy = Guid.Empty, // System-initiated
             ChangeReason = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Reason0007),
@@ -387,6 +389,7 @@ public class DispatchService : IDispatchService
 
         // STDistance is executed inside SQL Server because it's in the Expression tree of the Specification.
         var spec = new BaseSpecification<User>(u =>
+            u.Status == UserStatus.Active &&
             u.RescuerProfile != null &&
             u.RescuerProfile.IsAvailable &&
             u.RescuerProfile.IsVerified &&
@@ -422,6 +425,7 @@ public class DispatchService : IDispatchService
         var heartbeatCutoff = DateTime.UtcNow.AddHours(-DispatchConstants.Tier3FreshnessHours);
 
         var spec = new BaseSpecification<User>(u =>
+            u.Status == UserStatus.Active &&
             u.RescuerProfile != null &&
             u.RescuerProfile.IsAvailable &&
             u.RescuerProfile.IsVerified &&

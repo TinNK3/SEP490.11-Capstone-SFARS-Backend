@@ -1429,6 +1429,7 @@ namespace SFARS.Application.Services
             {
                 var heartbeatCutoff = DateTime.UtcNow.AddHours(-DispatchConstants.Tier3FreshnessHours);
                 var rescuerSpec = new BaseSpecification<User>(u =>
+                    u.Status == UserStatus.Active &&
                     u.RescuerProfile != null &&
                     u.RescuerProfile.IsAvailable &&
                     u.RescuerProfile.IsVerified &&
