@@ -456,10 +456,10 @@ public class AiInferenceService : IAiInferenceService
 
             // Only reset grace period on first analyze or grace-period retry.
             // Post-dispatch re-analyze must NOT reset the grace window.
-            if (isFirstAnalyze || isInGracePeriod)
-            {
-                incident.GraceExpiresAt = now + SosConstants.GracePeriod + TimeSpan.FromSeconds(3);
-            }
+            // if (isFirstAnalyze || isInGracePeriod)
+            // {
+            //     incident.GraceExpiresAt = now + SosConstants.GracePeriod + TimeSpan.FromSeconds(3);
+            // }
             incident.UpdatedAt = now;
             incident.UpdatedBy = userId;
 
@@ -535,13 +535,9 @@ public class AiInferenceService : IAiInferenceService
                     _logger.LogInformation("Cancelled previous dispatch jobs for grace-period retry. IncidentId={Id}", incidentId);
                 }
 
-                // Schedule dispatch to start AFTER grace period expires.
                 // StartDispatchAsync handles fail-fast + the full Hangfire chain internally.
-                // Delay = GracePeriod (10s) + 3s buffer for network round-trip.
-                var dispatchDelay = SosConstants.GracePeriod + TimeSpan.FromSeconds(3);
-                _backgroundJobClient.Schedule<IDispatchService>(
-                    s => s.StartDispatchAsync(incidentId),
-                    dispatchDelay);
+                _backgroundJobClient.Enqueue<IDispatchService>(
+                    s => s.StartDispatchAsync(incidentId));
             }
             else if (isPostDispatch)
             {

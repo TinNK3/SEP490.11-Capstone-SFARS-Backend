@@ -128,6 +128,7 @@ public static class DependencyInjection
             {
                 opt.WorkerCount = 2;   // Lightweight — only dispatch jobs
                 opt.Queues      = new[] { "dispatch", "default" };
+                opt.SchedulePollingInterval = TimeSpan.FromSeconds(2);
             });
 
             return services;
