@@ -90,7 +90,11 @@ public class MissionService : IMissionService
 
     public async Task<IServiceResult> AcceptMissionAsync(Guid incidentId, Guid rescuerId)
     {
-        var rescuer = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(rescuerId);
+        // Load rescuer without tracking for distance and status checks
+        var rescuer = await _unitOfWork.Repository<User, Guid>().GetWithSpecAsync(
+            new BaseSpecification<User>(u => u.Id == rescuerId), 
+            tracked: false);
+
         if (rescuer?.CurrentLocation == null)
             return new ServiceResult(ResultCodeConst.SYS_Fail0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
 
@@ -106,7 +110,12 @@ public class MissionService : IMissionService
            return new ServiceResult(ResultCodeConst.Incident_Warning0007, await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0007)); // Or a new strict warning code like "Already on mission"
         }
 
-        var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
+        // Load incident without tracking initially (Validation Phase)
+        // This prevents the context from holding a stale RowVersion before the atomic SQL update
+        var incident = await _unitOfWork.Repository<Incident, Guid>().GetWithSpecAsync(
+            new BaseSpecification<Incident>(i => i.Id == incidentId), 
+            tracked: false);
+
         if (incident == null)
             return new ServiceResult(ResultCodeConst.SYS_Warning0002, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002));
 
