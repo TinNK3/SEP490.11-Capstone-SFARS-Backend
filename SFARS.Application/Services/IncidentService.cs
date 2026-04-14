@@ -386,23 +386,9 @@ namespace SFARS.Application.Services
         /// <summary>
         /// Get incident by ID with authorization check (user must be victim or rescuer)
         /// </summary>
-        public async Task<IServiceResult> GetIncidentByIdAsync(Guid userId, Guid incidentId)
+        public async Task<IServiceResult> GetIncidentByIdAsync(Guid incidentId)
         {
-            if (userId == Guid.Empty)
-            {
-                return new ServiceResult(
-                    ResultCodeConst.Auth_Warning0013,
-                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0013)
-                );
-            }
-
-            var spec = new BaseSpecification<Incident>(i =>
-                i.Id == incidentId &&
-                (
-                    i.VictimId == userId ||
-                    i.Missions.Any(m => m.RescuerId == userId)
-                )
-            );
+            var spec = new BaseSpecification<Incident>(i => i.Id == incidentId);
             spec.ApplyInclude(q => q.Include(i => i.Victim));
             spec.ApplyInclude(q => q.Include(i => i.Medias));
             spec.ApplyInclude(q => q.Include(i => i.Missions));
@@ -474,8 +460,6 @@ namespace SFARS.Application.Services
                 dto.PrimarySnake = allPredictions.FirstOrDefault();
                 dto.OtherCandidates = allPredictions.Skip(dto.PrimarySnake != null ? 1 : 0).ToList();
             }
-
-
 
             return new ServiceResult(
                 ResultCodeConst.SYS_Success0002,
