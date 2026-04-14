@@ -47,6 +47,7 @@ public class IncidentServiceTests
     protected readonly Mock<IHubContext<LocationTrackingHub>> _locationHubMock;
     protected readonly Mock<IFcmPushService> _fcmServiceMock;
     protected readonly Mock<IConfiguration> _configurationMock;
+    protected readonly Mock<IDispatchService> _dispatchServiceMock;
     protected readonly IncidentService _sut; // System Under Test
 
     public IncidentServiceTests()
@@ -70,6 +71,7 @@ public class IncidentServiceTests
         _locationHubMock = new Mock<IHubContext<LocationTrackingHub>>();
         _fcmServiceMock = new Mock<IFcmPushService>();
         _configurationMock = new Mock<IConfiguration>();
+        _dispatchServiceMock = new Mock<IDispatchService>();
 
         // Setup repositories
         _unitOfWorkMock.Setup(x => x.Repository<Incident, Guid>()).Returns(_incidentRepoMock.Object);
@@ -106,7 +108,8 @@ public class IncidentServiceTests
             _rescueHubMock.Object,
             _locationHubMock.Object,
             _fcmServiceMock.Object,
-            _configurationMock.Object
+            _configurationMock.Object,
+            _dispatchServiceMock.Object
         );
     }
 

@@ -36,4 +36,10 @@ public interface IDispatchService
     /// This prevents "Ghost SOS" incidents from cluttering the system.
     /// </summary>
     Task AutoCloseAbandonedIncidentAsync(Guid incidentId);
+
+    /// <summary>
+    /// Broadcasts a community-wide update for an incident to all connected rescuers.
+    /// Used when an incident becomes public (Dispatching/Unassigned) or is claimed (Assigned).
+    /// </summary>
+    Task NotifyCommunityAsync(Guid incidentId);
 }

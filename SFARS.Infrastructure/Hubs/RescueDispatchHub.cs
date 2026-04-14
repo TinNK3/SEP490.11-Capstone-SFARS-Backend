@@ -45,6 +45,10 @@ public class RescueDispatchHub : Hub
         await Groups.AddToGroupAsync(
             Context.ConnectionId,
             DispatchConstants.RescuerGroupPrefix + userId);
+
+        await Groups.AddToGroupAsync(
+            Context.ConnectionId,
+            DispatchConstants.AllRescuersGroup);
     }
 
     /// <summary>
@@ -57,6 +61,10 @@ public class RescueDispatchHub : Hub
         await Groups.RemoveFromGroupAsync(
             Context.ConnectionId,
             DispatchConstants.RescuerGroupPrefix + userId);
+
+        await Groups.RemoveFromGroupAsync(
+            Context.ConnectionId,
+            DispatchConstants.AllRescuersGroup);
     }
 
     public override Task OnDisconnectedAsync(Exception? exception)

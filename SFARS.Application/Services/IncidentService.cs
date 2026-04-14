@@ -41,6 +41,7 @@ namespace SFARS.Application.Services
         private readonly IHubContext<LocationTrackingHub> _locationHub;
         private readonly IFcmPushService _fcmService;
         private readonly IConfiguration _configuration;
+        private readonly IDispatchService _dispatchService;
 
         public IncidentService(
             ISystemMessageService msgService,
@@ -55,7 +56,8 @@ namespace SFARS.Application.Services
             IHubContext<RescueDispatchHub> rescueHub,
             IHubContext<LocationTrackingHub> locationHub,
             IFcmPushService fcmService,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IDispatchService dispatchService)
             : base(msgService, unitOfWork, mapper, logger)
         {
             _fileStorageService = fileStorageService;
@@ -67,6 +69,7 @@ namespace SFARS.Application.Services
             _locationHub = locationHub;
             _fcmService = fcmService;
             _configuration = configuration;
+            _dispatchService = dispatchService;
         }
 
 
@@ -925,6 +928,9 @@ namespace SFARS.Application.Services
                     await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001)
                 );
 
+            // Real-time: Notify community that this incident was cancelled
+            await _dispatchService.NotifyCommunityAsync(incidentId);
+
             // Record cancellation in anti-spam guard (fire-and-forget)
             await _spamGuard.RecordCancellationAsync(userId);
 
@@ -1068,6 +1074,9 @@ namespace SFARS.Application.Services
                     ResultCodeConst.SYS_Fail0001,
                     await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001)
                 );
+
+            // Real-time: Notify community that this incident is resolved/closed
+            await _dispatchService.NotifyCommunityAsync(incidentId);
 
             _logger.LogInformation(
                 "Incident {IncidentId} resolved via fallback by victim {UserId}.",
