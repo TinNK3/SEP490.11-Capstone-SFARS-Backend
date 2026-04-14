@@ -115,6 +115,46 @@ public class MedicalFacilityService : GenericService<MedicalFacility, FacilityDt
 
     #endregion
 
+    #region User-facing: Public List
+
+    /// <summary>
+    /// [Public] Get paginated list of active hospitals.
+    /// Does not require authentication.
+    /// Hardcodes filters: Type = Hospital, IsActive = true.
+    /// </summary>
+    public async Task<IServiceResult> GetAllPublicFacilitiesAsync(BaseSpecParams specParams)
+    {
+        var repo = _unitOfWork.Repository<MedicalFacility, Guid>();
+
+        // Get paginated data
+        var spec = MedicalFacilitySpecification.PublicList(specParams);
+        var facilities = await repo.GetAllWithSpecAsync(spec, tracked: false);
+
+        // Get total count for pagination
+        var countSpec = MedicalFacilitySpecification.PublicCount(specParams);
+        var totalCount = await repo.CountAsync(countSpec);
+
+        var dtos = facilities.Select(MapToDto).ToList();
+
+        var limit = specParams.PageSize ?? dtos.Count;
+        var totalPages = limit > 0 ? (int)Math.Ceiling(totalCount / (double)limit) : 0;
+
+        var pagedResult = new PaginatedResultDto<FacilityDto>(
+            dtos, 
+            specParams.GetPage(), 
+            limit, 
+            totalPages, 
+            totalCount
+        );
+
+        return new ServiceResult(
+            ResultCodeConst.SYS_Success0002,
+            await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+            pagedResult);
+    }
+
+    #endregion
+
     #region Admin: CRUD Operations
 
     /// <summary>

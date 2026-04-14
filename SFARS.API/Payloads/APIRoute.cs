@@ -184,6 +184,7 @@ namespace SFARS.API.Payloads
         public static class Facility
         {
             // [GET]
+            public const string GetAllPublic = Base + "/facilities";
             public const string Nearby = Base + "/facilities/nearby";
         }
 
@@ -283,6 +284,7 @@ namespace SFARS.API.Payloads
         public static class Rescuer
         {
             // [GET]
+            public const string GetAllPublic = Base + "/rescuers";
             public const string GetProfile = Base + "/rescuer/profile";
             // [PUT]
             public const string UpdateProfile = Base + "/rescuer/profile";
