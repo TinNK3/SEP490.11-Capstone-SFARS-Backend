@@ -96,8 +96,7 @@ namespace SFARS.API.Controller
         [HttpGet(APIRoute.Incident.GetById, Name = nameof(GetIncidentByIdAsync))]
         public async Task<IActionResult> GetIncidentByIdAsync([FromRoute] Guid id)
         {
-            var userId = User.GetUserId();
-            var result = await _incidentService.GetIncidentByIdAsync(userId, id);
+            var result = await _incidentService.GetIncidentByIdAsync(id);
             return this.ToIActionResult(result);
         }
 

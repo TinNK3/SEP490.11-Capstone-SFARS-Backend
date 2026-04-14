@@ -331,18 +331,7 @@ public class IncidentServiceTests
 
     #region GetIncidentByIdAsync Tests
 
-    [Fact]
-    public async Task GetIncidentByIdAsync_EmptyUserId_ReturnsAuthWarning()
-    {
-        // Arrange
-        var incidentId = Guid.NewGuid();
 
-        // Act
-        var result = await _sut.GetIncidentByIdAsync(Guid.Empty, incidentId);
-
-        // Assert
-        result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0013);
-    }
 
     [Fact]
     public async Task GetIncidentByIdAsync_IncidentNotFound_ReturnsNotFound()
@@ -357,31 +346,13 @@ public class IncidentServiceTests
             .ReturnsAsync((Incident?)null);
 
         // Act
-        var result = await _sut.GetIncidentByIdAsync(userId, incidentId);
+        var result = await _sut.GetIncidentByIdAsync(incidentId);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
     }
 
-    [Fact]
-    public async Task GetIncidentByIdAsync_UserNotOwnerOrRescuer_ReturnsNotFound()
-    {
-        // Arrange
-        var userId = Guid.NewGuid();
-        var incidentId = Guid.NewGuid();
 
-        // Spec won't match because userId doesn't match VictimId or any RescuerId
-        _incidentRepoMock.Setup(x => x.GetWithSpecAsync(
-                It.IsAny<ISpecification<Incident>>(),
-                It.IsAny<bool>()))
-            .ReturnsAsync((Incident?)null);
-
-        // Act
-        var result = await _sut.GetIncidentByIdAsync(userId, incidentId);
-
-        // Assert
-        result.ResultCode.Should().Be(ResultCodeConst.SYS_Warning0004);
-    }
 
     [Fact]
     public async Task GetIncidentByIdAsync_AsVictim_ReturnsIncident()
@@ -407,7 +378,8 @@ public class IncidentServiceTests
             .Returns(Task.FromResult<(List<FirstAidStepDto>, List<string>)>((new List<FirstAidStepDto>(), new List<string>())));
 
         // Act
-        var result = await _sut.GetIncidentByIdAsync(userId, incidentId);
+        // Act
+        var result = await _sut.GetIncidentByIdAsync(incidentId);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
@@ -447,7 +419,8 @@ public class IncidentServiceTests
             .Returns(Task.FromResult<(List<FirstAidStepDto>, List<string>)>((new List<FirstAidStepDto>(), new List<string>())));
 
         // Act
-        var result = await _sut.GetIncidentByIdAsync(userId, incidentId);
+        // Act
+        var result = await _sut.GetIncidentByIdAsync(incidentId);
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);

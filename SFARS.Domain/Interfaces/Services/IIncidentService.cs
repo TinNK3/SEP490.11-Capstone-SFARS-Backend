@@ -13,7 +13,7 @@ namespace SFARS.Domain.Interfaces.Services
         Task<IServiceResult> GetAllIncidentsAsync(IncidentSpecParams specParams);
         Task<IServiceResult> GetStatusHistoryAsync(Guid incidentId);
         Task<IServiceResult> GetRecentCommunityIncidentsAsync(BaseSpecParams specParams);
-        Task<IServiceResult> GetIncidentByIdAsync(Guid userId, Guid incidentId);
+        Task<IServiceResult> GetIncidentByIdAsync(Guid incidentId);
         
         /// <summary>
         /// Upload media (photo/video) for an incident
