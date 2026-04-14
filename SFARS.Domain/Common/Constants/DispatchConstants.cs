@@ -64,16 +64,23 @@ public static class DispatchConstants
     // Firebase Messaging keys
     public const string FcmSosDispatchTitleKey = "sos_dispatch";
 
-    // SignalR Group Prefix
     /// <summary>
     /// Per-user dispatch group: "dispatch:user:{userId}".
     /// DispatchService pushes to this group so only that rescuer receives the event.
     /// </summary>
     public const string RescuerGroupPrefix = "dispatch:user:";
 
-    // SignalR Event Names
+    /// <summary>
+    /// Global group for all connected and verified rescuers.
+    /// Used for broadcasting community-wide incident updates.
+    /// </summary>
+    public const string AllRescuersGroup = "dispatch:rescuers:all";
+
     /// <summary>Pushed to rescuers when a new SOS is dispatched in their tier.</summary>
     public const string EventNewDispatch   = "sos:dispatch";
+
+    /// <summary>Pushed to the global rescuers group when a community incident is created or status changes.</summary>
+    public const string EventCommunityIncidentUpdated = "sos:community_updated";
 
     /// <summary>Pushed to the victim when all tiers fail — triggers fallback UI.</summary>
     public const string EventFallback      = "sos:fallback";

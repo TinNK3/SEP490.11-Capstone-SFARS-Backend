@@ -29,6 +29,7 @@ public class MissionService : IMissionService
     private readonly ILogger<MissionService> _logger;
     private readonly IFcmPushService _fcmService;
     private readonly IDistributedLockProvider _distributedLockProvider;
+    private readonly IDispatchService _dispatchService;
     private readonly IMapper _mapper;
 
     public MissionService(
@@ -39,6 +40,7 @@ public class MissionService : IMissionService
         ILogger<MissionService> logger,
         IFcmPushService fcmService,
         IDistributedLockProvider distributedLockProvider,
+        IDispatchService dispatchService,
         IMapper mapper)
     {
         _unitOfWork = unitOfWork;
@@ -48,6 +50,7 @@ public class MissionService : IMissionService
         _logger = logger;
         _fcmService = fcmService;
         _distributedLockProvider = distributedLockProvider;
+        _dispatchService = dispatchService;
         _mapper = mapper;
     }
 
@@ -246,6 +249,9 @@ public class MissionService : IMissionService
             TimeSpan.FromMinutes(DispatchConstants.WatchdogInitialGraceMins));
 
         await _unitOfWork.SaveChangesAsync();
+
+        // Real-time: Notify community that this incident is now Assigned (remove from available pool)
+        await _dispatchService.NotifyCommunityAsync(incidentId);
 
         // Step 6: Notify victim
         var dto = new SosFallbackDto
