@@ -103,7 +103,7 @@ public class LocationBroadcastService : ILocationBroadcastService
                 .SendAsync(LocationConstants.SignalRReceiveLocationUpdate, payload);
         }
 
-        // --- GEOFENCING AUTO-SUGGEST ARRIVED ---
+        // GEOFENCING AUTO-SUGGEST ARRIVED
         // Fire-and-forget style to not block the broadcast of location
         _ = ProcessGeofenceArrivedSuggestionAsync(userId, location);
     }

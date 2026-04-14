@@ -1,3 +1,4 @@
+using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Specifications.Params;
 
@@ -102,6 +103,47 @@ namespace SFARS.Domain.Specifications
 
             if (specParams.HasAntivenom.HasValue)
                 spec.AddFilter(f => f.HasAntivenom == specParams.HasAntivenom.Value);
+
+            return spec;
+        }
+
+        /// <summary>
+        /// Public paginated list: only Active Hospitals.
+        /// Ignores Type and Antivenom filters from user (hardcoded).
+        /// </summary>
+        public static MedicalFacilitySpecification PublicList(BaseSpecParams specParams)
+        {
+            var spec = new MedicalFacilitySpecification();
+
+            ApplySearchFilter(spec, specParams.Search);
+
+            // Hardcode constraints for public list
+            spec.AddFilter(f => f.Type == FacilityType.Hospital);
+            spec.AddFilter(f => f.IsActive == true);
+            // HasAntivenom is not filtered, returns both true/false
+
+            if (specParams.PageSize.HasValue)
+            {
+                spec.ApplyPaging(specParams.GetTake(), specParams.GetSkip());
+            }
+
+            // Public sorting: defaults to Name
+            spec.AddOrderBy(f => f.Name);
+
+            return spec;
+        }
+
+        /// <summary>
+        /// Public count: matches PublicList logic for pagination calculation.
+        /// </summary>
+        public static MedicalFacilitySpecification PublicCount(BaseSpecParams specParams)
+        {
+            var spec = new MedicalFacilitySpecification();
+
+            ApplySearchFilter(spec, specParams.Search);
+
+            spec.AddFilter(f => f.Type == FacilityType.Hospital);
+            spec.AddFilter(f => f.IsActive == true);
 
             return spec;
         }

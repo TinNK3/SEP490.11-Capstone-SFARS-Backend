@@ -2,10 +2,16 @@ using MapsterMapper;
 using Microsoft.Extensions.Logging;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos.Rescuer;
+using SFARS.Application.Dtos.User;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
+using SFARS.Domain.Specifications.Params;
+using SFARS.Domain.Specifications.Users;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
+using SFARS.Domain.Common.Constants;
+using SFARS.Application.Dtos;
+using SFARS.Domain.Common.Enum;
 
 namespace SFARS.Application.Services;
 
@@ -179,5 +185,76 @@ public class RescuerService : IRescuerService
             await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0003),
             responseDto
         );
+    }
+
+    /// <summary>
+    /// Get a paginated list of all verified rescuers with public metrics.
+    /// High-performance projection using GetAllWithSpecAndSelectorAsync to avoid N+1 queries.
+    /// </summary>
+    public async Task<IServiceResult> GetAllRescuersPublicAsync(PublicRescuerSpecParams specParams)
+    {
+        specParams ??= new PublicRescuerSpecParams();
+
+        var page = specParams.GetPage();
+        var limit = specParams.GetTake();
+
+        try
+        {
+            var countSpec = UserSpecification.PublicRescuersCount(specParams);
+            var totalItems = await _unitOfWork.Repository<User, Guid>().CountAsync(countSpec);
+
+            if (totalItems == 0)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004),
+                    new PaginatedResultDto<PublicRescuerDto>(
+                        Enumerable.Empty<PublicRescuerDto>(), page, limit, 0, totalItems));
+            }
+
+            var spec = UserSpecification.PublicRescuersList(specParams);
+
+            // Fetch Mission Queryable to do lateral subquery mapping for TotalMissions
+            var missionQuery = _unitOfWork.Repository<RescueMission, Guid>().GetQueryable(tracked: false);
+
+            var dtos = await _unitOfWork.Repository<User, Guid>().GetAllWithSpecAndSelectorAsync(
+                spec,
+                u => new PublicRescuerDto
+                {
+                    Id = u.Id,
+                    FirstName = u.FirstName,
+                    LastName = u.LastName,
+                    Email = u.Email,
+                    Phone = u.Phone,
+                    Avatar = u.Avatar,
+                    Address = u.Address,
+                    Gender = u.Gender,
+                    Dob = u.Dob,
+                    Status = u.Status,
+                    IsOnline = u.IsOnline,
+                    LastActiveAt = u.LastActiveAt,
+                    CreatedAt = u.CreatedAt,
+                    UpdatedAt = u.UpdatedAt,
+                    Latitude = u.CurrentLocation != null ? u.CurrentLocation.Y : default(double?),
+                    Longitude = u.CurrentLocation != null ? u.CurrentLocation.X : default(double?),
+                    // Subquery exactly mapped to SQL, zero N+1 issues
+                    TotalMissions = missionQuery.Count(m => m.RescuerId == u.Id && m.Status == RescueStatus.Completed) 
+                },
+                tracked: false
+            );
+
+            var totalPages = (int)Math.Ceiling((double)totalItems / limit);
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                new PaginatedResultDto<PublicRescuerDto>(dtos, page, limit, totalPages, totalItems)
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving public rescuer list");
+            throw;
+        }
     }
 }

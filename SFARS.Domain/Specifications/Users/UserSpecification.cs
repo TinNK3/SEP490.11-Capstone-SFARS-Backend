@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using SFARS.Domain.Common.Constants;
+using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Specifications.Params;
 using System.Linq.Expressions;
@@ -80,6 +82,55 @@ namespace SFARS.Domain.Specifications.Users
                 .ThenInclude(ur => ur.Role));
 
             ApplyCommonFilters(spec, p);
+
+            return spec;
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // Factory: Public Rescuers List
+        // ─────────────────────────────────────────────────────────────
+
+        public static UserSpecification PublicRescuersList(PublicRescuerSpecParams p)
+        {
+            var spec = new UserSpecification(BuildSearchCriteria(p.Search));
+            
+            // Hardcode constraints for public rescuer list
+            spec.AddFilter(u => u.Status == UserStatus.Active);
+            spec.AddFilter(u => u.UserRoles.Any(ur => ur.Role.RoleName == UserTypeConstants.Rescuer));
+            spec.AddFilter(u => u.RescuerProfile!.IsVerified == true); // Only verified profiles
+
+            if (!string.IsNullOrEmpty(p.FirstName))
+                spec.AddFilter(u => u.FirstName.Contains(p.FirstName));
+            if (!string.IsNullOrEmpty(p.LastName))
+                spec.AddFilter(u => u.LastName.Contains(p.LastName));
+            if (p.Gender != null)
+                spec.AddFilter(u => u.Gender == p.Gender);
+
+            // Sorting
+            if (!string.IsNullOrEmpty(p.Sort))
+                spec.ApplySorting(p.Sort.Trim());
+            else
+                spec.AddOrderByDescending(u => u.CreatedAt);
+
+            spec.ApplyPaging(p.GetTake(), p.GetSkip());
+            return spec;
+        }
+
+        public static UserSpecification PublicRescuersCount(PublicRescuerSpecParams p)
+        {
+            var spec = new UserSpecification(BuildSearchCriteria(p.Search));
+            
+            // Hardcode constraints for public rescuer count
+            spec.AddFilter(u => u.Status == UserStatus.Active);
+            spec.AddFilter(u => u.UserRoles.Any(ur => ur.Role.RoleName == UserTypeConstants.Rescuer));
+            spec.AddFilter(u => u.RescuerProfile!.IsVerified == true); // Only verified profiles
+
+            if (!string.IsNullOrEmpty(p.FirstName))
+                spec.AddFilter(u => u.FirstName.Contains(p.FirstName));
+            if (!string.IsNullOrEmpty(p.LastName))
+                spec.AddFilter(u => u.LastName.Contains(p.LastName));
+            if (p.Gender != null)
+                spec.AddFilter(u => u.Gender == p.Gender);
 
             return spec;
         }

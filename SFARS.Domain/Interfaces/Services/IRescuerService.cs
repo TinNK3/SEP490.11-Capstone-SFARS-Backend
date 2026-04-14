@@ -1,4 +1,5 @@
 using SFARS.Domain.Interfaces.Services.Base;
+using SFARS.Domain.Specifications.Params;
 
 namespace SFARS.Domain.Interfaces.Services;
 
@@ -13,4 +14,10 @@ public interface IRescuerService
     /// Update all fields of the authenticated rescuer's profile.
     /// </summary>
     Task<IServiceResult> UpdateRescuerProfileAsync<TDto>(Guid userId, TDto dto) where TDto : class;
+
+    /// <summary>
+    /// Get a paginated list of all verified rescuers with public metrics.
+    /// Used for public directory without requiring authentication.
+    /// </summary>
+    Task<IServiceResult> GetAllRescuersPublicAsync(PublicRescuerSpecParams specParams);
 }

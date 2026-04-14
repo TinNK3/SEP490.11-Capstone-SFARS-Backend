@@ -6,6 +6,7 @@ using SFARS.API.Payloads;
 using SFARS.API.Payloads.Request.Rescuer;
 using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Interfaces.Services;
+using SFARS.Domain.Specifications.Params;
 
 namespace SFARS.API.Controller;
 
@@ -33,6 +34,20 @@ public class RescuerController : ControllerBase
         var userId = User.GetUserId();
 
         var result = await _rescuerService.GetRescuerProfileAsync(userId);
+        return this.ToIActionResult(result);
+    }
+
+    /// <summary>
+    /// [Public] Get a paginated list of all verified rescuers.
+    /// Does not require authentication.
+    /// </summary>
+    /// <param name="specParams">Filters and pagination params</param>
+    /// <returns>Paginated list of rescuers</returns>
+    [AllowAnonymous]
+    [HttpGet(APIRoute.Rescuer.GetAllPublic, Name = nameof(GetAllRescuersPublicAsync))]
+    public async Task<IActionResult> GetAllRescuersPublicAsync([FromQuery] PublicRescuerSpecParams specParams)
+    {
+        var result = await _rescuerService.GetAllRescuersPublicAsync(specParams);
         return this.ToIActionResult(result);
     }
 
