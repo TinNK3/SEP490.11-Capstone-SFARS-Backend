@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using SFARS.Infrastructure.Data.Context;
@@ -12,9 +13,11 @@ using SFARS.Infrastructure.Data.Context;
 namespace SFARS.Infrastructure.Migrations
 {
     [DbContext(typeof(SFARSDbContext))]
-    partial class SFARSDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260413130026_AddQuizFeature_v2")]
+    partial class AddQuizFeature_v2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1840,69 +1843,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.ToTable("Quiz", (string)null);
                 });
 
-            modelBuilder.Entity("SFARS.Domain.Entities.QuizHistory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("created_by");
-
-                    b.Property<bool>("IsPassed")
-                        .HasColumnType("bit")
-                        .HasColumnName("is_passed");
-
-                    b.Property<int>("PointsEarned")
-                        .HasColumnType("int")
-                        .HasColumnName("points_earned");
-
-                    b.Property<Guid>("QuizId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("quiz_id");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<int>("Score")
-                        .HasColumnType("int")
-                        .HasColumnName("score");
-
-                    b.Property<int>("TotalQuestions")
-                        .HasColumnType("int")
-                        .HasColumnName("total_questions");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("updated_by");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_quiz_histories_id");
-
-                    b.HasIndex("QuizId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("quiz_histories", (string)null);
-                });
-
             modelBuilder.Entity("SFARS.Domain.Entities.QuizOption", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2028,65 +1968,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.HasIndex("QuizId");
 
                     b.ToTable("QuizQuestion", (string)null);
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.QuizResult", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("id");
-
-                    b.Property<string>("AnswerData")
-                        .HasColumnType("text")
-                        .HasColumnName("answer_data");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("created_by");
-
-                    b.Property<bool>("IsCorrect")
-                        .HasColumnType("bit")
-                        .HasColumnName("is_correct");
-
-                    b.Property<Guid>("QuestionId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("question_id");
-
-                    b.Property<Guid>("QuizHistoryId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("quiz_history_id");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<Guid?>("SelectedOptionId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("selected_option_id");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("updated_by");
-
-                    b.HasKey("Id")
-                        .HasName("pk_quiz_results_id");
-
-                    b.HasIndex("QuestionId");
-
-                    b.HasIndex("QuizHistoryId");
-
-                    b.ToTable("quiz_results", (string)null);
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.Reel", b =>
@@ -3919,23 +3800,6 @@ namespace SFARS.Infrastructure.Migrations
                     b.Navigation("Post");
                 });
 
-            modelBuilder.Entity("SFARS.Domain.Entities.QuizHistory", b =>
-                {
-                    b.HasOne("SFARS.Domain.Entities.Quiz", "Quiz")
-                        .WithMany()
-                        .HasForeignKey("QuizId")
-                        .IsRequired();
-
-                    b.HasOne("SFARS.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .IsRequired();
-
-                    b.Navigation("Quiz");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("SFARS.Domain.Entities.QuizOption", b =>
                 {
                     b.HasOne("SFARS.Domain.Entities.QuizQuestion", "Question")
@@ -3958,24 +3822,6 @@ namespace SFARS.Infrastructure.Migrations
                         .HasConstraintName("FK_QuizQuestion_Quiz");
 
                     b.Navigation("Quiz");
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.QuizResult", b =>
-                {
-                    b.HasOne("SFARS.Domain.Entities.QuizQuestion", "Question")
-                        .WithMany()
-                        .HasForeignKey("QuestionId")
-                        .IsRequired();
-
-                    b.HasOne("SFARS.Domain.Entities.QuizHistory", "QuizHistory")
-                        .WithMany("QuizResults")
-                        .HasForeignKey("QuizHistoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Question");
-
-                    b.Navigation("QuizHistory");
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.Reel", b =>
@@ -4327,11 +4173,6 @@ namespace SFARS.Infrastructure.Migrations
             modelBuilder.Entity("SFARS.Domain.Entities.Quiz", b =>
                 {
                     b.Navigation("QuizQuestions");
-                });
-
-            modelBuilder.Entity("SFARS.Domain.Entities.QuizHistory", b =>
-                {
-                    b.Navigation("QuizResults");
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.QuizQuestion", b =>

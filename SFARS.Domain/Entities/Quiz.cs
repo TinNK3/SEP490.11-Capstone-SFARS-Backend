@@ -10,4 +10,7 @@ public class Quiz : BaseEntity
     public QuizDifficultyLevel DifficultyLevel { get; set; }
     public int PointsReward { get; set; }
     public bool IsActive { get; set; } = true;
+
+    // Navigation Properties
+    public virtual ICollection<QuizQuestion> QuizQuestions { get; set; } = new List<QuizQuestion>();
 }
