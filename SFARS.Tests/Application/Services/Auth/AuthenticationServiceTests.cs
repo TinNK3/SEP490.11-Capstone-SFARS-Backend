@@ -1336,4 +1336,170 @@ public class AuthenticationServiceTests
 
     #endregion
 
+    #region DeleteAccountAsync Tests
+
+    /// <summary>
+    /// Test Type: NORMAL
+    /// Tests: DeleteAccountAsync with valid OTP and valid JWT
+    /// Precondition: Active user and valid DeleteAccount OTP; sign-out path available
+    /// Expected Result: User soft-deleted, OTP marked used, token revoked
+    /// </summary>
+    [Fact]
+    public async Task DeleteAccountAsync_ValidOtp_DeletesUserAndRevokesToken()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var jti = Guid.NewGuid().ToString();
+        var accessToken = BuildRealJwt(jti: jti);
+
+        var user = new User
+        {
+            Id = userId,
+            Email = "delete-me@test.com",
+            FirstName = "Delete",
+            LastName = "Me",
+            PasswordHash = "hash",
+            Status = UserStatus.Active
+        };
+
+        var userRepoMock = new Mock<IGenericRepository<User, Guid>>();
+        userRepoMock.Setup(x => x.GetByIdAsync(userId)).ReturnsAsync(user);
+        userRepoMock.Setup(x => x.UpdateAsync(It.IsAny<User>())).Returns(Task.CompletedTask);
+        _unitOfWorkMock.Setup(x => x.Repository<User, Guid>()).Returns(userRepoMock.Object);
+
+        var otp = new OtpRequest
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Code = "123456",
+            Type = OtpType.DeleteAccount,
+            IsUsed = false,
+            AttemptCount = 0,
+            CreatedAt = DateTime.UtcNow.AddMinutes(-1),
+            ExpiredAt = DateTime.UtcNow.AddMinutes(3)
+        };
+
+        _otpRepoMock.Setup(x => x.GetAllAsync(It.IsAny<bool>()))
+            .ReturnsAsync(new List<OtpRequest> { otp });
+
+        _refreshTokenServiceMock
+            .Setup(x => x.GetByUserIdAsync(userId))
+            .ReturnsAsync(new ServiceResult(ResultCodeConst.SYS_Warning0004, "Not found", null!));
+
+        // Act
+        var result = await _sut.DeleteAccountAsync(userId, "123456", accessToken);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0004);
+        user.Status.Should().Be(UserStatus.Deleted);
+        otp.IsUsed.Should().BeTrue();
+        _tokenBlacklistServiceMock.Verify(x => x.Revoke(jti, It.IsAny<DateTime>()), Times.Once);
+        userRepoMock.Verify(x => x.UpdateAsync(It.Is<User>(u => u.Id == userId && u.Status == UserStatus.Deleted)), Times.Once);
+        _otpRepoMock.Verify(x => x.UpdateAsync(It.Is<OtpRequest>(o => o.Id == otp.Id && o.IsUsed)), Times.Once);
+    }
+
+    /// <summary>
+    /// Test Type: ABNORMAL
+    /// Tests: DeleteAccountAsync when OTP is already locked
+    /// Precondition: Active user and latest OTP has AttemptCount = MaxAttempts
+    /// Expected Result: Returns Auth_Warning0015 and invalidates OTP
+    /// </summary>
+    [Fact]
+    public async Task DeleteAccountAsync_LockedOtp_ReturnsLockedWarningAndInvalidatesOtp()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var user = new User
+        {
+            Id = userId,
+            Email = "locked-otp@test.com",
+            FirstName = "Locked",
+            LastName = "User",
+            PasswordHash = "hash",
+            Status = UserStatus.Active
+        };
+
+        var userRepoMock = new Mock<IGenericRepository<User, Guid>>();
+        userRepoMock.Setup(x => x.GetByIdAsync(userId)).ReturnsAsync(user);
+        _unitOfWorkMock.Setup(x => x.Repository<User, Guid>()).Returns(userRepoMock.Object);
+
+        var lockedOtp = new OtpRequest
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Code = "123456",
+            Type = OtpType.DeleteAccount,
+            IsUsed = false,
+            AttemptCount = OtpConstants.MaxAttempts,
+            CreatedAt = DateTime.UtcNow.AddMinutes(-1),
+            ExpiredAt = DateTime.UtcNow.AddMinutes(3)
+        };
+
+        _otpRepoMock.Setup(x => x.GetAllAsync(It.IsAny<bool>()))
+            .ReturnsAsync(new List<OtpRequest> { lockedOtp });
+
+        // Act
+        var result = await _sut.DeleteAccountAsync(userId, "123456", string.Empty);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0015);
+        lockedOtp.IsUsed.Should().BeTrue();
+        _otpRepoMock.Verify(x => x.UpdateAsync(It.Is<OtpRequest>(o => o.Id == lockedOtp.Id && o.IsUsed)), Times.Once);
+    }
+
+    /// <summary>
+    /// Test Type: BOUNDARY
+    /// Tests: DeleteAccountAsync wrong OTP at boundary (MaxAttempts - 1)
+    /// Precondition: Active user and OTP with AttemptCount one below max
+    /// Expected Result: Returns Auth_Warning0015 and locks OTP immediately
+    /// </summary>
+    [Fact]
+    public async Task DeleteAccountAsync_WrongOtpAtBoundary_LocksOtpAndReturnsLockedWarning()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var user = new User
+        {
+            Id = userId,
+            Email = "boundary@test.com",
+            FirstName = "Boundary",
+            LastName = "User",
+            PasswordHash = "hash",
+            Status = UserStatus.Active
+        };
+
+        var userRepoMock = new Mock<IGenericRepository<User, Guid>>();
+        userRepoMock.Setup(x => x.GetByIdAsync(userId)).ReturnsAsync(user);
+        _unitOfWorkMock.Setup(x => x.Repository<User, Guid>()).Returns(userRepoMock.Object);
+
+        var otpNearLimit = new OtpRequest
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Code = "123456",
+            Type = OtpType.DeleteAccount,
+            IsUsed = false,
+            AttemptCount = OtpConstants.MaxAttempts - 1,
+            CreatedAt = DateTime.UtcNow.AddMinutes(-1),
+            ExpiredAt = DateTime.UtcNow.AddMinutes(3)
+        };
+
+        _otpRepoMock.Setup(x => x.GetAllAsync(It.IsAny<bool>()))
+            .ReturnsAsync(new List<OtpRequest> { otpNearLimit });
+
+        // Act
+        var result = await _sut.DeleteAccountAsync(userId, "999999", string.Empty);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.Auth_Warning0015);
+        otpNearLimit.AttemptCount.Should().Be(OtpConstants.MaxAttempts);
+        otpNearLimit.IsUsed.Should().BeTrue();
+        _otpRepoMock.Verify(x => x.UpdateAsync(It.Is<OtpRequest>(o =>
+            o.Id == otpNearLimit.Id &&
+            o.AttemptCount == OtpConstants.MaxAttempts &&
+            o.IsUsed)), Times.Once);
+    }
+
+    #endregion
+
 }

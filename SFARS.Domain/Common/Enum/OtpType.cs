@@ -9,6 +9,8 @@ namespace SFARS.Domain.Common.Enum
         [Description("Đặt lại mật khẩu")]
         ResetPassword,
         [Description("Đổi mật khẩu")]
-        ChangePassword
+        ChangePassword,
+        [Description("Xóa tài khoản")]
+        DeleteAccount
     }
 }

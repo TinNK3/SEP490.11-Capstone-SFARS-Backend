@@ -61,6 +61,36 @@ namespace SFARS.Application.Common
                 return (subject, body);
             }
 
+            if (type == OtpType.DeleteAccount)
+            {
+                var deleteSubject = "Delete Account OTP for SFARS";
+                var deleteBody = $@"
+                    <div style='font-family: Arial, sans-serif; background:#f6f7fb; padding:24px;'>
+                        <div style='max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;'>
+                            <div style='background:#8E2A2A;color:#fff;padding:16px 24px;'>
+                                <h2 style='margin:0;font-size:20px;'>SFARS - Xác Nhận Xóa Tài Khoản</h2>
+                            </div>
+                            <div style='padding:24px;color:#333;line-height:1.6;'>
+                                <p>Xin chào <strong>{authUser.FirstName} {authUser.LastName}</strong>,</p>
+                                <p>Chúng tôi nhận được yêu cầu <strong>xóa tài khoản</strong> SFARS của bạn. Đây là mã OTP xác nhận:</p>
+                                <div style='text-align:center;margin:20px 0;'>
+                                    <span style='display:inline-block;background:#fdf2f2;color:#8E2A2A;
+                                        font-size:28px;letter-spacing:6px;padding:12px 18px;border-radius:10px;border:2px solid #8E2A2A;'>
+                                        {otpCode}
+                                    </span>
+                                </div>
+                                <p>Mã có hiệu lực trong <strong>{OtpConstants.OtpExpirationMinutes} phút</strong>.</p>
+                                <div style='background:#fdf2f2;border-left:4px solid #8E2A2A;padding:12px;margin:16px 0;border-radius:4px;'>
+                                    <p style='margin:0;color:#8E2A2A;'><strong>Lưu ý:</strong> Nếu bạn không yêu cầu xóa tài khoản, vui lòng bỏ qua email này và không chia sẻ OTP cho bất kỳ ai.</p>
+                                </div>
+                                <p style='margin-top:24px;'>Sau khi xóa, tài khoản sẽ không thể sử dụng lại trên hệ thống.</p>
+                            </div>
+                        </div>
+                    </div>";
+
+                return (deleteSubject, deleteBody);
+            }
+
             var signInSubject = "Your One-Time Password (OTP) for SFARS Sign-In";
             var signInBody = $@"
                 <div style='font-family: Arial, sans-serif; background:#f6f7fb; padding:24px;'>
