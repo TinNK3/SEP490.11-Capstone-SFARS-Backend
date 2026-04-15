@@ -42,6 +42,10 @@ public partial class SFARSDbContext : DbContext
     public DbSet<PostComment> PostComments { get; set; }
     public DbSet<PostLike> PostLikes { get; set; }
     public DbSet<Quiz> Quizzes { get; set; }
+    public DbSet<QuizQuestion> QuizQuestions { get; set; }
+    public DbSet<QuizOption> QuizOptions { get; set; }
+    public DbSet<QuizHistory> QuizHistories { get; set; }
+    public DbSet<QuizResult> QuizResults { get; set; }
     public DbSet<UserPoint> UserPoints { get; set; }
     public DbSet<PointTransaction> PointTransactions { get; set; }
     public DbSet<SnakeHotspot> SnakeHotspots { get; set; }
@@ -82,7 +86,7 @@ public partial class SFARSDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        
+
         // Globally configure RowVersion as a Concurrency Token for all entities inheriting from BaseEntity
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
@@ -93,7 +97,7 @@ public partial class SFARSDbContext : DbContext
                     .IsRowVersion();
             }
         }
-        
+
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
     }
 }

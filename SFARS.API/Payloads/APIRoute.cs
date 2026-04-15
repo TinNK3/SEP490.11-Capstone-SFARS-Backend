@@ -203,6 +203,26 @@ namespace SFARS.API.Payloads
         }
 
         /// <summary>
+        /// Quiz endpoints (Game Integration)
+        /// </summary>
+        public static class Quiz
+        {
+            private const string BaseUrl = Base + "/quizzes";
+
+            // [GET]
+            public const string GetList = BaseUrl;
+            public const string GetById = BaseUrl + "/{id}";
+            public const string GetForGame = BaseUrl + "/{id}/play";
+
+            // [POST]
+            public const string Submit = BaseUrl + "/submit";
+
+            // [GET]
+            public const string GetMyHistory = BaseUrl + "/my-history";
+            public const string GetHistoryDetail = BaseUrl + "/history/{id}";
+        }
+
+        /// <summary>
         /// FAQ endpoints (Public - Anonymous access)
         /// </summary>
         public static class Faq
@@ -256,6 +276,13 @@ namespace SFARS.API.Payloads
             // [DELETE]
             public const string DeleteFaq = Base + "/admin/faqs/{id}";
 
+            // Quiz Management
+            public const string GetAllQuizzes = Base + "/admin/quizzes";
+            public const string CreateQuiz = Base + "/admin/quizzes";
+            public const string UpdateQuiz = Base + "/admin/quizzes/{id}";
+            public const string DeleteQuiz = Base + "/admin/quizzes/{id}";
+            public const string GetQuizAttempts = Base + "/admin/quizzes/attempts";
+            public const string GetAttemptDetail = Base + "/admin/quizzes/attempts/{id}";
             // Gemini API Key Management
             // [GET]
             public const string GetAllGeminiKeys = Base + "/admin/gemini-keys";
@@ -359,7 +386,7 @@ namespace SFARS.API.Payloads
         {
             // [POST]
             public const string SmsSOSInbound = Base + "/webhooks/sms/sos";
-            public const string PayOs         = Base + "/webhooks/payos";
+            public const string PayOs = Base + "/webhooks/payos";
         }
 
         /// <summary>

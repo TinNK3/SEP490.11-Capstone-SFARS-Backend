@@ -8,6 +8,7 @@ using SFARS.Application.Dtos.Rescuer;
 using SFARS.Application.Dtos.Role;
 using SFARS.Application.Dtos.Transaction;
 using SFARS.Application.Dtos.User;
+using SFARS.Application.Dtos.Community;
 using SFARS.Domain.Entities;
 
 namespace SFARS.Application.Mappings
@@ -72,6 +73,22 @@ namespace SFARS.Application.Mappings
                      src => src.Reporter != null
                          ? src.Reporter.FullName
                          : "Unknown");
+
+            // Quiz Mapping
+            config.NewConfig<Quiz, QuizListItemDto>();
+
+            config.NewConfig<Quiz, QuizGameDto>()
+                .Map(dest => dest.Questions, src => src.QuizQuestions);
+
+            config.NewConfig<QuizQuestion, QuestionGameDto>()
+                .Map(dest => dest.QuestionType, src => src.QuestionType.ToString());
+
+            config.NewConfig<QuizOption, OptionGameDto>();
+
+            config.NewConfig<QuizHistory, QuizHistoryDto>()
+                .Map(dest => dest.QuizId, src => src.QuizId)
+                .Map(dest => dest.QuizTitle, src => src.Quiz != null ? src.Quiz.Title : string.Empty)
+                .Map(dest => dest.UserName, src => src.User != null ? src.User.FirstName + " " + src.User.LastName : "Unknown");
         }
     }
 }

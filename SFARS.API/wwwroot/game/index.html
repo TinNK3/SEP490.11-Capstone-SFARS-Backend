@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>SFARS Quiz - Penalty Challenge</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ========== SCREEN: LOADING ========== -->
+<div id="screen-loader" class="screen active">
+    <div class="loader-content">
+        <div class="ball-loader">⚽</div>
+        <p>Đang tải thử thách...</p>
+    </div>
+</div>
+
+<!-- ========== SCREEN: START ========== -->
+<div id="screen-start" class="screen">
+    <div class="start-wrapper">
+        <div class="trophy">🏆</div>
+        <h1 id="quiz-title">SFARS Penalty Challenge</h1>
+        <p id="quiz-desc">Trả lời đúng để ghi bàn! Sai thì coi chừng thủ môn bắt được nhé.</p>
+        <div class="info-pills">
+            <span>⚽ <b id="q-count">10</b> câu</span>
+            <span>🌟 <b id="q-pts">200</b> điểm</span>
+        </div>
+        <button class="btn-kick" id="btn-start">RA SÂN NGAY</button>
+    </div>
+</div>
+
+<!-- ========== SCREEN: GAME ========== -->
+<div id="screen-game" class="screen">
+    <!-- STADIUM -->
+    <div id="stadium">
+        <!-- Scoreboard -->
+        <div id="scoreboard">
+            <div class="score-item">
+                <span class="score-label">BÀN THẮNG</span>
+                <span class="score-val" id="score-goals">0</span>
+            </div>
+            <div class="score-divider">|</div>
+            <div class="score-item">
+                <span class="score-label">CÒN LẠI</span>
+                <span class="score-val" id="score-remain">10</span>
+            </div>
+        </div>
+
+        <!-- Goal Post (Clean CSS Drawing) -->
+        <div id="goal">
+            <div id="goal-net"></div>
+            <div id="goal-posts">
+                <div class="post side-l"></div>
+                <div class="post side-r"></div>
+                <div class="post top-bar"></div>
+            </div>
+        </div>
+
+        <!-- Goalkeeper -->
+        <div id="goalkeeper">
+            <div class="gk-container">
+                <img id="gk-img" src="goalkeeper.png" alt="Goalkeeper">
+            </div>
+        </div>
+
+        <!-- Ball -->
+        <div id="ball">⚽</div>
+
+        <!-- Pitch markings -->
+        <div id="pitch-circle"></div>
+        <div id="pitch-spot"></div>
+    </div>
+
+    <!-- QUESTION PANEL -->
+    <div id="question-panel">
+        <div id="q-progress-bar"><div id="q-progress-fill"></div></div>
+        <div id="q-counter">Câu <span id="q-cur">1</span>/<span id="q-total">10</span></div>
+        <h2 id="q-text">Câu hỏi đang tải...</h2>
+        <p id="q-hint">Chọn đáp án để đá bóng</p>
+        <div id="q-options"></div>
+    </div>
+</div>
+
+<!-- ========== SCREEN: RESULT ========== -->
+<div id="screen-result" class="screen">
+    <div class="result-wrapper">
+        <div id="result-emoji">🏆</div>
+        <h2 id="result-title">Kết quả trận đấu</h2>
+        <div id="result-scoreboard">
+            <div class="rs-team">BẠN</div>
+            <div class="rs-score">
+                <span id="res-goals">0</span>
+                <span>:</span>
+                <span id="res-missed">0</span>
+            </div>
+            <div class="rs-team">GK</div>
+        </div>
+        <p id="result-msg">Xuất sắc!</p>
+        <div id="result-reward" class="hidden">
+            <span>🌟</span> Bạn nhận được <b id="res-pts">0</b> điểm!
+        </div>
+        <button class="btn-kick" onclick="window.location.reload()">CHƠI LẠI</button>
+    </div>
+</div>
+
+<!-- FEEDBACK OVERLAY -->
+<div id="feedback-overlay" class="hidden">
+    <div id="feedback-text"></div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
