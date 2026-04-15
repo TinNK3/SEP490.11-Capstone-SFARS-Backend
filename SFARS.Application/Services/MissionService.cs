@@ -29,6 +29,7 @@ public class MissionService : IMissionService
     private readonly ILogger<MissionService> _logger;
     private readonly IFcmPushService _fcmService;
     private readonly IDistributedLockProvider _distributedLockProvider;
+    private readonly IDispatchService _dispatchService;
     private readonly IMapper _mapper;
 
     public MissionService(
@@ -39,6 +40,7 @@ public class MissionService : IMissionService
         ILogger<MissionService> logger,
         IFcmPushService fcmService,
         IDistributedLockProvider distributedLockProvider,
+        IDispatchService dispatchService,
         IMapper mapper)
     {
         _unitOfWork = unitOfWork;
@@ -48,6 +50,7 @@ public class MissionService : IMissionService
         _logger = logger;
         _fcmService = fcmService;
         _distributedLockProvider = distributedLockProvider;
+        _dispatchService = dispatchService;
         _mapper = mapper;
     }
 
@@ -90,7 +93,11 @@ public class MissionService : IMissionService
 
     public async Task<IServiceResult> AcceptMissionAsync(Guid incidentId, Guid rescuerId)
     {
-        var rescuer = await _unitOfWork.Repository<User, Guid>().GetByIdAsync(rescuerId);
+        // Load rescuer without tracking for distance and status checks
+        var rescuer = await _unitOfWork.Repository<User, Guid>().GetWithSpecAsync(
+            new BaseSpecification<User>(u => u.Id == rescuerId), 
+            tracked: false);
+
         if (rescuer?.CurrentLocation == null)
             return new ServiceResult(ResultCodeConst.SYS_Fail0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
 
@@ -106,7 +113,12 @@ public class MissionService : IMissionService
            return new ServiceResult(ResultCodeConst.Incident_Warning0007, await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0007)); // Or a new strict warning code like "Already on mission"
         }
 
-        var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
+        // Load incident without tracking initially (Validation Phase)
+        // This prevents the context from holding a stale RowVersion before the atomic SQL update
+        var incident = await _unitOfWork.Repository<Incident, Guid>().GetWithSpecAsync(
+            new BaseSpecification<Incident>(i => i.Id == incidentId), 
+            tracked: false);
+
         if (incident == null)
             return new ServiceResult(ResultCodeConst.SYS_Warning0002, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002));
 
@@ -237,6 +249,9 @@ public class MissionService : IMissionService
             TimeSpan.FromMinutes(DispatchConstants.WatchdogInitialGraceMins));
 
         await _unitOfWork.SaveChangesAsync();
+
+        // Real-time: Notify community that this incident is now Assigned (remove from available pool)
+        await _dispatchService.NotifyCommunityAsync(incidentId);
 
         // Step 6: Notify victim
         var dto = new SosFallbackDto
@@ -518,6 +533,21 @@ System.Diagnostics.Debug.WriteLine($"Watchdog scheduled at {mission.Id}");
             await _locationHub.Clients
                 .Group(LocationConstants.SignalRGroupPrefix + incident.Id)
                 .SendAsync(LocationConstants.SignalRMissionStatusUpdated, payload);
+
+            // FCM push to victim (app may be backgrounded during rescue)
+            var fcmTitle = newStatus == IncidentStatus.Arrived
+                ? DispatchConstants.PushMissionArrivedTitle
+                : DispatchConstants.PushMissionClosedTitle;
+            var fcmBody = newStatus == IncidentStatus.Arrived
+                ? DispatchConstants.PushMissionArrivedBody
+                : DispatchConstants.PushMissionClosedBody;
+            var fcmData = new Dictionary<string, string>
+            {
+                { "incidentId", incident.Id.ToString() },
+                { "type", DispatchConstants.FcmMissionStatusTitleKey },
+                { "newStatus", newStatus.ToString() }
+            };
+            await _fcmService.SendToUserAsync(incident.VictimId, fcmTitle, fcmBody, fcmData);
         }
 
         return new ServiceResult(ResultCodeConst.Mission_Success0001, await _msgService.GetMessageAsync(ResultCodeConst.Mission_Success0001));

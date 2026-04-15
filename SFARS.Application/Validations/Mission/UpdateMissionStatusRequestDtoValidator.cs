@@ -21,10 +21,9 @@ namespace SFARS.Application.Validations.Mission
             RuleFor(x => x.NewStatus)
                 .Must(status => status == IncidentStatus.EnRoute || 
                                 status == IncidentStatus.Arrived || 
-                                status == IncidentStatus.Handover || 
                                 status == IncidentStatus.Closed)
-                .WithMessage(isVi ? "Bạn chỉ có thể cập nhật trạng thái hoạt động: EnRoute, Arrived, Handover, Closed." 
-                                  : "You can only update active statuses: EnRoute, Arrived, Handover, Closed.");
+                .WithMessage(isVi ? "Bạn chỉ có thể cập nhật trạng thái hoạt động: EnRoute, Arrived, Closed." 
+                                  : "You can only update active statuses: EnRoute, Arrived, Closed.");
         }
     }
 }

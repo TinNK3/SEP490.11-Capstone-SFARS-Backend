@@ -40,6 +40,13 @@ public interface IGeminiAiService
         string contextData,
         string userMessage,
         List<ChatHistoryItem>? history = null);
+
+    /// <summary>
+    /// Generate a semantic embedding vector for a given text (using text-embedding-004).
+    /// </summary>
+    /// <param name="text">The text to embed.</param>
+    /// <returns>A float array representing the vector.</returns>
+    Task<float[]> GenerateEmbeddingAsync(string text);
 }
 
 // ─── Snake detection (Gemini Vision) ───

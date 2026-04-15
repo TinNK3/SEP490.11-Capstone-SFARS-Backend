@@ -48,6 +48,20 @@ public class FacilityController : ControllerBase
     }
 
     /// <summary>
+    /// [Public] Get paginated list of active hospitals.
+    /// Does not require authentication.
+    /// </summary>
+    /// <param name="specParams">Filters and pagination params</param>
+    /// <returns>Paginated list of active hospitals</returns>
+    [AllowAnonymous]
+    [HttpGet(APIRoute.Facility.GetAllPublic, Name = nameof(GetAllPublicFacilitiesAsync))]
+    public async Task<IActionResult> GetAllPublicFacilitiesAsync([FromQuery] BaseSpecParams specParams)
+    {
+        var result = await _facilityService.GetAllPublicFacilitiesAsync(specParams);
+        return this.ToIActionResult(result);
+    }
+
+    /// <summary>
     /// [Admin] Get paginated facility list with optional filters.
     /// </summary>
     /// <remarks>

@@ -1,4 +1,4 @@
-﻿using SFARS.Domain.Common.Enum;
+using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities.Base;
 
 namespace SFARS.Domain.Entities;
@@ -16,6 +16,12 @@ public class Snake : BaseEntity
     public string? DistributionNote { get; set; }
     public string? Note { get; set; }
     public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Semantic embedding vector for the snake (stored as JSON array).
+    /// Used for RAG semantic search.
+    /// </summary>
+    public string? EmbeddingJson { get; set; }
 
     public virtual ICollection<SnakeImage> SnakeImages { get; set; } = new List<SnakeImage>();
     public virtual ICollection<FirstAidDetail> FirstAidDetails { get; set; } = new List<FirstAidDetail>();

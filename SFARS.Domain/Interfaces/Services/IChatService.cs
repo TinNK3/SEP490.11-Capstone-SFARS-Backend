@@ -1,4 +1,5 @@
 using SFARS.Domain.Interfaces.Services.Base;
+using SFARS.Domain.Specifications.Params;
 
 namespace SFARS.Domain.Interfaces.Services;
 
@@ -16,10 +17,15 @@ public interface IChatService
     /// <summary>
     /// Get paginated list of user's chat sessions.
     /// </summary>
-    Task<IServiceResult> GetSessionsAsync(Guid userId, int page, int pageSize);
+    Task<IServiceResult> GetSessionsAsync(Guid userId, BaseSpecParams specParams);
 
     /// <summary>
     /// Get paginated messages of a specific session.
     /// </summary>
-    Task<IServiceResult> GetMessagesAsync(Guid userId, Guid sessionId, int page, int pageSize);
+    Task<IServiceResult> GetMessagesAsync(Guid userId, Guid sessionId, BaseSpecParams specParams);
+
+    /// <summary>
+    /// Delete a chat session.
+    /// </summary>
+    Task<IServiceResult> DeleteSessionAsync(Guid userId, Guid sessionId);
 }

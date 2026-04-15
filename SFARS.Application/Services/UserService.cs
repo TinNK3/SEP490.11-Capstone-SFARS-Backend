@@ -117,15 +117,15 @@ namespace SFARS.Application.Services
         /// <inheritdoc />
         public async Task<IServiceResult> GetRescuersForMapAsync()
         {
-            var threshold = DateTime.UtcNow.AddHours(-LocationConstants.LocationMapStaleHours);
+            // var threshold = DateTime.UtcNow.AddHours(-LocationConstants.LocationMapStaleHours);
 
             var rescuers = await _unitOfWork.Repository<RescuerProfile, Guid>()
                 .GetQueryable()
                 .AsNoTracking()
                 .Where(rp => rp.IsVerified && 
                              rp.IsAvailable && 
-                             rp.User.CurrentLocation != null &&
-                             rp.User.LocationUpdatedAt >= threshold)
+                             rp.User.CurrentLocation != null)
+                             // && rp.User.LocationUpdatedAt >= threshold)
                 .Select(rp => new RescuerMapDto
                 {
                     Id = rp.UserId,

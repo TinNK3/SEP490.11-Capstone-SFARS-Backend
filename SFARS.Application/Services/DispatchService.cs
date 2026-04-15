@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using NetTopologySuite.Geometries;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos.Dispatch;
+using SFARS.Application.Dtos.Incident;
 using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
@@ -72,21 +73,32 @@ public class DispatchService : IDispatchService
             return;
         }
 
-        var j1 = _jobs.Schedule<IDispatchService>(
-            q => q.RunTier1Async(incidentId), DispatchConstants.Tier1Delay);
-        var j2 = _jobs.Schedule<IDispatchService>(
-            q => q.RunTier2Async(incidentId), DispatchConstants.Tier2Delay);
-        var j3 = _jobs.Schedule<IDispatchService>(
-            q => q.RunTier3Async(incidentId), DispatchConstants.Tier3Delay);
-        var jf = _jobs.Schedule<IDispatchService>(
-            q => q.RunFallbackAsync(incidentId), DispatchConstants.FallbackDelay);
-
-        incident.DispatchJobIds = JsonSerializer.Serialize(new[] { j1, j2, j3, jf });
+        // Step 1: Update status to Tier 1 BEFORE enqueuing jobs to avoid race conditions
         incident.CurrentStatus = IncidentStatus.Dispatching_Tier1;
         incident.UpdatedAt = DateTime.UtcNow;
         await _unitOfWork.SaveChangesAsync();
 
-        _logger.LogInformation("Dispatch chain scheduled for IncidentId={Id}. Jobs={Jobs}",
+        // Step 2: Enqueue/Schedule search tiers
+        var j1 = _jobs.Enqueue<IDispatchService>(
+            q => q.RunTier1Async(incidentId));
+
+        var j2 = _jobs.Schedule<IDispatchService>(
+            q => q.RunTier2Async(incidentId), DispatchConstants.Tier2Delay);
+
+        var j3 = _jobs.Schedule<IDispatchService>(
+            q => q.RunTier3Async(incidentId), DispatchConstants.Tier3Delay);
+
+        var jf = _jobs.Schedule<IDispatchService>(
+            q => q.RunFallbackAsync(incidentId), DispatchConstants.FallbackDelay);
+
+        // Update with Job IDs for tracking/cancellation
+        incident.DispatchJobIds = JsonSerializer.Serialize(new[] { j1, j2, j3, jf });
+        await _unitOfWork.SaveChangesAsync();
+
+        // Real-time: Notify all rescuers about new incident in community list
+        await NotifyCommunityAsync(incidentId);
+
+        _logger.LogInformation("Dispatch chain started for IncidentId={Id}. Status updated to Dispatching_Tier1. Jobs={Jobs}",
             incidentId, incident.DispatchJobIds);
     }
 
@@ -135,6 +147,8 @@ public class DispatchService : IDispatchService
             return;
         }
 
+        // Capture old status BEFORE mutation for accurate audit trail
+        var oldStatus = incident.CurrentStatus;
         incident.CurrentStatus = IncidentStatus.Unassigned;
         incident.UpdatedAt = DateTime.UtcNow;
 
@@ -143,7 +157,7 @@ public class DispatchService : IDispatchService
         {
             Id = Guid.NewGuid(),
             IncidentId = incidentId,
-            StatusFrom = incident.CurrentStatus,
+            StatusFrom = oldStatus,
             StatusTo = IncidentStatus.Unassigned,
             ChangedBy = Guid.Empty, // System-initiated
             ChangeReason = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Reason0007),
@@ -162,6 +176,9 @@ public class DispatchService : IDispatchService
         await _locationHub.Clients
             .Group(LocationConstants.SignalRGroupPrefix + incidentId)
             .SendAsync(DispatchConstants.EventFallback, fallbackDto);
+
+        // Real-time: Notify community about status change to Unassigned
+        await NotifyCommunityAsync(incidentId);
 
         var fcmTitle = "Cập nhật yêu cầu cứu hộ SOS";
         var fcmData = new Dictionary<string, string>
@@ -387,6 +404,7 @@ public class DispatchService : IDispatchService
 
         // STDistance is executed inside SQL Server because it's in the Expression tree of the Specification.
         var spec = new BaseSpecification<User>(u =>
+            u.Status == UserStatus.Active &&
             u.RescuerProfile != null &&
             u.RescuerProfile.IsAvailable &&
             u.RescuerProfile.IsVerified &&
@@ -415,6 +433,36 @@ public class DispatchService : IDispatchService
         return sortedCandidates;
     }
 
+    /// <inheritdoc />
+    public async Task NotifyCommunityAsync(Guid incidentId)
+    {
+        var spec = new BaseSpecification<Incident>(i => i.Id == incidentId);
+        spec.ApplyInclude(q => q.Include(i => i.Medias));
+
+        var incident = await _unitOfWork.Repository<Incident, Guid>().GetWithSpecAsync(spec, tracked: false);
+        if (incident == null) return;
+
+        var dto = new CommunityIncidentDto
+        {
+            Id = incident.Id,
+            Code = incident.Code,
+            // Masked coordinates (rounded to 3 decimal places for general area, ~110 meters accuracy)
+            Latitude = Math.Round(incident.Location.Y, 3),
+            Longitude = Math.Round(incident.Location.X, 3),
+            CurrentStatus = incident.CurrentStatus,
+            PriorityLevel = incident.PriorityLevel,
+            CreatedAt = incident.CreatedAt,
+            // Display incident image (Snake or Wound)
+            IncidentImage = incident.Medias.OrderBy(m => m.MediaType).Select(m => m.MediaUrl).FirstOrDefault()
+        };
+
+        await _rescueHub.Clients.Group(DispatchConstants.AllRescuersGroup)
+            .SendAsync(DispatchConstants.EventCommunityIncidentUpdated, dto);
+
+        _logger.LogInformation("Broadcasted community update for IncidentId={Id}, Status={S}",
+            incidentId, incident.CurrentStatus);
+    }
+
     private async Task<bool> AnyAvailableRescuerWithinAsync(Point incidentLocation, double radiusMeters)
     {
         // Fail-fast MUST be a superset of all dispatch tiers. 
@@ -422,6 +470,7 @@ public class DispatchService : IDispatchService
         var heartbeatCutoff = DateTime.UtcNow.AddHours(-DispatchConstants.Tier3FreshnessHours);
 
         var spec = new BaseSpecification<User>(u =>
+            u.Status == UserStatus.Active &&
             u.RescuerProfile != null &&
             u.RescuerProfile.IsAvailable &&
             u.RescuerProfile.IsVerified &&

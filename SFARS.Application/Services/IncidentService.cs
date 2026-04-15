@@ -2,6 +2,7 @@ using Hangfire;
 using MapsterMapper;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NetTopologySuite.Geometries;
@@ -39,6 +40,8 @@ namespace SFARS.Application.Services
         private readonly IHubContext<RescueDispatchHub> _rescueHub;
         private readonly IHubContext<LocationTrackingHub> _locationHub;
         private readonly IFcmPushService _fcmService;
+        private readonly IConfiguration _configuration;
+        private readonly IDispatchService _dispatchService;
 
         public IncidentService(
             ISystemMessageService msgService,
@@ -52,7 +55,9 @@ namespace SFARS.Application.Services
             ISpeechToTextService speechToTextService,
             IHubContext<RescueDispatchHub> rescueHub,
             IHubContext<LocationTrackingHub> locationHub,
-            IFcmPushService fcmService)
+            IFcmPushService fcmService,
+            IConfiguration configuration,
+            IDispatchService dispatchService)
             : base(msgService, unitOfWork, mapper, logger)
         {
             _fileStorageService = fileStorageService;
@@ -63,6 +68,8 @@ namespace SFARS.Application.Services
             _rescueHub = rescueHub;
             _locationHub = locationHub;
             _fcmService = fcmService;
+            _configuration = configuration;
+            _dispatchService = dispatchService;
         }
 
 
@@ -226,33 +233,24 @@ namespace SFARS.Application.Services
             var spec = new IncidentSpecification(specParams, userId, isCount: false);
 
             var dtos = await _unitOfWork.Repository<Incident, Guid>()
-                .GetAllWithSpecAndSelectorAsync(spec, i => new IncidentDto
+                .GetAllWithSpecAndSelectorAsync(spec, i => new IncidentHistoryDto
                 {
                     Id = i.Id,
                     Code = i.Code,
-                    Latitude = i.Location.Y,
-                    Longitude = i.Location.X,
-                    AddressString = i.AddressString,
-                    Description = i.Description,
                     CurrentStatus = i.CurrentStatus,
                     PriorityLevel = i.PriorityLevel,
-                    AiPredictionResult = i.AiPredictionResult,
-                    AiConfidenceScore = i.AiConfidenceScore,
-                    SnakeId = i.SnakeId,
-                    VictimId = i.VictimId,
-                    VictimName = i.Victim.FullName,
+                    Latitude = i.Location.Y,
+                    Longitude = i.Location.X,
+
                     CreatedAt = i.CreatedAt,
-                    SymptomAudioUrl = i.SymptomAudioUrl,
-                    SymptomText = i.SymptomText,
-                    MinutesSinceBite = i.MinutesSinceBite,
-                    ExtractedSymptoms = i.ExtractedSymptoms
+                    IncidentImage = i.Medias.OrderBy(m => m.MediaType).Select(m => m.MediaUrl).FirstOrDefault()
                 }, tracked: false);
 
             var limit = specParams.GetTake();
             var page = specParams.GetPage();
             var totalPages = limit > 0 ? (int)Math.Ceiling(totalItems / (double)limit) : 0;
 
-            var pagedResult = new PaginatedResultDto<IncidentDto>(
+            var pagedResult = new PaginatedResultDto<IncidentHistoryDto>(
                 dtos,
                 page,
                 limit,
@@ -285,16 +283,11 @@ namespace SFARS.Application.Services
                     Description = i.Description,
                     CurrentStatus = i.CurrentStatus,
                     PriorityLevel = i.PriorityLevel,
-                    AiPredictionResult = i.AiPredictionResult,
                     AiConfidenceScore = i.AiConfidenceScore,
-                    SnakeId = i.SnakeId,
+                    IncidentImage = i.Medias.OrderBy(m => m.MediaType).Select(m => m.MediaUrl).FirstOrDefault(),
                     VictimId = i.VictimId,
                     VictimName = i.Victim.FullName,
-                    CreatedAt = i.CreatedAt,
-                    SymptomAudioUrl = i.SymptomAudioUrl,
-                    SymptomText = i.SymptomText,
-                    MinutesSinceBite = i.MinutesSinceBite,
-                    ExtractedSymptoms = i.ExtractedSymptoms
+                    CreatedAt = i.CreatedAt
                 }, tracked: false);
 
             var limit = specParams.GetTake();
@@ -368,8 +361,7 @@ namespace SFARS.Application.Services
                     CurrentStatus = i.CurrentStatus,
                     PriorityLevel = i.PriorityLevel,
                     CreatedAt = i.CreatedAt,
-                    SnakeId = (i.HumanReviewedSnakeId != null) ? i.HumanReviewedSnakeId : 
-                              (i.AiConfidenceScore > 0.85) ? i.SnakeId : null
+                    IncidentImage = i.Medias.OrderBy(m => m.MediaType).Select(m => m.MediaUrl).FirstOrDefault()
                 }, tracked: false);
 
             var limit = specParams.GetTake();
@@ -394,23 +386,15 @@ namespace SFARS.Application.Services
         /// <summary>
         /// Get incident by ID with authorization check (user must be victim or rescuer)
         /// </summary>
-        public async Task<IServiceResult> GetIncidentByIdAsync(Guid userId, Guid incidentId)
+        public async Task<IServiceResult> GetIncidentByIdAsync(Guid incidentId)
         {
-            if (userId == Guid.Empty)
-            {
-                return new ServiceResult(
-                    ResultCodeConst.Auth_Warning0013,
-                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0013)
-                );
-            }
-
-            var spec = new BaseSpecification<Incident>(i =>
-                i.Id == incidentId &&
-                (
-                    i.VictimId == userId ||
-                    i.Missions.Any(m => m.RescuerId == userId)
-                )
-            );
+            var spec = new BaseSpecification<Incident>(i => i.Id == incidentId);
+            spec.ApplyInclude(q => q.Include(i => i.Victim));
+            spec.ApplyInclude(q => q.Include(i => i.Medias));
+            spec.ApplyInclude(q => q.Include(i => i.Missions));
+            spec.ApplyInclude(q => q.Include(i => i.CurrentAiInference)
+                                     .ThenInclude(ai => ai.Candidates)
+                                     .ThenInclude(c => c.Snake));
 
             var incident = await _unitOfWork.Repository<Incident, Guid>()
                 .GetWithSpecAsync(spec, tracked: false);
@@ -433,22 +417,49 @@ namespace SFARS.Application.Services
                 Description = incident.Description,
                 CurrentStatus = incident.CurrentStatus,
                 PriorityLevel = incident.PriorityLevel,
-                AiPredictionResult = incident.AiPredictionResult,
                 AiConfidenceScore = incident.AiConfidenceScore,
-                SnakeId = incident.SnakeId,
-                VictimId = incident.VictimId,
-                VictimName = incident.Victim?.FullName,
+                IncidentImage = incident.Medias.OrderBy(m => m.MediaType).Select(m => m.MediaUrl).FirstOrDefault(),
                 CreatedAt = incident.CreatedAt,
-                SymptomAudioUrl = incident.SymptomAudioUrl,
-                SymptomText = incident.SymptomText,
-                MinutesSinceBite = incident.MinutesSinceBite,
-                ExtractedSymptoms = incident.ExtractedSymptoms
+                RescuerId = incident.Missions
+                    .OrderByDescending(m => m.CreatedAt)
+                    .FirstOrDefault(m => m.Status == RescueStatus.Accepted || 
+                                         m.Status == RescueStatus.Completed || 
+                                         m.Status == RescueStatus.Pending)
+                    ?.RescuerId
             };
 
-            // Get FirstAid/Prohibitions from Source-of-Truth
-            var (steps, prohibitions) = await _aiReviewService.GetEffectiveFirstAidProtocolAsync(incident);
-            dto.FirstAidSteps = steps;
-            dto.Prohibitions = prohibitions;
+            // Map AI Results if available
+            if (incident.CurrentAiInference != null)
+            {
+                // 1. Wound Analysis
+                if (incident.CurrentAiInference.IsSnakeBite.HasValue)
+                {
+                    dto.WoundAnalysis = new WoundAnalysisDto
+                    {
+                        IsWoundDetected = true, // Implicitly true if we are in this block
+                        IsSnakeBite = incident.CurrentAiInference.IsSnakeBite.Value,
+                        Confidence = incident.AiConfidenceScore ?? 0
+                    };
+                }
+
+                // 2. Snake Predictions (Trained candidates)
+                var allPredictions = incident.CurrentAiInference.Candidates
+                    .OrderBy(c => c.Rank)
+                    .Select(c => new SnakeCandidateDto
+                    {
+                        SnakeId = c.SnakeId,
+                        ScientificName = c.Snake.ScientificName,
+                        CommonName = c.Snake.CommonName,
+                        Confidence = c.Confidence,
+                        ToxicityLevel = c.Snake.ToxicityLevel,
+                        ToxinGroup = c.Snake.ToxinGroup,
+                        DangerSummary = AiInferenceConstants.GetDangerLabel(c.Snake.ToxicityLevel),
+                        TypicalSymptoms = c.Snake.TypicalSymptoms
+                    }).ToList();
+
+                dto.PrimarySnake = allPredictions.FirstOrDefault();
+                dto.OtherCandidates = allPredictions.Skip(dto.PrimarySnake != null ? 1 : 0).ToList();
+            }
 
             return new ServiceResult(
                 ResultCodeConst.SYS_Success0002,
@@ -901,6 +912,9 @@ namespace SFARS.Application.Services
                     await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001)
                 );
 
+            // Real-time: Notify community that this incident was cancelled
+            await _dispatchService.NotifyCommunityAsync(incidentId);
+
             // Record cancellation in anti-spam guard (fire-and-forget)
             await _spamGuard.RecordCancellationAsync(userId);
 
@@ -1044,6 +1058,9 @@ namespace SFARS.Application.Services
                     ResultCodeConst.SYS_Fail0001,
                     await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001)
                 );
+
+            // Real-time: Notify community that this incident is resolved/closed
+            await _dispatchService.NotifyCommunityAsync(incidentId);
 
             _logger.LogInformation(
                 "Incident {IncidentId} resolved via fallback by victim {UserId}.",
@@ -1405,6 +1422,7 @@ namespace SFARS.Application.Services
             {
                 var heartbeatCutoff = DateTime.UtcNow.AddHours(-DispatchConstants.Tier3FreshnessHours);
                 var rescuerSpec = new BaseSpecification<User>(u =>
+                    u.Status == UserStatus.Active &&
                     u.RescuerProfile != null &&
                     u.RescuerProfile.IsAvailable &&
                     u.RescuerProfile.IsVerified &&
@@ -1456,6 +1474,99 @@ namespace SFARS.Application.Services
                     "Symptom broadcast (Unassigned) sent to {Count} rescuers. IncidentId={Id}",
                     rescuers.Count(), incidentId);
             }
+        }
+
+        #endregion
+        #region SMS Gateway 
+
+        /// <summary>
+        /// Processes an incoming SOS from an SMS via a DIY Gateway.
+        /// Extracts GPS, finds the user by phone number, and creates the Incident.
+        /// </summary>
+        public async Task<IServiceResult> ProcessSmsWebhookAsync(string senderPhone, string messageBody, string secretKey)
+        {
+            var expectedKey = _configuration["SmsGateway:SecretKey"];
+            if (string.IsNullOrEmpty(expectedKey) || secretKey != expectedKey)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Incident_Warning0011,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0011)
+                );
+            }
+
+            // Fallback expected format: "SFARS SOS 10.772,106.698"
+            var text = messageBody?.Trim();
+            if (string.IsNullOrEmpty(text) || !text.StartsWith(DispatchConstants.SmsSosPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Incident_Warning0012, 
+                    await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0012)
+                );
+            }
+
+            var parts = text.Substring(DispatchConstants.SmsSosPrefix.Length).Split(',', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length != 2 || 
+                !double.TryParse(parts[0], out var lat) || 
+                !double.TryParse(parts[1], out var lng))
+            {
+                return new ServiceResult(
+                    ResultCodeConst.Incident_Warning0013, 
+                    await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0013)
+                );
+            }
+
+            // Normalize phone: e.g. +84901234567 -> 0901234567
+            var normalizedPhone = NormalizeVnPhoneNumber(senderPhone);
+
+            // Find user in database
+            var user = await _unitOfWork.Repository<User, Guid>()
+                .GetQueryable(tracked: false)
+                .FirstOrDefaultAsync(u => u.Phone == normalizedPhone);
+
+            if (user == null)
+            {
+                _logger.LogWarning("SMS SOS received but no matching user found for phone: {Phone}", normalizedPhone);
+                return new ServiceResult(
+                    ResultCodeConst.Incident_Warning0014, 
+                    await _msgService.GetMessageAsync(ResultCodeConst.Incident_Warning0014)
+                );
+            }
+
+            // Automatically create Incident on behalf of this user
+            var dto = new IncidentDto
+            {
+                Latitude = lat,
+                Longitude = lng,
+                AddressString = DispatchConstants.SmsAddressFallback,
+                Description = DispatchConstants.SmsDescriptionFallback,
+                PriorityLevel = SeverityLevel.Critical // Always treat offline SOS as Critical
+            };
+
+            var createResult = await CreateIncidentAsync(user.Id, dto);
+            if (!createResult.ResultCode.Contains("Success"))
+            {
+                _logger.LogError("Failed to create Incident from SMS: {Message}", createResult.Message);
+                return createResult;
+            }
+
+            // [CRITICAL] Trigger the actual SOS dispatch flow (Ping Rescuers)
+            // Since it's an offline fallback, we bypass the grace period and dispatch immediately.
+            if (createResult.Data is IncidentDto createdIncident)
+            {
+                BackgroundJob.Enqueue<IDispatchService>(s => s.StartDispatchAsync(createdIncident.Id));
+                _logger.LogInformation("SMS SOS Dispatch triggered for Incident {Code}", createdIncident.Code);
+            }
+            
+            return createResult;
+        }
+
+        public static string NormalizeVnPhoneNumber(string phone)
+        {
+            if (string.IsNullOrWhiteSpace(phone)) return string.Empty;
+            var clean = new string(phone.Where(c => char.IsDigit(c) || c == '+').ToArray());
+            if (clean.StartsWith("+84")) clean = "0" + clean.Substring(3);
+            if (clean.StartsWith("84")) clean = "0" + clean.Substring(2);
+            return clean;
         }
 
         #endregion

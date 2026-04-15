@@ -6,8 +6,6 @@ using SFARS.API.Payloads.Request.Admin;
 using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Specifications.Params;
-using System;
-using System.Threading.Tasks;
 
 namespace SFARS.API.Controller
 {
@@ -36,6 +34,7 @@ namespace SFARS.API.Controller
             return this.ToIActionResult(result);
         }
 
+        [AllowAnonymous]
         [HttpGet(APIRoute.Analytics.Heatmap, Name = nameof(GetHeatmapAsync))]
         public async Task<IActionResult> GetHeatmapAsync([FromQuery] AnalyticsSpecParams filter)
         {

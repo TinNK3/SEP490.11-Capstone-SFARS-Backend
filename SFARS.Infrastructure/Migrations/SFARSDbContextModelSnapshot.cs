@@ -680,6 +680,10 @@ namespace SFARS.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("created_by");
 
+                    b.Property<string>("EmbeddingJson")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("embedding_json");
+
                     b.Property<string>("ImageUrl")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)")
@@ -736,6 +740,75 @@ namespace SFARS.Infrastructure.Migrations
                         .HasFilter("[snake_id] IS NOT NULL");
 
                     b.ToTable("FirstAidDetail", (string)null);
+                });
+
+            modelBuilder.Entity("SFARS.Domain.Entities.GeminiApiKey", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("ConsecutiveFailures")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ExhaustedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsExhausted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("KeyValue")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("TotalUsageCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("KeyValue")
+                        .IsUnique();
+
+                    b.HasIndex("IsActive", "IsExhausted", "LastUsedAt");
+
+                    b.ToTable("GeminiApiKeys", (string)null);
                 });
 
             modelBuilder.Entity("SFARS.Domain.Entities.Incident", b =>
@@ -2794,6 +2867,10 @@ namespace SFARS.Infrastructure.Migrations
                     b.Property<string>("DistributionNote")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("distribution_note");
+
+                    b.Property<string>("EmbeddingJson")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("embedding_json");
 
                     b.Property<string>("Habitat")
                         .HasColumnType("nvarchar(max)")

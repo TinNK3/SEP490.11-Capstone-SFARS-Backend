@@ -8,10 +8,13 @@ public class CommunityIncidentSpecification : BaseSpecification<Incident>
 {
     public CommunityIncidentSpecification(BaseSpecParams specParams, bool isCount = false)
         : base(x => 
+            x.CurrentStatus == IncidentStatus.Dispatching_Tier1 ||
+            x.CurrentStatus == IncidentStatus.Dispatching_Tier2 ||
+            x.CurrentStatus == IncidentStatus.Dispatching_Tier3 ||
+            x.CurrentStatus == IncidentStatus.Unassigned ||
             x.CurrentStatus == IncidentStatus.Assigned ||
             x.CurrentStatus == IncidentStatus.EnRoute ||
             x.CurrentStatus == IncidentStatus.Arrived ||
-            x.CurrentStatus == IncidentStatus.Handover ||
             x.CurrentStatus == IncidentStatus.Closed)
     {
         if (!isCount)

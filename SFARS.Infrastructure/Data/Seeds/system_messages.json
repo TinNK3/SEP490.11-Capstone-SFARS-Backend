@@ -12,6 +12,12 @@
     "Vi": "Phiên chat này đã kết thúc."
   },
   {
+    "MsgId": "Chat.Warning0002",
+    "MsgContent": "Rate limit exceeded. Please wait a few seconds before sending another message.",
+    "En": "Rate limit exceeded. Please wait a few seconds before sending another message.",
+    "Vi": "Vui lòng chờ vài giây trước khi gửi tin nhắn tiếp theo."
+  },
+  {
     "MsgId": "Chat.Fail0001",
     "MsgContent": "AI assistant is temporarily unavailable. Please try again later.",
     "En": "AI assistant is temporarily unavailable. Please try again later.",
@@ -964,5 +970,149 @@
     "MsgContent": "System automatically closed the incident due to inactivity in unassigned state.",
     "En": "System automatically closed the incident due to inactivity in unassigned state.",
     "Vi": "Hệ thống tự động đóng ca cấp cứu do quá thời gian chờ phản hồi."
+  },
+  {
+    "MsgId": "Incident.Warning0011",
+    "MsgContent": "Invalid Gateway Secret Key.",
+    "En": "Invalid Gateway Secret Key.",
+    "Vi": "Mã bí mật Gateway không hợp lệ."
+  },
+  {
+    "MsgId": "Incident.Warning0012",
+    "MsgContent": "Invalid SOS message format.",
+    "En": "Invalid SOS message format.",
+    "Vi": "Định dạng tin nhắn SOS không hợp lệ."
+  },
+  {
+    "MsgId": "Incident.Warning0013",
+    "MsgContent": "Invalid coordinates format in SMS.",
+    "En": "Invalid coordinates format in SMS.",
+    "Vi": "Định dạng tọa độ trong SMS không hợp lệ."
+  },
+  {
+    "MsgId": "Incident.Warning0014",
+    "MsgContent": "No user found with this phone number.",
+    "En": "No user found with this phone number.",
+    "Vi": "Không tìm thấy người dùng tương ứng với số điện thoại này."
+  },
+  {
+    "MsgId": "Incident.Notify0007",
+    "MsgContent": "Victim has retaken a photo. AI analysis has been updated. Please check the latest information.",
+    "En": "Victim has retaken a photo. AI analysis has been updated. Please check the latest information.",
+    "Vi": "Nạn nhân đã chụp lại ảnh. Kết quả nhận diện AI đã được cập nhật. Vui lòng kiểm tra thông tin mới nhất."
+  },
+  {
+    "MsgId": "VideoCall.Success0001",
+    "MsgContent": "Video call token generated.",
+    "En": "Video call token generated.",
+    "Vi": "Đã tạo mã kết nối cuộc gọi video."
+  },
+  {
+    "MsgId": "VideoCall.Warning0001",
+    "MsgContent": "You are not authorized to join this call.",
+    "En": "You are not authorized to join this call.",
+    "Vi": "Bạn không có quyền tham gia cuộc gọi này."
+  },
+  {
+    "MsgId": "VideoCall.Warning0002",
+    "MsgContent": "The incident is not in a state that allows calling.",
+    "En": "The incident is not in a state that allows calling.",
+    "Vi": "Sự cố đang ở trạng thái không cho phép thực hiện cuộc gọi."
+  },
+  {
+    "MsgId": "VideoCall.Warning0003",
+    "MsgContent": "Video call configuration is missing.",
+    "En": "Video call configuration is missing.",
+    "Vi": "Cấu hình cuộc gọi video bị thiếu."
+  },
+  {
+    "MsgId": "GeminiKey.Success0001",
+    "MsgContent": "API key added successfully.",
+    "En": "API key added successfully.",
+    "Vi": "Đã thêm API key thành công."
+  },
+  {
+    "MsgId": "GeminiKey.Success0002",
+    "MsgContent": "API key status updated.",
+    "En": "API key status updated.",
+    "Vi": "Đã cập nhật trạng thái API key."
+  },
+  {
+    "MsgId": "GeminiKey.Success0003",
+    "MsgContent": "API key deleted.",
+    "En": "API key deleted.",
+    "Vi": "Đã xóa API key."
+  },
+  {
+    "MsgId": "GeminiKey.Success0004",
+    "MsgContent": "Exhausted keys have been reset.",
+    "En": "Exhausted keys have been reset.",
+    "Vi": "Các key hết quota đã được khôi phục."
+  },
+  {
+    "MsgId": "GeminiKey.Warning0001",
+    "MsgContent": "This API key already exists.",
+    "En": "This API key already exists.",
+    "Vi": "API key này đã tồn tại trong hệ thống."
+  },
+  {
+    "MsgId": "GeminiKey.Warning0002",
+    "MsgContent": "Cannot delete the last active API key.",
+    "En": "Cannot delete the last active API key.",
+    "Vi": "Không thể xóa API key hoạt động cuối cùng."
+  },
+  {
+    "MsgId": "GeminiKey.Warning0003",
+    "MsgContent": "Low active API key count. Please add more keys to ensure service availability.",
+    "En": "Low active API key count. Please add more keys to ensure service availability.",
+    "Vi": "Số lượng API key khả dụng đang thấp. Vui lòng thêm key mới để đảm bảo hoạt động."
+  },
+  {
+    "MsgId": "FirstAid.Success0001",
+    "MsgContent": "First aid detail created successfully.",
+    "En": "First aid detail created successfully.",
+    "Vi": "Tạo hướng dẫn sơ cứu thành công."
+  },
+  {
+    "MsgId": "FirstAid.Success0002",
+    "MsgContent": "First aid detail updated successfully.",
+    "En": "First aid detail updated successfully.",
+    "Vi": "Cập nhật hướng dẫn sơ cứu thành công."
+  },
+  {
+    "MsgId": "FirstAid.Success0003",
+    "MsgContent": "First aid detail deleted successfully.",
+    "En": "First aid detail deleted successfully.",
+    "Vi": "Xóa hướng dẫn sơ cứu thành công."
+  },
+  {
+    "MsgId": "FirstAid.Warning0001",
+    "MsgContent": "First aid detail not found.",
+    "En": "First aid detail not found.",
+    "Vi": "Không tìm thấy hướng dẫn sơ cứu."
+  },
+  {
+    "MsgId": "FirstAid.Warning0002",
+    "MsgContent": "A first aid step with the same ToxinGroup, LanguageCode, StepOrder and SnakeId already exists.",
+    "En": "A first aid step with the same ToxinGroup, LanguageCode, StepOrder and SnakeId already exists.",
+    "Vi": "Bước sơ cứu với cùng nhóm độc tố, ngôn ngữ, thứ tự bước và loài rắn đã tồn tại."
+  },
+  {
+    "MsgId": "FirstAid.Warning0003",
+    "MsgContent": "Invalid ToxinGroup value.",
+    "En": "Invalid ToxinGroup value.",
+    "Vi": "Giá trị nhóm độc tố không hợp lệ."
+  },
+  {
+    "MsgId": "FirstAid.Warning0004",
+    "MsgContent": "Invalid LanguageCode value.",
+    "En": "Invalid LanguageCode value.",
+    "Vi": "Giá trị mã ngôn ngữ không hợp lệ."
+  },
+  {
+    "MsgId": "FirstAid.Warning0005",
+    "MsgContent": "The specified snake was not found.",
+    "En": "The specified snake was not found.",
+    "Vi": "Không tìm thấy loài rắn được chỉ định."
   }
 ]

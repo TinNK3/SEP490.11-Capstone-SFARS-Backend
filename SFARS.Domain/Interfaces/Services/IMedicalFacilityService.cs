@@ -25,6 +25,12 @@ public interface IMedicalFacilityService<TDto> : IGenericService<MedicalFacility
     Task<IServiceResult> GetAllFacilitiesAsync(FacilitySpecParams specParams);
 
     /// <summary>
+    /// [Public] Get paginated list of active hospitals.
+    /// Does not require authentication.
+    /// </summary>
+    Task<IServiceResult> GetAllPublicFacilitiesAsync(BaseSpecParams specParams);
+
+    /// <summary>
     /// [Admin] Get facility by ID.
     /// </summary>
     Task<IServiceResult> GetFacilityByIdAsync(Guid id);

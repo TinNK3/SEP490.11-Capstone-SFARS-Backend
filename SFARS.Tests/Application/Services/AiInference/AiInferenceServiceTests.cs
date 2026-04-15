@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -12,6 +13,7 @@ using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Repositories.Base;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Infrastructure.Configurations;
+using SFARS.Infrastructure.Hubs;
 using AiInferenceEntity = SFARS.Domain.Entities.AiInference;
 
 namespace SFARS.Tests.Application.Services.AiInference;
@@ -118,7 +120,10 @@ public class AiInferenceServiceTests
             _storageOptionsMock.Object,
             _yoloOptionsMock.Object,
             _woundOptionsMock.Object,
-            _backgroundJobClientMock.Object
+            _backgroundJobClientMock.Object,
+            new Mock<IHubContext<RescueDispatchHub>>().Object,
+            new Mock<IHubContext<LocationTrackingHub>>().Object,
+            new Mock<IFcmPushService>().Object
         );
     }
 

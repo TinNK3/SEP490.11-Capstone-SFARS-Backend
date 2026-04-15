@@ -8,6 +8,7 @@ using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Infrastructure;
+using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Models;
 using SFARS.Domain.Specifications;
 using SFARS.Infrastructure.Helpers;
@@ -34,6 +35,7 @@ public class LocationBroadcastService : ILocationBroadcastService
     private readonly ILogger<LocationBroadcastService> _logger;
     private readonly IConnectionMultiplexer _redis;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IFcmPushService _fcmService;
 
     private static readonly TimeSpan ThrottleInterval = LocationConstants.BroadcastThrottleInterval;
     private static readonly TimeSpan IncidentsCacheTtl = LocationConstants.UserIncidentsCacheTtl;
@@ -45,7 +47,8 @@ public class LocationBroadcastService : ILocationBroadcastService
         ILocationCacheService cacheService,
         IConnectionMultiplexer redis,
         ILogger<LocationBroadcastService> logger,
-        IServiceScopeFactory scopeFactory)
+        IServiceScopeFactory scopeFactory,
+        IFcmPushService fcmService)
     {
         _hubContext = hubContext;
         _rescueHub = rescueHub;
@@ -54,6 +57,7 @@ public class LocationBroadcastService : ILocationBroadcastService
         _redis = redis;
         _logger = logger;
         _scopeFactory = scopeFactory;
+        _fcmService = fcmService;
     }
 
     public async Task BroadcastLocationToIncidentsAsync(Guid userId)
@@ -99,7 +103,7 @@ public class LocationBroadcastService : ILocationBroadcastService
                 .SendAsync(LocationConstants.SignalRReceiveLocationUpdate, payload);
         }
 
-        // --- GEOFENCING AUTO-SUGGEST ARRIVED ---
+        // GEOFENCING AUTO-SUGGEST ARRIVED
         // Fire-and-forget style to not block the broadcast of location
         _ = ProcessGeofenceArrivedSuggestionAsync(userId, location);
     }
@@ -223,7 +227,20 @@ public class LocationBroadcastService : ILocationBroadcastService
                         await _rescueHub.Clients
                             .Group(DispatchConstants.RescuerGroupPrefix + userId)
                             .SendAsync(DispatchConstants.EventSuggestArrived, payload);
-                            
+
+                        // FCM push (rescuer riding → app likely in background)
+                        var fcmData = new Dictionary<string, string>
+                        {
+                            { "incidentId", incident.Id.ToString() },
+                            { "missionId", mission.Id.ToString() },
+                            { "type", DispatchConstants.FcmSuggestArrivedTitleKey }
+                        };
+                        await _fcmService.SendToUserAsync(
+                            userId,
+                            DispatchConstants.PushSuggestArrivedTitle,
+                            DispatchConstants.PushSuggestArrivedBody,
+                            fcmData);
+
                         _logger.LogInformation("GeoFence Triggered! Suggesting Arrived to Rescuer {RescuerId} for Incident {IncidentId}. Dist: {Dist}m", userId, incident.Id, distMeters);
                     }
                 }

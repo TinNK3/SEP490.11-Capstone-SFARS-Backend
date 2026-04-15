@@ -64,16 +64,23 @@ public static class DispatchConstants
     // Firebase Messaging keys
     public const string FcmSosDispatchTitleKey = "sos_dispatch";
 
-    // SignalR Group Prefix
     /// <summary>
     /// Per-user dispatch group: "dispatch:user:{userId}".
     /// DispatchService pushes to this group so only that rescuer receives the event.
     /// </summary>
     public const string RescuerGroupPrefix = "dispatch:user:";
 
-    // SignalR Event Names
+    /// <summary>
+    /// Global group for all connected and verified rescuers.
+    /// Used for broadcasting community-wide incident updates.
+    /// </summary>
+    public const string AllRescuersGroup = "dispatch:rescuers:all";
+
     /// <summary>Pushed to rescuers when a new SOS is dispatched in their tier.</summary>
     public const string EventNewDispatch   = "sos:dispatch";
+
+    /// <summary>Pushed to the global rescuers group when a community incident is created or status changes.</summary>
+    public const string EventCommunityIncidentUpdated = "sos:community_updated";
 
     /// <summary>Pushed to the victim when all tiers fail — triggers fallback UI.</summary>
     public const string EventFallback      = "sos:fallback";
@@ -83,6 +90,9 @@ public static class DispatchConstants
 
     /// <summary>Pushed privately to rescuer when their Location pings trigger the Arrived Geofence.</summary>
     public const string EventSuggestArrived = "sos:suggest_arrived";
+
+    /// <summary>Pushed to rescuers when the victim re-analyzes (retakes photo) during an active incident.</summary>
+    public const string EventAiUpdated = "sos:ai_updated";
 
     // FCM Notification Text Constants
     public const string PushTitlePrefix = "SOS Rắn Cắn!";
@@ -95,4 +105,29 @@ public static class DispatchConstants
     public const string FcmSymptomUpdateTitleKey = "sos_symptom_update";
     public const string PushSymptomTitle = "Cập nhật triệu chứng!";
     public const string PushSymptomBody = "Nạn nhân ca {0} vừa cập nhật triệu chứng mới. Chạm để xem chi tiết.";
+
+    // AI Re-Analyze — SignalR + FCM
+    /// <summary>FCM data key when victim retakes a photo during an active incident.</summary>
+    public const string FcmAiReanalyzeTitleKey = "sos_ai_reanalysis";
+    public const string PushAiReanalyzeTitle = "Cập nhật nhận diện AI!";
+    public const string PushAiReanalyzeBody = "Nạn nhân ca {0} đã chụp lại ảnh. Kết quả mới: {1}. Chạm để xem.";
+
+    // Suggest Arrived — SignalR + FCM
+    /// <summary>FCM data key when geofence detects rescuer near incident location.</summary>
+    public const string FcmSuggestArrivedTitleKey = "sos_suggest_arrived";
+    public const string PushSuggestArrivedTitle = "Bạn đã đến nơi?";
+    public const string PushSuggestArrivedBody = "Hệ thống nhận thấy bạn đang ở gần vị trí sự cố. Chạm để xác nhận Đã Tới.";
+
+    // Mission Status — FCM to victim
+    /// <summary>FCM data key when rescuer updates mission status (Arrived/Closed).</summary>
+    public const string FcmMissionStatusTitleKey = "sos_mission_status";
+    public const string PushMissionArrivedTitle = "Cứu hộ đã tới nơi!";
+    public const string PushMissionArrivedBody = "Nhân viên cứu hộ đã đến vị trí của bạn.";
+    public const string PushMissionClosedTitle = "Ca cấp cứu đã đóng";
+    public const string PushMissionClosedBody = "Ca cấp cứu đã được hoàn tất. Cảm ơn bạn đã sử dụng SFARS.";
+
+    // SMS Fallback Constants
+    public const string SmsSosPrefix = "SFARS SOS";
+    public const string SmsAddressFallback = "Khu vực không xác định (Báo cáo qua SMS Ngoại tuyến)";
+    public const string SmsDescriptionFallback = "Tín hiệu SOS gửi tự động qua SMS khi nạn nhân mất kết nối mạng. Hãy chủ động liên lạc qua cuộc gọi thoại.";
 }

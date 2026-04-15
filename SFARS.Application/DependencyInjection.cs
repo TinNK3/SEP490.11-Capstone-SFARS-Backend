@@ -58,14 +58,18 @@ public static class DependencyInjection
         services.AddScoped<IDispatchService, DispatchService>();
         services.AddScoped<IMissionService, MissionService>();
         services.AddScoped<IDeviceService, DeviceService>();
+        services.AddScoped<IVideoCallService, VideoCallService>();
 
         // Admin services — methods added directly to IUserService / UserService
         services.AddScoped<IAdminAuditLogService, AdminAuditLogService>();
+        services.AddScoped<IGeminiApiKeyService, GeminiApiKeyService>();
+        services.AddScoped<IFirstAidDetailService, FirstAidDetailService>();
         services.AddScoped<IDataSetExportService, DataSetExportService>();
         services.AddScoped<IRetrainOrchestrationService, RetrainOrchestrationService>();
 
         // Chat services
         services.AddScoped<IChatService, ChatService>();
+        services.AddScoped<IAiSeedService, AiSeedService>();
 
         // Notification services
         services.AddScoped<INotificationService, NotificationService>();

@@ -184,6 +184,7 @@ namespace SFARS.API.Payloads
         public static class Facility
         {
             // [GET]
+            public const string GetAllPublic = Base + "/facilities";
             public const string Nearby = Base + "/facilities/nearby";
         }
 
@@ -197,6 +198,8 @@ namespace SFARS.API.Payloads
             // [GET]
             public const string GetSessions = Base + "/chat/sessions";
             public const string GetMessages = Base + "/chat/sessions/{id}/messages";
+            // [DELETE]
+            public const string DeleteSession = Base + "/chat/sessions/{id}";
         }
 
         /// <summary>
@@ -227,6 +230,16 @@ namespace SFARS.API.Payloads
             // [GET]
             public const string GetAll = Base + "/faqs";
             public const string GetById = Base + "/faqs/{id}";
+        }
+
+        /// <summary>
+        /// First Aid endpoints (Public read)
+        /// </summary>
+        public static class FirstAid
+        {
+            // [GET]
+            public const string GetAllProcedures = Base + "/first-aids";
+            public const string GetProcedureById = Base + "/first-aids/{id}";
         }
 
         /// <summary>
@@ -270,6 +283,26 @@ namespace SFARS.API.Payloads
             public const string DeleteQuiz = Base + "/admin/quizzes/{id}";
             public const string GetQuizAttempts = Base + "/admin/quizzes/attempts";
             public const string GetAttemptDetail = Base + "/admin/quizzes/attempts/{id}";
+            // Gemini API Key Management
+            // [GET]
+            public const string GetAllGeminiKeys = Base + "/admin/gemini-keys";
+            // [POST]
+            public const string CreateGeminiKey = Base + "/admin/gemini-keys";
+            // [PATCH]
+            public const string ToggleGeminiKey = Base + "/admin/gemini-keys/{id}/toggle";
+            // [DELETE]
+            public const string DeleteGeminiKey = Base + "/admin/gemini-keys/{id}";
+
+            // First Aid Detail Management
+            // [GET]
+            public const string GetAllFirstAidDetails = Base + "/admin/first-aid-details";
+            public const string GetFirstAidDetailById = Base + "/admin/first-aid-details/{id}";
+            // [POST]
+            public const string CreateFirstAidDetail = Base + "/admin/first-aid-details";
+            // [PUT]
+            public const string UpdateFirstAidDetail = Base + "/admin/first-aid-details/{id}";
+            // [DELETE]
+            public const string DeleteFirstAidDetail = Base + "/admin/first-aid-details/{id}";
         }
 
         /// <summary>
@@ -278,6 +311,7 @@ namespace SFARS.API.Payloads
         public static class Rescuer
         {
             // [GET]
+            public const string GetAllPublic = Base + "/rescuers";
             public const string GetProfile = Base + "/rescuer/profile";
             // [PUT]
             public const string UpdateProfile = Base + "/rescuer/profile";
@@ -415,6 +449,17 @@ namespace SFARS.API.Payloads
 
             // [PATCH]
             public const string AdminUpdateStatus = AdminBase + "/{id}/status";
+        }
+
+        /// <summary>
+        /// Video Call endpoints
+        /// </summary>
+        public static class VideoCall
+        {
+            private const string VideoBase = Base + "/video-call";
+            // [POST]
+            public const string GetToken = VideoBase + "/token/{incidentId}";
+            public const string Initiate = VideoBase + "/initiate/{incidentId}";
         }
     }
 }

@@ -40,6 +40,9 @@ public class FirstAidDetailConfiguration : IEntityTypeConfiguration<FirstAidDeta
             .HasMaxLength(10)
             .HasColumnName("language_code");
 
+        builder.Property(e => e.EmbeddingJson)
+            .HasColumnName("embedding_json");
+
         builder.Property(e => e.CreatedAt).HasColumnName("created_at");
         builder.Property(e => e.CreatedBy).HasColumnName("created_by");
         builder.Property(e => e.UpdatedAt).HasColumnName("updated_at");
