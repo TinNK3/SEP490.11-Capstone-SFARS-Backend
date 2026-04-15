@@ -22,6 +22,7 @@ namespace SFARS.API.Payloads
             public const string VerifyOtp = Base + "/auth/otp/verify";
             public const string SignOut = Base + "/auth/sign-out";
             public const string ChangePassword = Base + "/auth/change-password";
+            public const string DeleteAccount = Base + "/auth/delete-account";
             // [PUT]
 
         }

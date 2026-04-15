@@ -102,6 +102,16 @@ namespace SFARS.API.Controller
         }
 
         [Authorize]
+        [HttpDelete(APIRoute.Auth.DeleteAccount, Name = nameof(DeleteAccountAsync))]
+        public async Task<IActionResult> DeleteAccountAsync([FromBody] DeleteAccountRequest request)
+        {
+            var userId = User.GetUserId();
+            var accessToken = Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+            var result = await _authService.DeleteAccountAsync(userId, request.Otp, accessToken);
+            return this.ToIActionResult(result);
+        }
+
+        [Authorize]
         [HttpPost(APIRoute.Auth.SignOut, Name = nameof(SignOutAsync))]
         public async Task<IActionResult> SignOutAsync()
         {

@@ -1049,7 +1049,7 @@ namespace SFARS.Application.Services.Auth
         #region OTP Management
 
         /// <summary>
-        /// Send OTP - unified endpoint for SignIn, ResetPassword, and ChangePassword types
+        /// Send OTP - unified endpoint for SignIn, ResetPassword, ChangePassword, and DeleteAccount types
         /// </summary>
         public async Task<IServiceResult> SendOtpAsync(string email, OtpType type)
         {
@@ -1258,6 +1258,149 @@ namespace SFARS.Application.Services.Auth
             return new ServiceResult(ResultCodeConst.Auth_Success0010,
                 await _msgService.GetMessageAsync(ResultCodeConst.Auth_Success0010),
                 new { OtpVerified = true });
+        }
+
+        #endregion
+
+        #region Delete Account
+
+        public async Task<IServiceResult> DeleteAccountAsync(Guid userId, string otp, string accessToken)
+        {
+            if (userId == Guid.Empty || string.IsNullOrWhiteSpace(otp))
+            {
+                return new ServiceResult(ResultCodeConst.SYS_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001));
+            }
+
+            var userRepo = _unitOfWork.Repository<User, Guid>();
+            var otpRepo = _unitOfWork.Repository<OtpRequest, Guid>();
+
+            var user = await userRepo.GetByIdAsync(userId);
+            if (user == null)
+            {
+                return new ServiceResult(ResultCodeConst.SYS_Warning0002,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002));
+            }
+
+            if (user.Status != UserStatus.Active)
+            {
+                return new ServiceResult(ResultCodeConst.Auth_Warning0001,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0001));
+            }
+
+            var otpRequest = (await otpRepo.GetAllAsync())
+                .Where(o => o.UserId == userId
+                    && o.Type == OtpType.DeleteAccount
+                    && !o.IsUsed)
+                .OrderByDescending(o => o.CreatedAt)
+                .FirstOrDefault();
+
+            if (otpRequest == null)
+            {
+                return new ServiceResult(ResultCodeConst.Auth_Warning0017,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0017));
+            }
+
+            if (otpRequest.ExpiredAt < DateTime.UtcNow)
+            {
+                return new ServiceResult(ResultCodeConst.Auth_Warning0014,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0014));
+            }
+
+            if (otpRequest.AttemptCount >= OtpConstants.MaxAttempts)
+            {
+                otpRequest.IsUsed = true;
+                otpRequest.UpdatedAt = DateTime.UtcNow;
+                otpRequest.UpdatedBy = userId;
+                await otpRepo.UpdateAsync(otpRequest);
+                await _unitOfWork.SaveChangesAsync();
+
+                return new ServiceResult(ResultCodeConst.Auth_Warning0015,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0015));
+            }
+
+            if (otpRequest.Code != otp)
+            {
+                otpRequest.AttemptCount++;
+                otpRequest.UpdatedAt = DateTime.UtcNow;
+                otpRequest.UpdatedBy = userId;
+
+                if (otpRequest.AttemptCount >= OtpConstants.MaxAttempts)
+                {
+                    otpRequest.IsUsed = true;
+                }
+
+                await otpRepo.UpdateAsync(otpRequest);
+                await _unitOfWork.SaveChangesAsync();
+
+                if (otpRequest.AttemptCount >= OtpConstants.MaxAttempts)
+                {
+                    return new ServiceResult(ResultCodeConst.Auth_Warning0015,
+                        await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0015));
+                }
+
+                return new ServiceResult(ResultCodeConst.Auth_Warning0005,
+                    await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0005));
+            }
+
+            var now = DateTime.UtcNow;
+
+            user.Status = UserStatus.Deleted;
+            user.IsOnline = false;
+            user.LastActiveAt = now;
+            user.UpdatedAt = now;
+            user.UpdatedBy = userId;
+
+            otpRequest.IsUsed = true;
+            otpRequest.UpdatedAt = now;
+            otpRequest.UpdatedBy = userId;
+
+            await userRepo.UpdateAsync(user);
+            await otpRepo.UpdateAsync(otpRequest);
+
+            // Invalidate any remaining DeleteAccount OTPs to avoid token reuse.
+            var remainingOtps = (await otpRepo.GetAllAsync())
+                .Where(o => o.UserId == userId
+                    && o.Type == OtpType.DeleteAccount
+                    && !o.IsUsed
+                    && o.Id != otpRequest.Id)
+                .ToList();
+
+            foreach (var remainingOtp in remainingOtps)
+            {
+                remainingOtp.IsUsed = true;
+                remainingOtp.UpdatedAt = now;
+                remainingOtp.UpdatedBy = userId;
+                await otpRepo.UpdateAsync(remainingOtp);
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+
+            if (!string.IsNullOrWhiteSpace(accessToken))
+            {
+                try
+                {
+                    var signOutResult = await SignOutAsync(userId, accessToken);
+                    if (signOutResult.ResultCode != ResultCodeConst.Auth_Success0009)
+                    {
+                        _logger.LogWarning(
+                            "Delete account succeeded for {UserId}, but SignOutAsync returned {ResultCode}",
+                            userId,
+                            signOutResult.ResultCode);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Delete account succeeded for {UserId}, but token/session revocation failed.",
+                        userId);
+                }
+            }
+
+            _logger.LogInformation("User {UserId} deleted own account successfully.", userId);
+            return new ServiceResult(ResultCodeConst.SYS_Success0004,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0004),
+                true);
         }
 
         #endregion

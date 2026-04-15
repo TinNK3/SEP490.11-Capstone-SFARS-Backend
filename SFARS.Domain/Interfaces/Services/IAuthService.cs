@@ -16,6 +16,7 @@ namespace SFARS.Domain.Interfaces.Services
         Task<IServiceResult> RefreshTokenAsync(string refreshTokenId, string accessToken);
         Task<IServiceResult> SignOutAsync(Guid userId, string accessToken);
         Task<IServiceResult> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword, string otp, string accessToken);
+        Task<IServiceResult> DeleteAccountAsync(Guid userId, string otp, string accessToken);
 
         // OTP Management
         Task<IServiceResult> SendOtpAsync(string email, OtpType type);
