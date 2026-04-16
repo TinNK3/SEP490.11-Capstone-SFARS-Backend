@@ -14,7 +14,7 @@ public interface ICommunityPostService
     Task<IServiceResult> UpdatePostAsync(Guid postId, Guid authorId, string? content, List<string>? retainedMediaUrls, List<MediaUploadInfo>? newMediaFiles);
     Task<IServiceResult> HidePostAsync(Guid postId, Guid requesterId);
     Task<IServiceResult> UnhidePostAsync(Guid postId, Guid requesterId);
-    Task<IServiceResult> DeletePostAsync(Guid postId, Guid requesterId);
+    Task<IServiceResult> DeletePostAsync(Guid postId, Guid requesterId, bool isAdmin = false);
     Task<IServiceResult> ToggleLikeAsync(Guid postId, Guid userId);
     Task<IServiceResult> AddCommentAsync(Guid postId, Guid authorId, string content, Guid? parentId);
     Task<IServiceResult> GetCommentsAsync(Guid postId, int pageNumber, int pageSize);

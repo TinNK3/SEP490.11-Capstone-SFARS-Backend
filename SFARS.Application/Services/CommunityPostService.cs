@@ -267,13 +267,13 @@ public class CommunityPostService : ICommunityPostService
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Bỏ ẩn bài đăng thành công", true);
     }
 
-    public async Task<IServiceResult> DeletePostAsync(Guid postId, Guid requesterId)
+    public async Task<IServiceResult> DeletePostAsync(Guid postId, Guid requesterId, bool isAdmin = false)
     {
         var post = await _uow.Repository<ContentPost, Guid>().GetByIdAsync(postId);
         if (post is null || post.Type != PostType.Community)
             return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Bài đăng không tồn tại.");
 
-        if (post.AuthorId != requesterId)
+        if (!isAdmin && post.AuthorId != requesterId)
             return new ServiceResult(ResultCodeConst.SYS_Warning0007, "Bạn không có quyền xóa bài đăng này.");
 
         await _uow.Repository<ContentPost, Guid>().DeleteAsync(postId);

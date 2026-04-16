@@ -5,6 +5,7 @@ using SFARS.API.Extensions;
 using SFARS.API.Payloads;
 using SFARS.API.Payloads.Request.Community;
 using SFARS.Application.Dtos.Community;
+using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Specifications.Params;
 
@@ -45,10 +46,10 @@ public class CommunityController : ControllerBase
         return this.ToIActionResult(await _svc.CreatePostAsync(User.GetUserId(), req.Content, dtos));
     }
 
-    /// <summary>Xóa bài đăng (chỉ tác giả)</summary>
+    /// <summary>Xóa bài đăng (tác giả hoặc Admin)</summary>
     [HttpDelete(APIRoute.Community.DeletePost, Name = nameof(DeletePostAsync))]
     public async Task<IActionResult> DeletePostAsync(Guid id)
-        => this.ToIActionResult(await _svc.DeletePostAsync(id, User.GetUserId()));
+        => this.ToIActionResult(await _svc.DeletePostAsync(id, User.GetUserId(), User.IsInRole(UserTypeConstants.Admin)));
 
     /// <summary>Sửa bài đăng (chỉ tác giả)</summary>
     [HttpPut(APIRoute.Community.UpdatePost, Name = nameof(UpdatePostAsync))]

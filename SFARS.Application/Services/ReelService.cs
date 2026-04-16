@@ -175,13 +175,13 @@ public class ReelService : IReelService
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Reel hidden successfully");
     }
 
-    public async Task<IServiceResult> DeleteReelAsync(Guid currentUserId, Guid reelId)
+    public async Task<IServiceResult> DeleteReelAsync(Guid currentUserId, Guid reelId, bool isAdmin = false)
     {
         var repo = _uow.Repository<Reel, Guid>();
         var reel = await repo.GetByIdAsync(reelId);
         if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel not found");
 
-        if (reel.UserId != currentUserId)
+        if (!isAdmin && reel.UserId != currentUserId)
             return new ServiceResult(ResultCodeConst.SYS_Warning0007, "Not authorized to delete this reel");
 
         // Delete from Cloudinary
