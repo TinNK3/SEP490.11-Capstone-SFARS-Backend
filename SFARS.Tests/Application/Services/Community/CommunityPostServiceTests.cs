@@ -31,6 +31,7 @@ public class CommunityPostServiceTests
     private readonly Mock<IGenericRepository<PostMedia, Guid>> _mediaRepoMock;
     private readonly Mock<IGenericRepository<Reel, Guid>> _reelRepoMock;
     private readonly Mock<IGenericRepository<User, Guid>> _userRepoMock;
+    private readonly Mock<IGenericRepository<ShareLog, Guid>> _shareLogRepoMock;
     private readonly Mock<IFileStorageService> _fileStorageMock;
     private readonly Mock<INotificationService> _notificationServiceMock;
 
@@ -49,6 +50,7 @@ public class CommunityPostServiceTests
         _mediaRepoMock = new Mock<IGenericRepository<PostMedia, Guid>>();
         _reelRepoMock = new Mock<IGenericRepository<Reel, Guid>>();
         _userRepoMock = new Mock<IGenericRepository<User, Guid>>();
+        _shareLogRepoMock = new Mock<IGenericRepository<ShareLog, Guid>>();
  
         // Setup IUnitOfWork trả về các repository giả lập (mocked repos)
         _uowMock.Setup(u => u.Repository<ContentPost, Guid>()).Returns(_postRepoMock.Object);
@@ -56,6 +58,10 @@ public class CommunityPostServiceTests
         _uowMock.Setup(u => u.Repository<PostMedia, Guid>()).Returns(_mediaRepoMock.Object);
         _uowMock.Setup(u => u.Repository<Reel, Guid>()).Returns(_reelRepoMock.Object);
         _uowMock.Setup(u => u.Repository<User, Guid>()).Returns(_userRepoMock.Object);
+        _uowMock.Setup(u => u.Repository<ShareLog, Guid>()).Returns(_shareLogRepoMock.Object);
+        _uowMock.Setup(u => u.BeginTransactionAsync()).Returns(Task.CompletedTask);
+        _uowMock.Setup(u => u.CommitTransactionAsync()).Returns(Task.CompletedTask);
+        _uowMock.Setup(u => u.RollbackTransactionAsync()).Returns(Task.CompletedTask);
 
         // Setup giả lập cho SignalR (IHubContext)
         var mockClients = new Mock<IHubClients>();
@@ -260,6 +266,8 @@ public class CommunityPostServiceTests
         var post = new ContentPost { Id = Guid.NewGuid(), Type = PostType.Community, AuthorId = authorId };
 
         _postRepoMock.Setup(r => r.GetByIdAsync(post.Id)).ReturnsAsync(post);
+        _shareLogRepoMock.Setup(r => r.DeleteWithSpecAsync(It.IsAny<ISpecification<ShareLog>>()))
+            .ReturnsAsync(0);
         _postRepoMock.Setup(r => r.DeleteAsync(post.Id)).ReturnsAsync(1);
         _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
 
@@ -270,6 +278,44 @@ public class CommunityPostServiceTests
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
         _postRepoMock.Verify(r => r.DeleteAsync(It.IsAny<Guid>()), Times.Once);
         _uowMock.Verify(u => u.SaveChangesAsync(), Times.Once);
+        _uowMock.Verify(u => u.BeginTransactionAsync(), Times.Once);
+        _uowMock.Verify(u => u.CommitTransactionAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeletePostAsync_CoCommentVaReply_VanXoaThanhCong()
+    {
+        // Arrange
+        var authorId = Guid.NewGuid();
+        var postId = Guid.NewGuid();
+        var rootCommentId = Guid.NewGuid();
+        var replyCommentId = Guid.NewGuid();
+
+        var post = new ContentPost { Id = postId, Type = PostType.Community, AuthorId = authorId };
+        var rootComment = new PostComment { Id = rootCommentId, PostId = postId, AuthorId = Guid.NewGuid(), ParentId = null };
+        var replyComment = new PostComment { Id = replyCommentId, PostId = postId, AuthorId = Guid.NewGuid(), ParentId = rootCommentId };
+
+        _postRepoMock.Setup(r => r.GetByIdAsync(postId)).ReturnsAsync(post);
+        _postRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<ContentPost>>(), false))
+            .ReturnsAsync(new List<ContentPost>());
+        _commentRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<PostComment>>(), false))
+            .ReturnsAsync(new List<PostComment> { rootComment, replyComment });
+        _commentRepoMock.Setup(r => r.DeleteRangeAsync(It.IsAny<Guid[]>()))
+            .ReturnsAsync(0);
+        _shareLogRepoMock.Setup(r => r.DeleteWithSpecAsync(It.IsAny<ISpecification<ShareLog>>()))
+            .ReturnsAsync(0);
+        _postRepoMock.Setup(r => r.DeleteAsync(postId)).ReturnsAsync(1);
+        _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+        // Act
+        var result = await _sut.DeletePostAsync(postId, authorId);
+
+        // Assert
+        result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
+        _commentRepoMock.Verify(r => r.DeleteRangeAsync(It.IsAny<Guid[]>()), Times.AtLeastOnce);
+        _postRepoMock.Verify(r => r.DeleteAsync(postId), Times.Once);
+        _uowMock.Verify(u => u.SaveChangesAsync(), Times.Once);
+        _uowMock.Verify(u => u.CommitTransactionAsync(), Times.Once);
     }
     #endregion
 

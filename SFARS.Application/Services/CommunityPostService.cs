@@ -276,9 +276,26 @@ public class CommunityPostService : ICommunityPostService
         if (!isAdmin && post.AuthorId != requesterId)
             return new ServiceResult(ResultCodeConst.SYS_Warning0007, "Bạn không có quyền xóa bài đăng này.");
 
-        await _uow.Repository<ContentPost, Guid>().DeleteAsync(postId);
-        await _uow.SaveChangesAsync();
-        return new ServiceResult(ResultCodeConst.SYS_Success0001, "Xóa thành công", true);
+        try
+        {
+            await _uow.BeginTransactionAsync();
+
+            await ClearSharedPostReferencesAsync(postId);
+            await _uow.SaveChangesAsync();
+            await DeleteShareLogsAsync(postId);
+            await DeletePostCommentsAsync(postId);
+
+            await _uow.Repository<ContentPost, Guid>().DeleteAsync(postId);
+            await _uow.CommitTransactionAsync();
+
+            return new ServiceResult(ResultCodeConst.SYS_Success0001, "Xóa thành công", true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete community post {PostId}", postId);
+            await _uow.RollbackTransactionAsync();
+            return new ServiceResult(ResultCodeConst.SYS_Fail0001, "Xóa bài đăng thất bại.");
+        }
     }
 
     public async Task<IServiceResult> ToggleLikeAsync(Guid postId, Guid userId)
@@ -497,6 +514,68 @@ public class CommunityPostService : ICommunityPostService
         await _uow.SaveChangesAsync();
 
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Xóa thành công", true);
+    }
+
+    private async Task ClearSharedPostReferencesAsync(Guid postId)
+    {
+        var postRepo = _uow.Repository<ContentPost, Guid>();
+        var sharedPostSpec = new BaseSpecification<ContentPost>(p => p.SharedPostId == postId);
+        var sharedPosts = (await postRepo.GetAllWithSpecAsync(sharedPostSpec, tracked: false)).ToList();
+
+        foreach (var sharedPost in sharedPosts)
+        {
+            sharedPost.SharedPostId = null;
+            sharedPost.UpdatedAt = DateTime.UtcNow;
+            postRepo.Update(sharedPost);
+        }
+    }
+
+    private async Task DeleteShareLogsAsync(Guid postId)
+    {
+        var shareLogRepo = _uow.Repository<ShareLog, Guid>();
+        var shareLogSpec = new BaseSpecification<ShareLog>(s => s.PostId == postId);
+        await shareLogRepo.DeleteWithSpecAsync(shareLogSpec);
+    }
+
+    private async Task DeletePostCommentsAsync(Guid postId)
+    {
+        var commentRepo = _uow.Repository<PostComment, Guid>();
+        var commentSpec = new BaseSpecification<PostComment>(c => c.PostId == postId);
+        var comments = (await commentRepo.GetAllWithSpecAsync(commentSpec, tracked: false)).ToList();
+
+        if (comments.Count == 0)
+            return;
+
+        var commentById = comments.ToDictionary(c => c.Id);
+        var depthCache = new Dictionary<Guid, int>();
+
+        int GetDepth(Guid commentId)
+        {
+            if (depthCache.TryGetValue(commentId, out var cachedDepth))
+                return cachedDepth;
+
+            if (!commentById.TryGetValue(commentId, out var comment))
+                return 0;
+
+            var depth = 0;
+            var current = comment;
+
+            while (current.ParentId.HasValue && commentById.TryGetValue(current.ParentId.Value, out var parent))
+            {
+                depth++;
+                current = parent;
+            }
+
+            depthCache[commentId] = depth;
+            return depth;
+        }
+
+        foreach (var depthGroup in comments
+                     .GroupBy(c => GetDepth(c.Id))
+                     .OrderByDescending(g => g.Key))
+        {
+            await commentRepo.DeleteRangeAsync(depthGroup.Select(c => c.Id).ToArray());
+        }
     }
 
     public async Task<IServiceResult> GetUserContentAsync(Guid targetUserId, Guid? currentUserId, int pageNumber, int pageSize)
