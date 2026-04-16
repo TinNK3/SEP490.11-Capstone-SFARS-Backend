@@ -225,23 +225,8 @@ public class MissionService : IMissionService
 
         await _fcmService.SendToUserAsync(incident.VictimId, notifyTitle, notifyBody);
 
-        // Clear Hangfire Jobs
-        if (!string.IsNullOrEmpty(incident.DispatchJobIds))
-        {
-            try
-            {
-                var jobIds = System.Text.Json.JsonSerializer.Deserialize<string[]>(incident.DispatchJobIds);
-                if (jobIds != null)
-                {
-                    foreach (var jobId in jobIds)
-                        _jobs.Delete(jobId);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to delete dispatch jobs for incident {IncidentId}", incidentId);
-            }
-        }
+        // Accepting the mission must cancel the fallback chain immediately.
+        CancelDispatchJobs(incident, incidentId);
 
         // Step 5: Schedule claim timeout job
         _jobs.Schedule<IMissionService>(
@@ -381,7 +366,7 @@ public class MissionService : IMissionService
                 mission.UpdatedAt = utcNow;
 
                 // Reset AI review snapshot if still pending
-                if (incident.CurrentAiReviewStatus == AiReviewStatus.Pending || incident.CurrentAiReviewStatus == AiReviewStatus.Deferred)
+                if (incident.CurrentAiReviewStatus == AiReviewStatus.Pending)
                 {
                     incident.CurrentAiReviewId = null;
                     incident.CurrentAiReviewStatus = null;
@@ -449,15 +434,9 @@ System.Diagnostics.Debug.WriteLine($"Watchdog scheduled at {mission.Id}");
         if (incident.CurrentStatus == IncidentStatus.Closed || incident.CurrentStatus == IncidentStatus.Cancelled)
             return new ServiceResult(ResultCodeConst.Mission_Warning0001, await _msgService.GetMessageAsync(ResultCodeConst.Mission_Warning0001));
 
-        // Enforce AI Review before closing the Incident
+        // Close incident — rescuer review is optional in the two-layer review flow
         if (newStatus == IncidentStatus.Closed)
         {
-            if (incident.CurrentAiReviewId.HasValue && 
-               (incident.CurrentAiReviewStatus == AiReviewStatus.Pending || incident.CurrentAiReviewStatus == AiReviewStatus.Deferred))
-            {
-                return new ServiceResult(ResultCodeConst.AiReview_Warning_Pending, await _msgService.GetMessageAsync(ResultCodeConst.AiReview_Warning_Pending));
-            }
-            
             mission.Status = RescueStatus.Completed;
         }
         else
@@ -527,7 +506,7 @@ System.Diagnostics.Debug.WriteLine($"Watchdog scheduled at {mission.Id}");
                 MissionId = mission.Id,
                 OldStatus = oldStatus.ToString(),
                 NewStatus = newStatus.ToString(),
-                IsReviewMissing = incident.CurrentAiReviewId.HasValue && (incident.CurrentAiReviewStatus == AiReviewStatus.Pending || incident.CurrentAiReviewStatus == AiReviewStatus.Deferred)
+                IsReviewMissing = incident.CurrentAiReviewId.HasValue && incident.CurrentAiReviewStatus == AiReviewStatus.Pending
             };
 
             await _locationHub.Clients
@@ -551,5 +530,31 @@ System.Diagnostics.Debug.WriteLine($"Watchdog scheduled at {mission.Id}");
         }
 
         return new ServiceResult(ResultCodeConst.Mission_Success0001, await _msgService.GetMessageAsync(ResultCodeConst.Mission_Success0001));
+    }
+
+    private void CancelDispatchJobs(Incident incident, Guid incidentId)
+    {
+        if (string.IsNullOrWhiteSpace(incident.DispatchJobIds))
+        {
+            return;
+        }
+
+        try
+        {
+            var jobIds = JsonSerializer.Deserialize<string[]>(incident.DispatchJobIds);
+            if (jobIds != null)
+            {
+                foreach (var jobId in jobIds.Where(id => !string.IsNullOrWhiteSpace(id)))
+                {
+                    _jobs.Delete(jobId);
+                }
+            }
+
+            incident.DispatchJobIds = null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to delete dispatch jobs for incident {IncidentId}", incidentId);
+        }
     }
 }

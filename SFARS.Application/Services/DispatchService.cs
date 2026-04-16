@@ -57,12 +57,17 @@ public class DispatchService : IDispatchService
     public async Task StartDispatchAsync(Guid incidentId)
     {
         var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
-        if (incident is null || incident.CurrentStatus != IncidentStatus.Pending)
+        if (incident is null || !CanStartDispatch(incident.CurrentStatus))
         {
             _logger.LogWarning("StartDispatchAsync skipped. IncidentId={Id} status={S}",
                 incidentId, incident?.CurrentStatus);
             return;
         }
+
+        // Both initial dispatch and watchdog re-dispatch must re-enter the tier pipeline.
+        incident.CurrentStatus = IncidentStatus.Dispatching_Tier1;
+        incident.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.SaveChangesAsync();
 
         var anyRescuer = await AnyAvailableRescuerWithinAsync(incident.Location, DispatchConstants.FailFastRadiusMeters);
         if (!anyRescuer)
@@ -72,11 +77,6 @@ public class DispatchService : IDispatchService
             await RunFallbackAsync(incidentId);
             return;
         }
-
-        // Step 1: Update status to Tier 1 BEFORE enqueuing jobs to avoid race conditions
-        incident.CurrentStatus = IncidentStatus.Dispatching_Tier1;
-        incident.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
 
         // Step 2: Enqueue/Schedule search tiers
         var j1 = _jobs.Enqueue<IDispatchService>(
@@ -141,15 +141,37 @@ public class DispatchService : IDispatchService
     {
         var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
 
-        if (incident is null || incident.CurrentStatus == IncidentStatus.Assigned || incident.CurrentStatus == IncidentStatus.Cancelled)
+        if (incident is null)
         {
-            _logger.LogInformation("Fallback skipped — status is {S}. IncidentId={Id}", incident?.CurrentStatus, incidentId);
+            _logger.LogInformation("Fallback skipped because incident was not found. IncidentId={Id}", incidentId);
+            return;
+        }
+
+        if (!IsFallbackEligibleStatus(incident.CurrentStatus))
+        {
+            _logger.LogInformation(
+                "Fallback skipped because incident is no longer dispatching. Status={Status}. IncidentId={Id}",
+                incident.CurrentStatus, incidentId);
+            return;
+        }
+
+        var hasActiveMission = await _unitOfWork.Repository<RescueMission, Guid>()
+            .AnyAsync(new BaseSpecification<RescueMission>(m =>
+                m.IncidentId == incidentId &&
+                (m.Status == RescueStatus.Pending || m.Status == RescueStatus.Accepted)));
+
+        if (hasActiveMission)
+        {
+            _logger.LogInformation(
+                "Fallback skipped because incident already has an active mission. IncidentId={Id}",
+                incidentId);
             return;
         }
 
         // Capture old status BEFORE mutation for accurate audit trail
         var oldStatus = incident.CurrentStatus;
         incident.CurrentStatus = IncidentStatus.Unassigned;
+        incident.DispatchJobIds = null;
         incident.UpdatedAt = DateTime.UtcNow;
 
         // Audit Trail for Fallback
@@ -174,7 +196,7 @@ public class DispatchService : IDispatchService
         };
 
         await _locationHub.Clients
-            .Group(LocationConstants.SignalRGroupPrefix + incidentId)
+            .User(incident.VictimId.ToString())
             .SendAsync(DispatchConstants.EventFallback, fallbackDto);
 
         // Real-time: Notify community about status change to Unassigned
@@ -205,10 +227,10 @@ public class DispatchService : IDispatchService
 
         // Schedule an automatic closure to prevent "Ghost SOS" if no rescuer ever accepts
         _jobs.Schedule<IDispatchService>(
-            s => s.AutoCloseAbandonedIncidentAsync(incidentId), 
+            s => s.AutoCloseAbandonedIncidentAsync(incidentId),
             TimeSpan.FromHours(DispatchConstants.AbandonedIncidentExpiryHours));
 
-        _logger.LogWarning("SOS Fallback triggered for IncidentId={Id}. Status=Unassigned. Auto-close scheduled in {H}h.", 
+        _logger.LogWarning("SOS Fallback triggered for IncidentId={Id}. Status=Unassigned. Auto-close scheduled in {H}h.",
             incidentId, DispatchConstants.AbandonedIncidentExpiryHours);
     }
 
@@ -481,4 +503,14 @@ public class DispatchService : IDispatchService
 
         return await _unitOfWork.Repository<User, Guid>().AnyAsync(spec);
     }
+
+    private static bool IsFallbackEligibleStatus(IncidentStatus status)
+        => status == IncidentStatus.Pending
+        || status == IncidentStatus.Dispatching_Tier1
+        || status == IncidentStatus.Dispatching_Tier2
+        || status == IncidentStatus.Dispatching_Tier3;
+
+    private static bool CanStartDispatch(IncidentStatus status)
+        => status == IncidentStatus.Pending
+        || status == IncidentStatus.Unassigned;
 }
