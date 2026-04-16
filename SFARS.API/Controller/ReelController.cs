@@ -6,6 +6,7 @@ using SFARS.API.Payloads;
 using SFARS.API.Payloads.Request.Reels;
 using SFARS.Application.Dtos.Community;
 using SFARS.Application.Dtos.Reels;
+using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Interfaces.Services;
 
 namespace SFARS.API.Controller;
@@ -63,11 +64,11 @@ public class ReelController : ControllerBase
         return this.ToIActionResult(await _svc.HideReelAsync(User.GetUserId(), id));
     }
 
-    /// <summary>Xoá 1 Reel (Chỉ tác giả) - Đồng thời giải phóng trên Cloudinary</summary>
+    /// <summary>Xoá 1 Reel (Tác giả hoặc Admin) - Đồng thời giải phóng trên Cloudinary</summary>
     [HttpDelete(APIRoute.Reels.Delete, Name = nameof(DeleteReelAsync))]
     public async Task<IActionResult> DeleteReelAsync(Guid id)
     {
-        return this.ToIActionResult(await _svc.DeleteReelAsync(User.GetUserId(), id));
+        return this.ToIActionResult(await _svc.DeleteReelAsync(User.GetUserId(), id, User.IsInRole(UserTypeConstants.Admin)));
     }
 
     /// <summary>Mở/tắt thả tim Reel</summary>

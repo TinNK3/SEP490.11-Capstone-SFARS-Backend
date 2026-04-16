@@ -13,7 +13,7 @@ public interface IReelService
     // CRUD
     Task<IServiceResult> CreateReelAsync(Guid currentUserId, string? caption, Stream videoStream, string fileName, string contentType, long contentLength);
     Task<IServiceResult> HideReelAsync(Guid currentUserId, Guid reelId);
-    Task<IServiceResult> DeleteReelAsync(Guid currentUserId, Guid reelId);
+    Task<IServiceResult> DeleteReelAsync(Guid currentUserId, Guid reelId, bool isAdmin = false);
 
     // Likes
     Task<IServiceResult> ToggleLikeAsync(Guid currentUserId, Guid reelId);
