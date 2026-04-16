@@ -10,6 +10,8 @@ using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Models.VideoCall;
 using SFARS.Domain.Specifications;
+using Microsoft.AspNetCore.SignalR;
+using SFARS.Infrastructure.Hubs;
 using SFARS.Infrastructure.Configurations;
 
 namespace SFARS.Application.Services;
@@ -20,6 +22,7 @@ public class VideoCallService : IVideoCallService
     private readonly IAgoraService _agoraService;
     private readonly IFcmPushService _fcmPushService;
     private readonly ISystemMessageService _msgService;
+    private readonly IHubContext<NotificationHub> _hubContext;
     private readonly ILogger<VideoCallService> _logger;
     private readonly AgoraOptions _agoraOptions;
 
@@ -28,6 +31,7 @@ public class VideoCallService : IVideoCallService
         IAgoraService agoraService,
         IFcmPushService fcmPushService,
         ISystemMessageService msgService,
+        IHubContext<NotificationHub> hubContext,
         ILogger<VideoCallService> logger,
         IOptions<AgoraOptions> agoraOptions)
     {
@@ -35,6 +39,7 @@ public class VideoCallService : IVideoCallService
         _agoraService = agoraService;
         _fcmPushService = fcmPushService;
         _msgService = msgService;
+        _hubContext = hubContext;
         _logger = logger;
         _agoraOptions = agoraOptions.Value;
     }
@@ -170,6 +175,14 @@ public class VideoCallService : IVideoCallService
             };
 
             await _fcmPushService.SendToUserAsync(targetUserId, pushTitle, pushBody, pushData);
+
+            // Send SignalR IsIncoming event for real-time UI response while waiting for pickup
+            await _hubContext.Clients.User(targetUserId.ToString()).SendAsync(VideoCallConstants.EventCallIncoming, new
+            {
+                IncidentId = incidentId,
+                CallerId = callerId,
+                CallerName = callerRoleName
+            });
 
             return new ServiceResult(
                 ResultCodeConst.SYS_Success0001,
