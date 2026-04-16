@@ -6,9 +6,9 @@ namespace SFARS.Domain.Common.Constants;
 public static class FileStorageConstants
 {
     /// <summary>
-    /// Maximum file size for avatar uploads (5 MB)
+    /// Maximum file size for avatar uploads (10 MB)
     /// </summary>
-    public const long MaxAvatarSizeBytes = 5 * 1024 * 1024; // 5 MB
+    public const long MaxAvatarSizeBytes = 10 * 1024 * 1024; // 10 MB
 
     /// <summary>
     /// Maximum file size for incident media uploads (50 MB)
