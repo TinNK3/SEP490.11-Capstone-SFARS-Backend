@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SFARS.Application.Common;
@@ -10,6 +11,7 @@ using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Models.VideoCall;
 using SFARS.Domain.Specifications;
+using SFARS.Infrastructure.Hubs;
 using SFARS.Infrastructure.Configurations;
 
 namespace SFARS.Application.Services;
@@ -19,6 +21,7 @@ public class VideoCallService : IVideoCallService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAgoraService _agoraService;
     private readonly IFcmPushService _fcmPushService;
+    private readonly IHubContext<LocationTrackingHub> _locationHubContext;
     private readonly ISystemMessageService _msgService;
     private readonly ILogger<VideoCallService> _logger;
     private readonly AgoraOptions _agoraOptions;
@@ -27,6 +30,7 @@ public class VideoCallService : IVideoCallService
         IUnitOfWork unitOfWork,
         IAgoraService agoraService,
         IFcmPushService fcmPushService,
+        IHubContext<LocationTrackingHub> locationHubContext,
         ISystemMessageService msgService,
         ILogger<VideoCallService> logger,
         IOptions<AgoraOptions> agoraOptions)
@@ -34,6 +38,7 @@ public class VideoCallService : IVideoCallService
         _unitOfWork = unitOfWork;
         _agoraService = agoraService;
         _fcmPushService = fcmPushService;
+        _locationHubContext = locationHubContext;
         _msgService = msgService;
         _logger = logger;
         _agoraOptions = agoraOptions.Value;
@@ -170,6 +175,14 @@ public class VideoCallService : IVideoCallService
             };
 
             await _fcmPushService.SendToUserAsync(targetUserId, pushTitle, pushBody, pushData);
+
+            var incomingPayload = new IncomingVideoCallSignalDto
+            {
+                IncidentId = incidentId,
+                CallerName = callerRoleName
+            };
+            await _locationHubContext.Clients.User(targetUserId.ToString())
+                .SendAsync(VideoCallConstants.EventCallIncoming, incomingPayload);
 
             return new ServiceResult(
                 ResultCodeConst.SYS_Success0001,
