@@ -933,37 +933,37 @@
     "MsgId": "Voice.BreathingDifficulty",
     "MsgContent": "Breathing difficulty reported. Please loosen your collar and belt. Try to breathe in through your nose and out through your mouth slowly. Whenever you notice any unusual signs, please proactively update your symptoms.",
     "En": "Breathing difficulty reported. Please loosen your collar and belt. Try to breathe in through your nose and out through your mouth slowly. Whenever you notice any unusual signs, please proactively update your symptoms.",
-    "Vi": "Thông tin khó thở đã được báo động đỏ đến cứu hộ. Xin hãy nới lỏng cổ áo và thắt lưng. Cố gắng hít vào bằng mũi và thở ra bằng miệng thật chậm. Bất cứ khi nào bạn thấy có dấu hiệu bất thường, hãy chủ động cập nhật triệu chứng."
+    "Vi": "Thông tin khó thở đã được gửi đến cứu hộ. Xin hãy nới lỏng cổ áo và thắt lưng. Cố gắng hít vào bằng mũi và thở ra bằng miệng thật chậm."
   },
   {
     "MsgId": "Voice.Ptosis",
     "MsgContent": "Muscle weakness detected. Lie down on a flat surface immediately to avoid falling. Do not eat or drink anything right now to prevent choking. Whenever you notice any unusual signs, please proactively update your symptoms.",
     "En": "Muscle weakness detected. Lie down on a flat surface immediately to avoid falling. Do not eat or drink anything right now to prevent choking. Whenever you notice any unusual signs, please proactively update your symptoms.",
-    "Vi": "Nọc độc đang làm mỏi cơ. Hãy nằm xuống mặt phẳng an toàn ngay lập tức để tránh vấp ngã. Tuyệt đối không ăn hoặc uống bất cứ thứ gì lúc này để tránh sặc. Bất cứ khi nào bạn thấy có dấu hiệu bất thường, hãy chủ động cập nhật triệu chứng."
+    "Vi": "Nọc độc đang làm mỏi cơ. Hãy nằm xuống mặt phẳng an toàn ngay lập tức để tránh vấp ngã. Tuyệt đối không ăn hoặc uống bất cứ thứ gì lúc này để tránh sặc."
   },
   {
     "MsgId": "Voice.Bleeding",
     "MsgContent": "Bleeding ongoing. Please use a clean cloth or bandage to lightly cover the wound. Do not use a knife to cut the wound. Whenever you notice any unusual signs, please proactively update your symptoms.",
     "En": "Bleeding ongoing. Please use a clean cloth or bandage to lightly cover the wound. Do not use a knife to cut the wound. Whenever you notice any unusual signs, please proactively update your symptoms.",
-    "Vi": "Chúng tôi đã ghi nhận tình trạng chảy máu. Hãy dùng vải sạch đắp nhẹ lên vết thương để thấm máu. Tuyệt đối không dùng dao rạch hay rắc các loại bột lá lên mặt vết cắn. Bất cứ khi nào bạn thấy có dấu hiệu bất thường, hãy chủ động cập nhật triệu chứng."
+    "Vi": "Chúng tôi đã ghi nhận tình trạng chảy máu. Hãy dùng vải sạch đắp nhẹ lên vết thương để thấm máu. Tuyệt đối không dùng dao rạch hay rắc các loại bột lá lên mặt vết cắn."
   },
   {
     "MsgId": "Voice.VomitingDizziness",
     "MsgContent": "Nausea detected. Please lie on your side right now to keep your airway clear in case of vomiting. Whenever you notice any unusual signs, please proactively update your symptoms.",
     "En": "Nausea detected. Please lie on your side right now to keep your airway clear in case of vomiting. Whenever you notice any unusual signs, please proactively update your symptoms.",
-    "Vi": "Triệu chứng buồn nôn. Hãy nằm nghiêng người sang một bên ngay bây giờ. Tư thế nằm nghiêng sẽ giúp bạn thở an toàn không bị sặc nếu xảy ra nôn mửa. Bất cứ khi nào bạn thấy có dấu hiệu bất thường, hãy chủ động cập nhật triệu chứng."
+    "Vi": "Chúng tôi đã ghi nhận tình trạng buồn nôn. Hãy nằm nghiêng người sang một bên ngay bây giờ. Tư thế nằm nghiêng sẽ giúp bạn thở an toàn không bị sặc nếu xảy ra nôn mửa."
   },
   {
     "MsgId": "Voice.SwellingPain",
     "MsgContent": "Swelling is a normal reaction. Do not try to squeeze out the blood. Immediately remove any rings, bracelets, or watches near the bite. Whenever you notice any unusual signs, please proactively update your symptoms.",
     "En": "Swelling is a normal reaction. Do not try to squeeze out the blood. Immediately remove any rings, bracelets, or watches near the bite. Whenever you notice any unusual signs, please proactively update your symptoms.",
-    "Vi": "Vết sưng đau là phản ứng bình thường. Tuyệt đối không nặn máu. Hãy tháo ngay nhẫn, vòng tay hoặc đồng hồ gần vết cắn trước khi nó sưng to hơn. Bất cứ khi nào bạn thấy có dấu hiệu bất thường, hãy chủ động cập nhật triệu chứng."
+    "Vi": "Vết sưng đau là phản ứng bình thường. Tuyệt đối không nặn máu. Hãy tháo ngay nhẫn, vòng tay hoặc đồng hồ gần vết cắn trước khi nó sưng to hơn."
   },
   {
     "MsgId": "Voice.None",
     "MsgContent": "Safe status recorded. You are doing well. Please stay calm, rest, and update me if you notice anything unusual.",
     "En": "Safe status recorded. You are doing well. Please stay calm, rest, and update me if you notice anything unusual.",
-    "Vi": "Đã lưu trạng thái an toàn. Bạn đang làm rất tốt. Hãy giữ bình tĩnh, ngồi nghỉ ngơi và không vận động mạnh. Bất cứ khi nào bạn thấy có dấu hiệu bất thường, hãy chủ động cập nhật triệu chứng."
+    "Vi": "Đã lưu trạng thái an toàn. Bạn đang làm rất tốt. Hãy giữ bình tĩnh, ngồi nghỉ ngơi và không vận động mạnh."
   },
   {
     "MsgId": "Incident.Reason0010",

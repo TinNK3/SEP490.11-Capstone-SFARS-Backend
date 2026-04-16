@@ -649,7 +649,7 @@ namespace SFARS.Application.Services
             var activeMissions = await _unitOfWork.Repository<RescueMission, Guid>()
                 .GetAllWithSpecAsync(new BaseSpecification<RescueMission>(m =>
                     m.RescuerId == userId
-                    && (m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Pending)));
+                    && (m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Arrived)));
 
             foreach (var mission in activeMissions)
             {

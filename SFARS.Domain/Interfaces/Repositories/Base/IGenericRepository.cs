@@ -10,6 +10,7 @@ namespace SFARS.Domain.Interfaces.Repositories.Base
 
         ///  Default Procedures
         IQueryable<TEntity> GetQueryable(bool tracked = true);
+        IQueryable<TEntity> GetWithSpec(ISpecification<TEntity> specification, bool tracked = true);
         Task<IEnumerable<TEntity>> GetAllAsync(bool tracked = true);
         Task<TEntity?> GetByIdAsync(TKey id);
 

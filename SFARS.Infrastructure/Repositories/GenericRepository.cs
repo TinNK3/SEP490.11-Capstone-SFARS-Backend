@@ -31,6 +31,12 @@ namespace SFARS.Infrastructure.Repositories
             return tracked ? _dbSet : _dbSet.AsNoTracking();
         }
 
+        public IQueryable<TEntity> GetWithSpec(ISpecification<TEntity> specification, bool tracked = true)
+        {
+            var query = tracked ? _dbSet.AsQueryable() : _dbSet.AsNoTracking();
+            return ApplySpecification(query, specification);
+        }
+
         public async Task<IEnumerable<TEntity>> GetAllAsync(bool tracked = true)
         {
             IQueryable<TEntity> query = _dbSet;

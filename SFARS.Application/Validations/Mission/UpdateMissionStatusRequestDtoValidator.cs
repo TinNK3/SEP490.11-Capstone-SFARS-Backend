@@ -19,11 +19,11 @@ namespace SFARS.Application.Validations.Mission
 
             // Rescuer can only update to these semantic states during an active mission
             RuleFor(x => x.NewStatus)
-                .Must(status => status == IncidentStatus.EnRoute || 
+                .Must(status => status == IncidentStatus.Assigned || 
                                 status == IncidentStatus.Arrived || 
                                 status == IncidentStatus.Closed)
-                .WithMessage(isVi ? "Bạn chỉ có thể cập nhật trạng thái hoạt động: EnRoute, Arrived, Closed." 
-                                  : "You can only update active statuses: EnRoute, Arrived, Closed.");
+                .WithMessage(isVi ? "Bạn chỉ có thể cập nhật trạng thái hoạt động: Assigned, Arrived, Closed." 
+                                  : "You can only update active statuses: Assigned, Arrived, Closed.");
         }
     }
 }

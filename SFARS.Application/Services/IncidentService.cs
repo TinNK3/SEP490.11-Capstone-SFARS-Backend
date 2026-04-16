@@ -423,8 +423,8 @@ namespace SFARS.Application.Services
                 RescuerId = incident.Missions
                     .OrderByDescending(m => m.CreatedAt)
                     .FirstOrDefault(m => m.Status == RescueStatus.Accepted || 
-                                         m.Status == RescueStatus.Completed || 
-                                         m.Status == RescueStatus.Pending)
+                                         m.Status == RescueStatus.Arrived ||
+                                         m.Status == RescueStatus.Completed)
                     ?.RescuerId
             };
 
@@ -674,7 +674,7 @@ namespace SFARS.Application.Services
             // Batch query all participant user IDs
             var participantIds = new List<Guid> { incident.VictimId };
             participantIds.AddRange(incident.Missions
-                .Where(m => m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Pending)
+                .Where(m => m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Arrived)
                 .Select(m => m.RescuerId));
 
             var users = await _unitOfWork.Repository<User, Guid>()
@@ -734,7 +734,7 @@ namespace SFARS.Application.Services
             // Batch query all participant users
             var participantIds = new List<Guid> { incident.VictimId };
             participantIds.AddRange(incident.Missions
-                .Where(m => m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Pending)
+                .Where(m => m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Arrived)
                 .Select(m => m.RescuerId));
 
             var users = await _unitOfWork.Repository<User, Guid>()
@@ -1374,14 +1374,13 @@ namespace SFARS.Application.Services
             // Case 1 (Dispatching): DB already updated — next Hangfire Tier job will pick up fresh data.
             // No extra notification needed.
 
-            // Case 2 (Assigned / EnRoute / Arrived): Point-to-point to the active Rescuer
+            // Case 2 (Assigned / Arrived): Point-to-point to the active Rescuer
             if (incident.CurrentStatus == IncidentStatus.Assigned ||
-                incident.CurrentStatus == IncidentStatus.EnRoute ||
                 incident.CurrentStatus == IncidentStatus.Arrived)
             {
                 var missionSpec = new BaseSpecification<RescueMission>(m =>
-                    m.IncidentId == incidentId &&
-                    (m.Status == RescueStatus.Pending || m.Status == RescueStatus.Accepted));
+                    m.IncidentId == incident.Id &&
+                    (m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Arrived));
                 var activeMission = await _unitOfWork.Repository<RescueMission, Guid>()
                     .GetWithSpecAsync(missionSpec);
 

@@ -1,5 +1,6 @@
 using Hangfire;
 using System.Text.Json;
+using Mapster;
 using MapsterMapper;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -69,8 +70,10 @@ public class MissionService : IMissionService
 
         var spec = new MissionSpecification(specParams, rescuerId, isCount: false);
 
-        var entities = await _unitOfWork.Repository<RescueMission, Guid>().GetAllWithSpecAsync(spec);
-        var dtos = _mapper.Map<IEnumerable<MissionDto>>(entities);
+        var dtos = await _unitOfWork.Repository<RescueMission, Guid>()
+            .GetWithSpec(spec, tracked: false)
+            .ProjectToType<MissionDto>(_mapper.Config)
+            .ToListAsync();
 
         var limit = specParams.GetTake();
         var page = specParams.GetPage();
@@ -101,10 +104,9 @@ public class MissionService : IMissionService
         if (rescuer?.CurrentLocation == null)
             return new ServiceResult(ResultCodeConst.SYS_Fail0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
 
-        // Refactor: Prevent rescuer spam accept / active mission overlap
         var activeMissionsSpec = new BaseSpecification<RescueMission>(m => 
            m.RescuerId == rescuerId && 
-           (m.Status == RescueStatus.Pending || m.Status == RescueStatus.Accepted));
+           (m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Arrived));
         var activeMissions = await _unitOfWork.Repository<RescueMission, Guid>().GetAllWithSpecAsync(activeMissionsSpec);
         
         if (activeMissions.Any())
@@ -134,7 +136,7 @@ public class MissionService : IMissionService
             rowsAffected = await _unitOfWork.ExecuteSqlRawAsync(
                 @"UPDATE Incident SET current_status = {0}, updated_at = {1}
                   WHERE id = {2} AND current_status IN ({3}, {4}, {5}, {6})",
-                IncidentStatus.EnRoute.ToString(), DateTime.UtcNow, incidentId,
+                IncidentStatus.Assigned.ToString(), DateTime.UtcNow, incidentId,
                 IncidentStatus.Dispatching_Tier1.ToString(),
                 IncidentStatus.Dispatching_Tier2.ToString(),
                 IncidentStatus.Dispatching_Tier3.ToString(),
@@ -180,7 +182,8 @@ public class MissionService : IMissionService
             Id = Guid.NewGuid(),
             IncidentId = incidentId,
             RescuerId = rescuerId,
-            Status = RescueStatus.Pending,
+            Status = RescueStatus.Accepted,
+            StartedAt = DateTime.UtcNow,
             InitialDistanceMeters = dist, // Captured at line 110
             LastCheckedDistanceMeters = dist,
             NextCheckAt = DateTime.UtcNow.AddMinutes(DispatchConstants.WatchdogInitialGraceMins),
@@ -195,7 +198,7 @@ public class MissionService : IMissionService
             Id = Guid.NewGuid(),
             IncidentId = incidentId,
             StatusFrom = incident.CurrentStatus, // snapshot before atomic UPDATE
-            StatusTo = IncidentStatus.EnRoute,
+            StatusTo = IncidentStatus.Assigned,
             ChangedBy = rescuerId,
             ChangeReason = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Reason0003),
             CreatedAt = DateTime.UtcNow,
@@ -257,7 +260,6 @@ public class MissionService : IMissionService
                 IncidentId = incidentId,
                 IncidentCode = incident.Code,
                 MinutesSinceBite = incident.MinutesSinceBite,
-                Symptoms = incident.ExtractedSymptoms,
                 UpdatedAt = incident.LastSymptomUpdateAt
             };
 
@@ -314,9 +316,9 @@ public class MissionService : IMissionService
 
         var mission = await _unitOfWork.Repository<RescueMission, Guid>().GetWithSpecAsync(spec);
 
-        if (mission == null || mission.Status != RescueStatus.Pending) return;
+        if (mission == null || mission.Status != RescueStatus.Accepted) return;
         var incident = mission.Incident;
-        if (incident.CurrentStatus != IncidentStatus.Assigned && incident.CurrentStatus != IncidentStatus.EnRoute) return;
+        if (incident.CurrentStatus != IncidentStatus.Assigned) return;
 
         var utcNow = DateTime.UtcNow;
 
@@ -429,23 +431,31 @@ System.Diagnostics.Debug.WriteLine($"Watchdog scheduled at {mission.Id}");
         if (mission == null) 
             return new ServiceResult(ResultCodeConst.SYS_Warning0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001));
 
+        if (mission.Status == RescueStatus.Completed || mission.Status == RescueStatus.Rejected || mission.Status == RescueStatus.Reassigned)
+        {
+            _logger.LogWarning("UpdateStatusAsync: Rescuer {RescuerId} attempted to update historical mission {MissionId} (Status: {Status})", rescuerId, missionId, mission.Status);
+            return new ServiceResult(ResultCodeConst.Mission_Warning0001, await _msgService.GetMessageAsync(ResultCodeConst.Mission_Warning0001));
+        }
+
         var incident = mission.Incident;
 
         if (incident.CurrentStatus == IncidentStatus.Closed || incident.CurrentStatus == IncidentStatus.Cancelled)
             return new ServiceResult(ResultCodeConst.Mission_Warning0001, await _msgService.GetMessageAsync(ResultCodeConst.Mission_Warning0001));
 
-        // Close incident — rescuer review is optional in the two-layer review flow
+        // Sync IncidentStatus to RescueStatus
         if (newStatus == IncidentStatus.Closed)
         {
             mission.Status = RescueStatus.Completed;
+            mission.CompletedAt = DateTime.UtcNow;
         }
-        else
+        else if (newStatus == IncidentStatus.Arrived)
         {
-            // Transition RescueStatus off Pending if they update to Arrived
-            if (newStatus == IncidentStatus.Arrived)
-            {
-                mission.Status = RescueStatus.Accepted; 
-            }
+            mission.Status = RescueStatus.Arrived; 
+            mission.ArrivedAt = DateTime.UtcNow;
+        }
+        else if (newStatus == IncidentStatus.Assigned)
+        {
+            mission.Status = RescueStatus.Accepted;
         }
 
         // Capture old status BEFORE mutation

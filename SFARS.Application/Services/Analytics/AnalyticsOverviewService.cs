@@ -69,9 +69,9 @@ public class AnalyticsOverviewService : IAnalyticsOverviewService
             .Select(g => new
             {
                 ActiveRescues = g.Count(x =>
-                    x.Status == RescueStatus.Pending ||
                     x.Status == RescueStatus.Accepted ||
-                    x.Status == RescueStatus.Reassigned),
+                    x.Status == RescueStatus.Reassigned ||
+                    x.Status == RescueStatus.Arrived),
                 CompletedRescues = g.Count(x => x.Status == RescueStatus.Completed),
                 FailedRescues = g.Count(x => x.Status == RescueStatus.Rejected),
                 TotalMissions = g.Count(),

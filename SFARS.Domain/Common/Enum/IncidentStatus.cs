@@ -15,7 +15,6 @@ namespace SFARS.Domain.Common.Enum
         // Post-Dispatch
         [Description("Chưa tìm được cứu hộ")]    Unassigned,   // All tiers failed — kept alive
         [Description("Đã phân công")]            Assigned,
-        [Description("Đang tới")]                EnRoute,
         [Description("Đã đến nơi")]              Arrived,
         [Description("Đã đóng ca")]              Closed,
         [Description("Đã huỷ")]                  Cancelled

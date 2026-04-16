@@ -27,7 +27,6 @@ public class SosDispatchNotificationDto
     // --- Voice Extraction ---
     public string? SymptomAudioUrl { get; set; }
     public int? MinutesSinceBite { get; set; }
-    public string? ExtractedSymptoms { get; set; }
 
     public DateTime DispatchedAt { get; set; }
 }

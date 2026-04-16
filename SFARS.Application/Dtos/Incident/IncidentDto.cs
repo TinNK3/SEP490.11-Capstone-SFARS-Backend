@@ -14,10 +14,7 @@ namespace SFARS.Application.Dtos.Incident
         
         // Details
         public string? Description { get; set; }
-        public string? SymptomAudioUrl { get; set; }
-        public string? SymptomText { get; set; }
         public int? MinutesSinceBite { get; set; }
-        public string? ExtractedSymptoms { get; set; }
         public IncidentStatus CurrentStatus { get; set; } = IncidentStatus.Pending;
         public SeverityLevel PriorityLevel { get; set; } = SeverityLevel.Medium;
         

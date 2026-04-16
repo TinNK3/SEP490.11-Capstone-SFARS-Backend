@@ -13,8 +13,18 @@ public class MissionDto
     public DateTime? ArrivedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
     
-    public string? RescuerNotes { get; set; }
-    public string? PatientConditionAtHandover { get; set; }
+    public string? TotalCompletionTime
+    {
+        get
+        {
+            if (StartedAt.HasValue && CompletedAt.HasValue)
+            {
+                var diff = CompletedAt.Value - StartedAt.Value;
+                return $"{(int)diff.TotalHours:D2}:{diff.Minutes:D2}:{diff.Seconds:D2}";
+            }
+            return null;
+        }
+    }
 
     // Linked incident summary
     public IncidentDto? Incident { get; set; }
