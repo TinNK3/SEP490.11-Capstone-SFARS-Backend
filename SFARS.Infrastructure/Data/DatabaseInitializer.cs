@@ -723,7 +723,7 @@ namespace SFARS.Infrastructure.Data
                 (30, SeverityLevel.Low,    IncidentStatus.Closed,     true,  10.0452, 105.7469),  // Cần Thơ
                 (20, SeverityLevel.Medium, IncidentStatus.Closed,     true,  10.7769, 106.6950),  // HCM
                 (15, SeverityLevel.High,   IncidentStatus.Assigned,   false, 10.8000, 106.7100),  // HCM (active)
-                (10, SeverityLevel.Medium, IncidentStatus.EnRoute,    false, 16.0500, 108.2200),  // Đà Nẵng (active)
+                (10, SeverityLevel.Medium, IncidentStatus.Assigned,   false, 16.0500, 108.2200),  // Đà Nẵng (active)
                 (5,  SeverityLevel.Low,    IncidentStatus.Pending,    false, 21.0300, 105.8400),  // Hà Nội (active)
                 (1,  SeverityLevel.High,   IncidentStatus.Arrived,    false, 10.9800, 106.8500),  // Biên Hoà (active)
             };

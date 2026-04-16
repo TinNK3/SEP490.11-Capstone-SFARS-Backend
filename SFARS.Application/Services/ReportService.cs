@@ -72,7 +72,8 @@ public class ReportService : IReportService
     public async Task<IServiceResult> GetAllReportsAsync()
     {
         var spec = new BaseSpecification<Report>(r => true);
-        spec.ApplyInclude(q => q.Include(r => r.Reporter).Include(r => r.Admin));
+        spec.ApplyInclude(q => q.Include(r => r.Reporter));
+        spec.ApplyInclude(q => q.Include(r => r.Admin)!);
         spec.AddOrderByDescending(r => r.CreatedAt);
 
         var reports = await _uow.Repository<Report, Guid>().GetAllWithSpecAsync(spec, tracked: false);

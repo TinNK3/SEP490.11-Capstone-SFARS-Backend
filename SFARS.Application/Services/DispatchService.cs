@@ -64,23 +64,28 @@ public class DispatchService : IDispatchService
             return;
         }
 
-        // Both initial dispatch and watchdog re-dispatch must re-enter the tier pipeline.
-        incident.CurrentStatus = IncidentStatus.Dispatching_Tier1;
-        incident.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync();
-
+        // 1. Fail-fast check first (Superset of all tiers — 20km)
+        // If no rescuer exists within FailFast radius, abort immediately to notify victim.
         var anyRescuer = await AnyAvailableRescuerWithinAsync(incident.Location, DispatchConstants.FailFastRadiusMeters);
         if (!anyRescuer)
         {
-            _logger.LogWarning("Fail-fast: no available rescuer within {R} km for IncidentId={Id}",
+            _logger.LogWarning("Fail-fast: no available rescuer within {R} km for IncidentId={Id}. Triggering fallback.",
                 DispatchConstants.FailFastRadiusMeters / 1000, incidentId);
             await RunFallbackAsync(incidentId);
             return;
         }
 
-        // Step 2: Enqueue/Schedule search tiers
-        var j1 = _jobs.Enqueue<IDispatchService>(
-            q => q.RunTier1Async(incidentId));
+        // 2. Commit status change FIRST.
+        // This ensures that when RunTier1 starts (even if it's instant), it sees the committed status in the DB.
+        incident.CurrentStatus = IncidentStatus.Dispatching_Tier1;
+        incident.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.SaveChangesAsync();
+
+        // 3. Enqueue/Schedule all search tiers in Hangfire.
+        // Contention check: RunTier1 might start precisely now. 
+        // Since we already committed the status above, RunTier1 will correctly see 'Dispatching_Tier1'.
+        var j1 = _jobs.Schedule<IDispatchService>(
+            q => q.RunTier1Async(incidentId), DispatchConstants.Tier1Delay);
 
         var j2 = _jobs.Schedule<IDispatchService>(
             q => q.RunTier2Async(incidentId), DispatchConstants.Tier2Delay);
@@ -91,15 +96,19 @@ public class DispatchService : IDispatchService
         var jf = _jobs.Schedule<IDispatchService>(
             q => q.RunFallbackAsync(incidentId), DispatchConstants.FallbackDelay);
 
-        // Update with Job IDs for tracking/cancellation
-        incident.DispatchJobIds = JsonSerializer.Serialize(new[] { j1, j2, j3, jf });
-        await _unitOfWork.SaveChangesAsync();
+        // 4. Update Job IDs for tracking/cancellation logic.
+        // We use ExecuteUpdateAsync here to avoid RowVersion conflicts with RunTier1
+        // which might already be running and trying to update its own status.
+        var jobIdsJson = JsonSerializer.Serialize(new[] { j1, j2, j3, jf });
+        await _unitOfWork.Repository<Incident, Guid>().GetQueryable()
+            .Where(i => i.Id == incidentId)
+            .ExecuteUpdateAsync(s => s.SetProperty(i => i.DispatchJobIds, jobIdsJson));
 
-        // Real-time: Notify all rescuers about new incident in community list
+        // 5. Broadcast Community Update
         await NotifyCommunityAsync(incidentId);
 
-        _logger.LogInformation("Dispatch chain started for IncidentId={Id}. Status updated to Dispatching_Tier1. Jobs={Jobs}",
-            incidentId, incident.DispatchJobIds);
+        _logger.LogInformation("Dispatch chain started for IncidentId={Id}. Jobs={Jobs}",
+            incidentId, jobIdsJson);
     }
 
     /// <inheritdoc />
@@ -139,7 +148,8 @@ public class DispatchService : IDispatchService
     [Queue(DispatchConstants.HangfireQueue)]
     public async Task RunFallbackAsync(Guid incidentId)
     {
-        var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
+        var incident = await _unitOfWork.Repository<Incident, Guid>().GetQueryable(tracked: false)
+            .FirstOrDefaultAsync(i => i.Id == incidentId);
 
         if (incident is null)
         {
@@ -158,7 +168,7 @@ public class DispatchService : IDispatchService
         var hasActiveMission = await _unitOfWork.Repository<RescueMission, Guid>()
             .AnyAsync(new BaseSpecification<RescueMission>(m =>
                 m.IncidentId == incidentId &&
-                (m.Status == RescueStatus.Pending || m.Status == RescueStatus.Accepted)));
+                (m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Arrived)));
 
         if (hasActiveMission)
         {
@@ -170,9 +180,24 @@ public class DispatchService : IDispatchService
 
         // Capture old status BEFORE mutation for accurate audit trail
         var oldStatus = incident.CurrentStatus;
-        incident.CurrentStatus = IncidentStatus.Unassigned;
-        incident.DispatchJobIds = null;
-        incident.UpdatedAt = DateTime.UtcNow;
+
+        // Atomic update for status and clearing job IDs
+        var affectedRows = await _unitOfWork.Repository<Incident, Guid>().GetQueryable()
+            .Where(i => i.Id == incidentId && (
+                i.CurrentStatus == IncidentStatus.Pending ||
+                i.CurrentStatus == IncidentStatus.Dispatching_Tier1 ||
+                i.CurrentStatus == IncidentStatus.Dispatching_Tier2 ||
+                i.CurrentStatus == IncidentStatus.Dispatching_Tier3))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(i => i.CurrentStatus, IncidentStatus.Unassigned)
+                .SetProperty(i => i.DispatchJobIds, (string?)null)
+                .SetProperty(i => i.UpdatedAt, DateTime.UtcNow));
+
+        if (affectedRows == 0)
+        {
+            _logger.LogInformation("Fallback skipped: status already transitioned. IncidentId={Id}", incidentId);
+            return;
+        }
 
         // Audit Trail for Fallback
         await _unitOfWork.Repository<IncidentStatusHistory, Guid>().AddAsync(new IncidentStatusHistory
@@ -185,7 +210,8 @@ public class DispatchService : IDispatchService
             ChangeReason = await _msgService.GetMessageAsync(ResultCodeConst.Incident_Reason0007),
             CreatedAt = DateTime.UtcNow
         });
-
+        
+        // Final SaveChanges for audit and notifications below
         await _unitOfWork.SaveChangesAsync();
 
         var message = await _msgService.GetMessageAsync(ResultCodeConst.Dispatch_Notify0002);
@@ -238,7 +264,8 @@ public class DispatchService : IDispatchService
     [Queue(DispatchConstants.HangfireQueue)]
     public async Task AutoCloseAbandonedIncidentAsync(Guid incidentId)
     {
-        var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
+        var incident = await _unitOfWork.Repository<Incident, Guid>().GetQueryable(tracked: false)
+            .FirstOrDefaultAsync(i => i.Id == incidentId);
         if (incident == null || incident.CurrentStatus != IncidentStatus.Unassigned)
         {
             return; // Already handled, assigned, or cancelled
@@ -248,8 +275,15 @@ public class DispatchService : IDispatchService
             incidentId, DispatchConstants.AbandonedIncidentExpiryHours);
 
         var oldStatus = incident.CurrentStatus;
-        incident.CurrentStatus = IncidentStatus.Closed;
-        incident.UpdatedAt = DateTime.UtcNow;
+
+        // Atomic update for final closure
+        var affectedRows = await _unitOfWork.Repository<Incident, Guid>().GetQueryable()
+            .Where(i => i.Id == incidentId && i.CurrentStatus == IncidentStatus.Unassigned)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(i => i.CurrentStatus, IncidentStatus.Closed)
+                .SetProperty(i => i.UpdatedAt, DateTime.UtcNow));
+
+        if (affectedRows == 0) return;
 
         await _unitOfWork.Repository<IncidentStatusHistory, Guid>().AddAsync(new IncidentStatusHistory
         {
@@ -281,7 +315,7 @@ public class DispatchService : IDispatchService
             .Include(i => i.CurrentAiInference!)
                 .ThenInclude(ai => ai.SelectedSnake!));
         
-        var incident = await _unitOfWork.Repository<Incident, Guid>().GetWithSpecAsync(spec);
+        var incident = await _unitOfWork.Repository<Incident, Guid>().GetWithSpecAsync(spec, tracked: false);
 
         if (incident is null || incident.CurrentStatus == IncidentStatus.Assigned || incident.CurrentStatus == IncidentStatus.Cancelled)
         {
@@ -302,18 +336,39 @@ public class DispatchService : IDispatchService
             _logger.LogInformation("Tier{T}: 0 rescuers found. IncidentId={Id}", tier, incidentId);
             if (nextStatus.HasValue)
             {
-                incident.CurrentStatus = nextStatus.Value;
-                incident.UpdatedAt = DateTime.UtcNow;
-                await _unitOfWork.SaveChangesAsync();
+                // Atomic transition even when no rescuers found
+                await _unitOfWork.Repository<Incident, Guid>().GetQueryable()
+                    .Where(i => i.Id == incidentId && i.CurrentStatus == expectedStatus)
+                    .ExecuteUpdateAsync(setter => setter
+                        .SetProperty(i => i.CurrentStatus, nextStatus.Value)
+                        .SetProperty(i => i.UpdatedAt, DateTime.UtcNow));
             }
             return;
         }
 
         if (nextStatus.HasValue)
         {
+            // Senior-level atomic state transition:
+            // Prevents DbUpdateConcurrencyException by using a direct SQL update for critical state fields.
+            // This is immune to RowVersion changes on OTHER fields (like AI results or priority) 
+            // that might happen between the Load and Save operations in high-concurrency SOS flows.
+            var affectedRows = await _unitOfWork.Repository<Incident, Guid>().GetQueryable()
+                .Where(i => i.Id == incidentId && i.CurrentStatus == expectedStatus)
+                .ExecuteUpdateAsync(setter => setter
+                    .SetProperty(i => i.CurrentStatus, nextStatus.Value)
+                    .SetProperty(i => i.UpdatedAt, DateTime.UtcNow));
+
+            if (affectedRows == 0)
+            {
+                // Status changed by another process (e.g., incident accepted, cancelled, or already escalated)
+                _logger.LogWarning("Tier{T}: Atomic status update affected 0 rows. IncidentId={Id} likely moved from {E} already.", 
+                    tier, incidentId, expectedStatus);
+                return;
+            }
+
+            // Sync the in-memory object for subsequent DTO building and logging
             incident.CurrentStatus = nextStatus.Value;
             incident.UpdatedAt = DateTime.UtcNow;
-            await _unitOfWork.SaveChangesAsync();
         }
 
         var now = DateTime.UtcNow;
@@ -368,8 +423,7 @@ public class DispatchService : IDispatchService
                 AiConfidence = aiConfidence,
                 ToxinGroup = toxin,
                 SymptomAudioUrl = incident.SymptomAudioUrl,
-                MinutesSinceBite = incident.MinutesSinceBite,
-                ExtractedSymptoms = incident.ExtractedSymptoms
+                MinutesSinceBite = incident.MinutesSinceBite
             };
 
             await _rescueHub.Clients

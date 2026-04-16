@@ -636,7 +636,7 @@ public class AiInferenceService : IAiInferenceService
     /// <summary>
     /// Notifies rescuers when the victim retakes a photo (re-analyze) during an active incident.
     /// <para>
-    ///   • <b>Assigned/EnRoute/Arrived</b> — targets the single assigned rescuer via active mission lookup.
+    ///   • <b>Assigned/Arrived</b> — targets the single assigned rescuer via active mission lookup.
     /// </para>
     /// <para>
     ///   • <b>Dispatching_Tier*</b> / <b>Unassigned</b> — broadcasts to the incident tracking group
@@ -666,13 +666,13 @@ public class AiInferenceService : IAiInferenceService
 
         // Case 1: Rescuer assigned → direct private notification
         if (incident.CurrentStatus is IncidentStatus.Assigned
-            or IncidentStatus.EnRoute or IncidentStatus.Arrived)
+            or IncidentStatus.Arrived)
         {
             var activeMission = await _unitOfWork.Repository<RescueMission, Guid>()
                 .GetAllAsync(tracked: false);
             var mission = activeMission.FirstOrDefault(m =>
                 m.IncidentId == incident.Id
-                && (m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Pending));
+                && (m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Arrived));
 
             if (mission != null)
             {

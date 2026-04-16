@@ -4,14 +4,14 @@ namespace SFARS.Domain.Common.Enum
 {
     public enum RescueStatus
     {
-        [Description("Chờ phản hồi")] 
-        Pending,
         [Description("Đã nhận")] 
         Accepted,
         [Description("Từ chối")] 
         Rejected,
         [Description("Đã phân công lại")] 
         Reassigned,
+        [Description("Đã đến nơi")]
+        Arrived,
         [Description("Hoàn tất")] 
         Completed
     }

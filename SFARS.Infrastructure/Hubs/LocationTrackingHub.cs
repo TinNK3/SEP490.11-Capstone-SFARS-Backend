@@ -47,7 +47,7 @@ public class LocationTrackingHub : Hub
                 && (i.VictimId == userId
                     || i.Missions.Any(m => m.RescuerId == userId
                         && (m.Status == RescueStatus.Accepted
-                            || m.Status == RescueStatus.Pending))));
+                            || m.Status == RescueStatus.Arrived))));
 
         if (!isParticipant)
             throw new HubException("Not authorized or incident not active");

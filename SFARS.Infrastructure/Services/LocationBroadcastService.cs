@@ -150,7 +150,7 @@ public class LocationBroadcastService : ILocationBroadcastService
             .GetAllWithSpecAndSelectorAsync(
                 new BaseSpecification<RescueMission>(m =>
                     m.RescuerId == userId
-                    && (m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Pending)
+                    && (m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Arrived)
                     && m.Incident.CurrentStatus != IncidentStatus.Closed
                     && m.Incident.CurrentStatus != IncidentStatus.Cancelled),
                 m => m.IncidentId,
@@ -176,7 +176,7 @@ public class LocationBroadcastService : ILocationBroadcastService
             var spec = new BaseSpecification<RescueMission>(m => 
                 m.RescuerId == userId && 
                 m.Status == RescueStatus.Accepted && 
-                m.Incident.CurrentStatus == IncidentStatus.EnRoute);
+                m.Incident.CurrentStatus == IncidentStatus.Assigned);
             
             spec.ApplyInclude(q => q.Include(m => m.Incident));
             

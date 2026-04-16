@@ -7,7 +7,7 @@ public class RescueMission : BaseEntity
 {
     public Guid IncidentId { get; set; }
     public Guid RescuerId { get; set; }
-    public RescueStatus Status { get; set; } = RescueStatus.Pending;
+    public RescueStatus Status { get; set; } = RescueStatus.Accepted;
     
     public DateTime? StartedAt { get; set; }
     public DateTime? ArrivedAt { get; set; }

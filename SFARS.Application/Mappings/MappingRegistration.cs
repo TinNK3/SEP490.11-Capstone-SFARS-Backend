@@ -40,10 +40,7 @@ namespace SFARS.Application.Mappings
                 .Map(dest => dest.Latitude, src => src.Location != null ? src.Location.Y : 0)
                 .Map(dest => dest.Longitude, src => src.Location != null ? src.Location.X : 0)
                 .Map(dest => dest.VictimName, src => src.Victim != null ? src.Victim.FullName : null)
-                .Map(dest => dest.SymptomAudioUrl, src => src.SymptomAudioUrl)
-                .Map(dest => dest.MinutesSinceBite, src => src.MinutesSinceBite)
-                .Map(dest => dest.ExtractedSymptoms, src => src.ExtractedSymptoms)
-                .Ignore(dest => dest.SymptomText); // Handled by service projection to enforce Admin-only rule
+                .Map(dest => dest.MinutesSinceBite, src => src.MinutesSinceBite);
 
 
             // RescuerProfile → RescuerProfileDto: include User fields via navigation property

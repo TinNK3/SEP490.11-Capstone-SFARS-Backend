@@ -13,7 +13,6 @@ public class CommunityIncidentSpecification : BaseSpecification<Incident>
             x.CurrentStatus == IncidentStatus.Dispatching_Tier3 ||
             x.CurrentStatus == IncidentStatus.Unassigned ||
             x.CurrentStatus == IncidentStatus.Assigned ||
-            x.CurrentStatus == IncidentStatus.EnRoute ||
             x.CurrentStatus == IncidentStatus.Arrived ||
             x.CurrentStatus == IncidentStatus.Closed)
     {
