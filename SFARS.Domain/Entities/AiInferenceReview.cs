@@ -30,11 +30,20 @@ namespace SFARS.Domain.Entities
 
         public ToxinGroup? CorrectedToxinGroup { get; set; }
 
+        public bool? IsConfirmedWoundSnakeBite { get; set; }
+
         public UnableToAssessReason? UnableToAssessReasonChoice { get; set; }
 
         /// <summary>Optional free-text note from rescuer</summary>
         public string? Comment { get; set; }
 
         public DateTime? ReviewedAt { get; set; }
+
+        /// <summary>Admin who performed the final review. Null if not yet admin-reviewed.</summary>
+        public Guid? AdminReviewerId { get; set; }
+        public virtual User? AdminReviewer { get; set; }
+
+        /// <summary>Admin's notes or feedback</summary>
+        public string? AdminComment { get; set; }
     }
 }

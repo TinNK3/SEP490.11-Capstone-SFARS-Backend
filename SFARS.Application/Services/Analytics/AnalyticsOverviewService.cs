@@ -105,9 +105,7 @@ public class AnalyticsOverviewService : IAnalyticsOverviewService
             {
                 ReviewedCount = g.Count(x =>
                     x.ReviewStatus != AiReviewStatus.Pending &&
-                    x.ReviewStatus != AiReviewStatus.Deferred &&
-                    x.ReviewStatus != AiReviewStatus.UnableToAssess &&
-                    x.ReviewStatus != AiReviewStatus.Abandoned),
+                    x.ReviewStatus != AiReviewStatus.UnableToAssess),
                 ConfirmedCorrect = g.Count(x => x.ReviewStatus == AiReviewStatus.ConfirmedCorrect)
             })
             .FirstOrDefaultAsync();

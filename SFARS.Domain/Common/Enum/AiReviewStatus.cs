@@ -7,19 +7,13 @@ namespace SFARS.Domain.Common.Enum
         [Description("Chờ xử lý")]
         Pending = 0,
 
-        [Description("Đánh giá sau")]
-        Deferred = 1,
-
         [Description("AI nhận diện đúng")]
-        ConfirmedCorrect = 2,
+        ConfirmedCorrect = 1,
 
         [Description("Cập nhật lại kết quả AI")]
-        Corrected = 3,
+        Corrected = 2,
 
         [Description("Không thể đánh giá")]
-        UnableToAssess = 4,
-
-        [Description("Đã hủy (quá hạn)")]
-        Abandoned = 5
+        UnableToAssess = 3
     }
 }

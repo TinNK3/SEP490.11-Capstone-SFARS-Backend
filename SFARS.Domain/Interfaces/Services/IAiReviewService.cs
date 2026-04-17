@@ -5,7 +5,15 @@ namespace SFARS.Domain.Interfaces.Services;
 
 public interface IAiReviewService<TSubmitRequest, TFirstAidStep>
 {
-    Task<IServiceResult> SubmitReviewAsync(Guid incidentId, Guid rescuerId, TSubmitRequest request);
+    Task<IServiceResult> SubmitReviewAsync(Guid incidentId, Guid rescuerId, TSubmitRequest request,
+        Stream? snakeImageStream = null, string? snakeImageFileName = null, string? snakeImageContentType = null);
+    
+    /// <summary>
+    /// Admin finalizes an AI Review — approves or rejects the rescuer's assessment.
+    /// This is the only path that updates AiInferenceReview to a terminal state.
+    /// </summary>
+    Task<IServiceResult> AdminReviewAsync(Guid incidentId, Guid adminId, TSubmitRequest request,
+        Stream? snakeImageStream = null, string? snakeImageFileName = null, string? snakeImageContentType = null);
     
     /// <summary>
     /// Gets the effective first aid protocol for an incident, adhering to the AI review rules.

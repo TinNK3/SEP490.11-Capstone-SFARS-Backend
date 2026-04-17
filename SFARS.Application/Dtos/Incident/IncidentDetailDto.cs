@@ -9,8 +9,8 @@ namespace SFARS.Application.Dtos.Incident
         public string? Code { get; set; }
         
         // Location
-        public double Latitude { get; set; }
-        public double Longitude { get; set; }
+        public LocationCoords Patient { get; set; } = new();
+        public LocationCoords? Rescuer { get; set; }
         public string? AddressString { get; set; }
         public string? Description { get; set; }
 
@@ -27,5 +27,13 @@ namespace SFARS.Application.Dtos.Incident
         public SnakeCandidateDto? PrimarySnake { get; set; }
         public List<SnakeCandidateDto> OtherCandidates { get; set; } = new();
         public WoundAnalysisDto? WoundAnalysis { get; set; }
+        
+        public bool IsVerified { get; set; }
+    }
+
+    public class LocationCoords
+    {
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
     }
 }

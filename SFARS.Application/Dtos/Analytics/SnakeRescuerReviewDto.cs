@@ -11,7 +11,7 @@ public class SnakeRescuerReviewDto
     /// <summary>Full name of the rescuer</summary>
     public string ReviewerName { get; set; } = null!;
 
-    /// <summary>Status of the review (Confirmed, Corrected, UnableToAssess, Deferred, etc.)</summary>
+    /// <summary>Status of the review (ConfirmedCorrect, Corrected, UnableToAssess, AdminConfirmed, etc.)</summary>
     public string ReviewStatus { get; set; } = null!;
 
     /// <summary>

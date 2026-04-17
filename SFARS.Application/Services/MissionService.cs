@@ -442,7 +442,7 @@ System.Diagnostics.Debug.WriteLine($"Watchdog scheduled at {mission.Id}");
         if (incident.CurrentStatus == IncidentStatus.Closed || incident.CurrentStatus == IncidentStatus.Cancelled)
             return new ServiceResult(ResultCodeConst.Mission_Warning0001, await _msgService.GetMessageAsync(ResultCodeConst.Mission_Warning0001));
 
-        // Sync IncidentStatus to RescueStatus
+        // Close incident — rescuer review is optional in the two-layer review flow
         if (newStatus == IncidentStatus.Closed)
         {
             mission.Status = RescueStatus.Completed;

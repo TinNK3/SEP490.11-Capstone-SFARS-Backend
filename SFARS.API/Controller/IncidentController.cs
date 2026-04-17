@@ -167,14 +167,50 @@ namespace SFARS.API.Controller
         [HttpPost(APIRoute.Incident.AiReview, Name = nameof(SubmitAiReviewAsync))]
         public async Task<IActionResult> SubmitAiReviewAsync(
             [FromRoute] Guid id,
-            [FromBody] SubmitAiReviewRequestDto req)
+            [FromForm] SubmitAiReviewRequestDto req,
+            IFormFile? snakeImage)
         {
             var userId = User.GetUserId();
 
             var aiReviewService = HttpContext.RequestServices
                 .GetRequiredService<IAiReviewService<SubmitAiReviewRequestDto, FirstAidStepDto>>();
 
-            var result = await aiReviewService.SubmitReviewAsync(id, userId, req);
+            Stream? stream = snakeImage is { Length: > 0 } ? snakeImage.OpenReadStream() : null;
+
+            var result = await aiReviewService.SubmitReviewAsync(id, userId, req,
+                stream, snakeImage?.FileName, snakeImage?.ContentType);
+
+            if (stream != null) await stream.DisposeAsync();
+
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
+        /// Admin finalizes an AI Review (approve/reject rescuer's assessment).
+        /// This is the only path that updates the AiInferenceReview record.
+        /// </summary>
+        /// <param name="id">Incident ID</param>
+        /// <param name="req">Admin review decision</param>
+        /// <param name="snakeImage">Optional snake image for new/unknown snakes</param>
+        /// <returns>Result of admin review submission</returns>
+        [Authorize(Roles = UserTypeConstants.Admin)]
+        [HttpPost(APIRoute.Incident.AdminAiReview, Name = nameof(AdminAiReviewAsync))]
+        public async Task<IActionResult> AdminAiReviewAsync(
+            [FromRoute] Guid id,
+            [FromForm] SubmitAiReviewRequestDto req,
+            IFormFile? snakeImage)
+        {
+            var adminId = User.GetUserId();
+
+            var aiReviewService = HttpContext.RequestServices
+                .GetRequiredService<IAiReviewService<SubmitAiReviewRequestDto, FirstAidStepDto>>();
+
+            Stream? stream = snakeImage is { Length: > 0 } ? snakeImage.OpenReadStream() : null;
+
+            var result = await aiReviewService.AdminReviewAsync(id, adminId, req,
+                stream, snakeImage?.FileName, snakeImage?.ContentType);
+
+            if (stream != null) await stream.DisposeAsync();
 
             return this.ToIActionResult(result);
         }

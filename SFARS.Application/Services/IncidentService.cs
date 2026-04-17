@@ -10,7 +10,6 @@ using SFARS.Application.Common;
 using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.AiInference;
 using SFARS.Application.Dtos.AiReview;
-using SFARS.Application.Dtos.Dispatch;
 using SFARS.Application.Dtos.Incident;
 using SFARS.Application.Validations;
 using SFARS.Domain.Common.Constants;
@@ -407,12 +406,36 @@ namespace SFARS.Application.Services
                 );
             }
 
+            var activeMission = incident.Missions
+                .OrderByDescending(m => m.CreatedAt)
+                .FirstOrDefault(m => m.Status == RescueStatus.Accepted || 
+                                     m.Status == RescueStatus.Completed);
+
+            LocationCoords? rescuerLoc = null;
+            if (activeMission != null && (activeMission.Status == RescueStatus.Accepted || activeMission.Status == RescueStatus.Completed))
+            {
+                var firstLog = await _unitOfWork.Repository<RescueTrackingLog, long>()
+                    .GetQueryable(tracked: false)
+                    .Where(t => t.MissionId == activeMission.Id)
+                    .OrderBy(t => t.LoggedAt)
+                    .FirstOrDefaultAsync();
+
+                if (firstLog != null)
+                {
+                    rescuerLoc = new LocationCoords 
+                    { 
+                        Latitude = firstLog.Location.Y, 
+                        Longitude = firstLog.Location.X 
+                    };
+                }
+            }
+
             var dto = new IncidentDetailDto
             {
                 Id = incident.Id,
                 Code = incident.Code,
-                Latitude = incident.Location.Y,
-                Longitude = incident.Location.X,
+                Patient = new LocationCoords { Latitude = incident.Location.Y, Longitude = incident.Location.X },
+                Rescuer = rescuerLoc,
                 AddressString = incident.AddressString,
                 Description = incident.Description,
                 CurrentStatus = incident.CurrentStatus,
@@ -420,45 +443,90 @@ namespace SFARS.Application.Services
                 AiConfidenceScore = incident.AiConfidenceScore,
                 IncidentImage = incident.Medias.OrderBy(m => m.MediaType).Select(m => m.MediaUrl).FirstOrDefault(),
                 CreatedAt = incident.CreatedAt,
-                RescuerId = incident.Missions
-                    .OrderByDescending(m => m.CreatedAt)
-                    .FirstOrDefault(m => m.Status == RescueStatus.Accepted || 
-                                         m.Status == RescueStatus.Arrived ||
-                                         m.Status == RescueStatus.Completed)
-                    ?.RescuerId
+                RescuerId = activeMission?.RescuerId
             };
 
             // Map AI Results if available
             if (incident.CurrentAiInference != null)
             {
+                // Check if Human (Admin or Rescuer) has overridden the result
+                bool isHumanCorrected = false;
+                Guid? effectiveSnakeId = null;
+                bool? effectiveIsSnakeBite = null;
+
+                var review = await _unitOfWork.Repository<AiInferenceReview, Guid>()
+                    .GetQueryable(tracked: false)
+                    .FirstOrDefaultAsync(r => r.AiInferenceId == incident.CurrentAiInference.Id);
+
+                if (review?.AdminReviewerId != null)
+                {
+                    dto.IsVerified = true;
+                    // Admin reviewed: use admin's finalized data if they corrected or approved a rescuer correction
+                    if (review.CorrectedSnakeId.HasValue)
+                    {
+                        isHumanCorrected = true;
+                        effectiveSnakeId = review.CorrectedSnakeId;
+                    }
+                    if (review.IsConfirmedWoundSnakeBite.HasValue)
+                    {
+                        effectiveIsSnakeBite = review.IsConfirmedWoundSnakeBite;
+                    }
+                }
+
                 // 1. Wound Analysis
-                if (incident.CurrentAiInference.IsSnakeBite.HasValue)
+                var isWoundBite = isHumanCorrected && effectiveIsSnakeBite.HasValue 
+                                  ? effectiveIsSnakeBite.Value 
+                                  : incident.CurrentAiInference.IsSnakeBite;
+
+                if (isWoundBite.HasValue)
                 {
                     dto.WoundAnalysis = new WoundAnalysisDto
                     {
-                        IsWoundDetected = true, // Implicitly true if we are in this block
-                        IsSnakeBite = incident.CurrentAiInference.IsSnakeBite.Value,
-                        Confidence = incident.AiConfidenceScore ?? 0
+                        IsWoundDetected = true,
+                        IsSnakeBite = isWoundBite.Value,
+                        Confidence = isHumanCorrected ? 1.0f : (incident.AiConfidenceScore ?? 0)
                     };
                 }
 
-                // 2. Snake Predictions (Trained candidates)
-                var allPredictions = incident.CurrentAiInference.Candidates
-                    .OrderBy(c => c.Rank)
-                    .Select(c => new SnakeCandidateDto
+                // 2. Snake Predictions
+                if (isHumanCorrected && effectiveSnakeId.HasValue)
+                {
+                    var overridingSnake = await _unitOfWork.Repository<Snake, Guid>().GetByIdAsync(effectiveSnakeId.Value);
+                    if (overridingSnake != null)
                     {
-                        SnakeId = c.SnakeId,
-                        ScientificName = c.Snake.ScientificName,
-                        CommonName = c.Snake.CommonName,
-                        Confidence = c.Confidence,
-                        ToxicityLevel = c.Snake.ToxicityLevel,
-                        ToxinGroup = c.Snake.ToxinGroup,
-                        DangerSummary = AiInferenceConstants.GetDangerLabel(c.Snake.ToxicityLevel),
-                        TypicalSymptoms = c.Snake.TypicalSymptoms
-                    }).ToList();
+                        dto.PrimarySnake = new SnakeCandidateDto
+                        {
+                            SnakeId = overridingSnake.Id,
+                            ScientificName = overridingSnake.ScientificName,
+                            CommonName = overridingSnake.CommonName,
+                            Confidence = 1.0f,
+                            ToxicityLevel = overridingSnake.ToxicityLevel,
+                            ToxinGroup = overridingSnake.ToxinGroup,
+                            DangerSummary = AiInferenceConstants.GetDangerLabel(overridingSnake.ToxicityLevel),
+                            TypicalSymptoms = overridingSnake.TypicalSymptoms
+                        };
+                        dto.OtherCandidates = new List<SnakeCandidateDto>(); // Clear others if human overrode
+                    }
+                }
+                else
+                {
+                    var allPredictions = incident.CurrentAiInference.Candidates
+                        .OrderBy(c => c.Rank)
+                        .Select(c => new SnakeCandidateDto
+                        {
+                            SnakeId = c.SnakeId,
+                            ScientificName = c.Snake.ScientificName,
+                            CommonName = c.Snake.CommonName,
+                            Confidence = c.Confidence,
+                            ToxicityLevel = c.Snake.ToxicityLevel,
+                            ToxinGroup = c.Snake.ToxinGroup,
+                            DangerSummary = AiInferenceConstants.GetDangerLabel(c.Snake.ToxicityLevel),
+                            TypicalSymptoms = c.Snake.TypicalSymptoms
+                        }).ToList();
 
-                dto.PrimarySnake = allPredictions.FirstOrDefault();
-                dto.OtherCandidates = allPredictions.Skip(dto.PrimarySnake != null ? 1 : 0).ToList();
+                    dto.PrimarySnake = allPredictions.FirstOrDefault();
+                    dto.OtherCandidates = allPredictions.Skip(dto.PrimarySnake != null ? 1 : 0).ToList();
+                }
             }
 
             return new ServiceResult(

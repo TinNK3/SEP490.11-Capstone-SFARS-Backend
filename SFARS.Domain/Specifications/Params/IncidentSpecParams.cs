@@ -6,4 +6,5 @@ public class IncidentSpecParams : BaseSpecParams
 {
     public IncidentStatus? Status { get; set; }
     public SeverityLevel? Priority { get; set; }
+    public IncidentAuditFilter? AuditFilter { get; set; }
 }

@@ -160,10 +160,13 @@ namespace SFARS.Application.Common
 
         #region AiReview
         public const string AiReview_Success0001 = "AiReview.Success0001";
+        public const string AiReview_Success0002 = "AiReview.Success0002"; // Admin review submitted successfully
         public const string AiReview_Fail0001 = "AiReview.Fail0001";
         public const string AiReview_Fail0002 = "AiReview.Fail0002";
         public const string AiReview_Fail0003 = "AiReview.Fail0003";
         public const string AiReview_Fail0004 = "AiReview.Fail0004";
+        public const string AiReview_Fail0005 = "AiReview.Fail0005"; // Invalid admin decision (must be AdminConfirmed/AdminRejected)
+        public const string AiReview_Fail0006 = "AiReview.Fail0006"; // Review already finalized by admin
         public const string AiReview_Warning_Pending = "AiReview.Warning.Pending";
         #endregion
         #endregion

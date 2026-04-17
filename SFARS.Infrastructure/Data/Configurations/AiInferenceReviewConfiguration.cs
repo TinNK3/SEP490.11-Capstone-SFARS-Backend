@@ -19,7 +19,7 @@ public class AiInferenceReviewConfiguration : IEntityTypeConfiguration<AiInferen
         // Rule: 1 incident = 1 active review
         builder.HasIndex(e => e.IncidentId)
             .IsUnique()
-            .HasFilter("[review_status] IN ('Pending', 'Deferred')")
+            .HasFilter("[review_status] = 'Pending'")
             .HasDatabaseName("IX_AiInferenceReview_ActiveReview");
 
         builder.Property(e => e.ReviewStatus)
@@ -50,6 +50,13 @@ public class AiInferenceReviewConfiguration : IEntityTypeConfiguration<AiInferen
         builder.Property(e => e.UpdatedAt).HasColumnName("updated_at");
         builder.Property(e => e.UpdatedBy).HasColumnName("updated_by");
 
+        // Admin Review Layer
+        builder.Property(e => e.AdminReviewerId).HasColumnName("admin_reviewer_id");
+
+        builder.Property(e => e.AdminComment)
+            .HasMaxLength(1000)
+            .HasColumnName("admin_comment");
+
         builder.HasOne(e => e.AiInference)
             .WithMany()
             .HasForeignKey(e => e.AiInferenceId)
@@ -61,6 +68,12 @@ public class AiInferenceReviewConfiguration : IEntityTypeConfiguration<AiInferen
             .HasForeignKey(e => e.ReviewerId)
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("FK_AiInferenceReview_User_ReviewerId");
+
+        builder.HasOne(e => e.AdminReviewer)
+            .WithMany()
+            .HasForeignKey(e => e.AdminReviewerId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("FK_AiInferenceReview_User_AdminReviewerId");
 
         builder.HasOne(e => e.Incident)
             .WithMany()

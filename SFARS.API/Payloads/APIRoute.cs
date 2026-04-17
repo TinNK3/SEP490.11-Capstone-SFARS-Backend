@@ -54,6 +54,7 @@ namespace SFARS.API.Payloads
             public const string GetById = Base + "/snakes/{id}";
             public const string Search = Base + "/snakes/search";
             public const string History = Base + "/snakes/{id}/history";
+            public const string AdminGetAll = Base + "/admin/snakes";
             // [POST]
             public const string IdentifySpecies = Base + "/snakes/identify-species";
             public const string ClassifyWound = Base + "/snakes/classify-wound";
@@ -156,6 +157,7 @@ namespace SFARS.API.Payloads
             public const string Create = Base + "/incidents";
             public const string Analyze = Base + "/incidents/{id}/analyze";
             public const string AiReview = Base + "/incidents/{id}/ai-review";
+            public const string AdminAiReview = Base + "/admin/incidents/{id}/ai-review";
             public const string RegenerateTrackingCode = Base + "/incidents/{id}/tracking-code/regenerate";
             public const string ResolveFallback = Base + "/incidents/{id}/resolve-fallback";
             // [PATCH]

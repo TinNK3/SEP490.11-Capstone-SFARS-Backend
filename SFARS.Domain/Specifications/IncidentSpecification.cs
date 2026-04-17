@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Specifications.Params;
+using SFARS.Domain.Common.Enum;
 
 namespace SFARS.Domain.Specifications;
 
@@ -14,7 +15,13 @@ public class IncidentSpecification : BaseSpecification<Incident>
             (!userId.HasValue || x.VictimId == userId.Value) &&
             (!specParams.Status.HasValue || x.CurrentStatus == specParams.Status) &&
             (!specParams.Priority.HasValue || x.PriorityLevel == specParams.Priority) &&
-            (string.IsNullOrEmpty(specParams.Search) || x.Code.ToLower().Contains(specParams.Search)))
+            (string.IsNullOrEmpty(specParams.Search) || x.Code.ToLower().Contains(specParams.Search)) &&
+            (!specParams.AuditFilter.HasValue || (
+                specParams.AuditFilter == IncidentAuditFilter.NoMedia ? x.CurrentAiInferenceId == null :
+                specParams.AuditFilter == IncidentAuditFilter.NotReviewed ? (x.CurrentAiInferenceId != null && (x.CurrentAiReviewId == null || x.CurrentAiReviewStatus == AiReviewStatus.Pending)) :
+                specParams.AuditFilter == IncidentAuditFilter.RescuerReviewed ? (x.CurrentAiReviewId != null && x.CurrentAiReviewStatus != AiReviewStatus.Pending && x.CurrentAiReview!.AdminReviewerId == null) :
+                specParams.AuditFilter == IncidentAuditFilter.Verified ? (x.CurrentAiReviewId != null && x.CurrentAiReview!.AdminReviewerId != null) :
+                true)))
     {
         if (!isCount)
         {
