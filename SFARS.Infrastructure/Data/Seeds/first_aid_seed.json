@@ -2,77 +2,77 @@
   {
     "ToxinGroup": "Unknown",
     "StepOrder": 1,
-    "Title": "BƯỚC 1: Đưa nạn nhân ra xa nguồn nguy hiểm và giữ nằm yên hoàn toàn",
-    "ContentMarkdown": "- Đưa nạn nhân ra khỏi khu vực có rắn nếu làm được an toàn.\n- Trấn an nạn nhân.\n- Không để tự đi lại.\n- Hạn chế tối đa vận động toàn thân và chi bị cắn.",
+    "Title": "BƯỚC 1: Đưa nạn nhân ra vùng an toàn và nằm yên",
+    "ContentMarkdown": "- Đưa nạn nhân rời khỏi khu vực có rắn\n- Tuyệt đối không để nạn nhân tự đi lại.\n- Hạn chế tối đa vận động để nọc chậm phát tán",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "Unknown",
     "StepOrder": 2,
-    "Title": "BƯỚC 2: Tháo bỏ vật siết chặt",
-    "ContentMarkdown": "- Tháo nhẫn, vòng tay, đồng hồ, giày dép chật quanh vùng bị cắn.\n- Làm sớm để tránh chèn ép khi sưng tăng.",
+    "Title": "BƯỚC 2: Cởi bỏ trang sức, đồ bó sát",
+    "ContentMarkdown": "- Tháo ngay nhẫn, vòng tay, đồng hồ, giày dép chật quanh vùng bị cắn trước khi vết thương sưng nề",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "Unknown",
     "StepOrder": 3,
-    "Title": "BƯỚC 3: Cố định chi bị cắn bằng nẹp hoặc vật cứng",
-    "ContentMarkdown": "- Dùng nẹp gỗ, tre, bìa cứng hoặc vật tương tự.\n- Mục tiêu là giảm cử động.\n- Không siết chặt gây cản tuần hoàn.",
+    "Title": "BƯỚC 3: Cố định vết thương bằng nẹp",
+    "ContentMarkdown": "- Dùng nẹp gỗ, bìa cứng để cố định chi bị cắn\n- Buộc lỏng vừa phải, tuyệt đối không siết chặt gây tắc mạch máu",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "Unknown",
     "StepOrder": 4,
-    "Title": "BƯỚC 4: Giữ chi ở tư thế thoải mái, gần mức tim",
-    "ContentMarkdown": "- Không kê quá cao.\n- Không để thõng quá thấp.\n- Tránh di chuyển không cần thiết.",
+    "Title": "BƯỚC 4: Đặt chi ngang mức tim",
+    "ContentMarkdown": "- Giữ vùng bị cắn ở tư thế thoải mái, ngang vị trí của tim\n- Không giơ lên quá cao hay buông thõng thấp",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "Unknown",
     "StepOrder": 5,
-    "Title": "BƯỚC 5: Nếu đang có băng ép hoặc nẹp, không tự tháo bỏ",
-    "ContentMarkdown": "- Không tự tháo, nới lỏng hoặc điều chỉnh mạnh băng ép/nẹp đang có.\n- Chỉ xử lý khi có hướng dẫn trực tiếp từ cứu hộ viên hoặc nhân viên y tế.\n- Không quấn thêm băng ép toàn chi nếu chưa được chỉ định rõ.",
+    "Title": "BƯỚC 5: Không tự tháo băng/nẹp nếu đang có",
+    "ContentMarkdown": "- Nếu trước đó đã băng ép, tuyệt đối không tự nới lỏng hay tháo bỏ\n- Chỉ xử lý khi có bác sĩ hoặc nhân viên y tế yêu cầu",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "Unknown",
     "StepOrder": 6,
-    "Title": "BƯỚC 6: Gọi cấp cứu hoặc đến cơ sở y tế ngay",
-    "ContentMarkdown": "- Tất cả ca nghi rắn cắn nên được xem là cấp cứu.\n- Ưu tiên cơ sở có khả năng xử trí rắn cắn.\n- Nếu có thể, vận chuyển bằng cáng hoặc có người hỗ trợ thay vì để nạn nhân tự đi.",
+    "Title": "BƯỚC 6: Gọi cấp cứu ngay lập tức",
+    "ContentMarkdown": "- Gọi ngay cơ sở y tế gần nhất\n- Di chuyển nạn nhân bằng cáng hoặc bế, cõng. Không cho nạn nhân tự đi",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "Unknown",
     "StepOrder": 7,
-    "Title": "BƯỚC 7: Theo dõi dấu hiệu nặng trên đường đi",
-    "ContentMarkdown": "- Khó thở.\n- Sụp mí, nói khó, yếu liệt.\n- Sưng lan nhanh.\n- Chảy máu bất thường.\n- Lơ mơ, ngất hoặc nôn nhiều.",
+    "Title": "BƯỚC 7: Theo dõi các dấu hiệu nguy kịch",
+    "ContentMarkdown": "- Chú ý nếu khó thở, sụp mí, sưng lan nhanh, chảy máu, hoặc lơ mơ để báo ngay cho bác sĩ",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "GeneralProhibition",
     "StepOrder": 1,
-    "Title": "Tuyệt đối không rạch, hút nọc, chườm đá, đắp lá hay hóa chất.",
+    "Title": "Tuyệt đối không rạch, hút nọc, chườm đá, đắp lá hay hóa chất",
     "ContentMarkdown": null,
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "GeneralProhibition",
     "StepOrder": 2,
-    "Title": "Không buộc garo hoặc siết nghẹt chi.",
+    "Title": "Không buộc garo hoặc siết nghẹt chi",
     "ContentMarkdown": null,
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "GeneralProhibition",
     "StepOrder": 3,
-    "Title": "Không sử dụng rượu bia, chất kích thích.",
+    "Title": "Không sử dụng rượu bia, chất kích thích",
     "ContentMarkdown": null,
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "GeneralProhibition",
     "StepOrder": 4,
-    "Title": "Không để nạn nhân tự đi lại và không trì hoãn đến bệnh viện.",
+    "Title": "Không để nạn nhân tự đi lại và không trì hoãn đến bệnh viện",
     "ContentMarkdown": null,
     "LanguageCode": "Vietnamese"
   },
@@ -80,112 +80,112 @@
     "ToxinGroup": "Neurotoxin",
     "StepOrder": 1,
     "Title": "BƯỚC 1: Giữ nạn nhân nằm yên hoàn toàn",
-    "ContentMarkdown": "- Không để tự đi lại.\n- Hạn chế tối đa vận động.",
+    "ContentMarkdown": "- Tuyệt đối không để tự đi lại\n- Hạn chế mọi vận động để tránh nọc phát tán",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "Neurotoxin",
     "StepOrder": 2,
     "Title": "BƯỚC 2: Thực hiện băng ép bất động theo chỉ dẫn của cứu hộ viên",
-    "ContentMarkdown": "- Cứu hộ viên đã xác nhận đây là trường hợp phù hợp để băng ép bất động.\n- Dùng băng thun/băng đàn hồi quấn theo hướng dẫn trực tiếp.\n- Không dùng dây thừng hoặc garo siết nghẹt.",
+    "ContentMarkdown": "- Chỉ quấn băng thun/băng đàn hồi khi có hướng dẫn trực tiếp từ cứu hộ viên\n- Tuyệt đối không dùng dây thừng hoặc garo siết nghẹt",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "Neurotoxin",
     "StepOrder": 3,
     "Title": "BƯỚC 3: Nẹp cố định toàn bộ chi",
-    "ContentMarkdown": "- Dùng nẹp gỗ, tre hoặc vật cứng.\n- Giữ chi bất động tối đa.",
+    "ContentMarkdown": "- Dùng nẹp cứng (gỗ, tre) giữ chi bị cắn bất động tối đa",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "Neurotoxin",
     "StepOrder": 4,
-    "Title": "BƯỚC 4: Chuyển viện khẩn cấp",
-    "ContentMarkdown": "- Ưu tiên cơ sở có khả năng xử trí ngộ độc rắn cắn.\n- Theo dõi khó thở, sụp mí, nói khó, yếu liệt.",
+    "Title": "BƯỚC 4: Chuyển viện khẩn cấp và theo dõi",
+    "ContentMarkdown": "- Đưa đến cơ sở y tế gần nhất có khả năng trị rắn cắn\n- Theo dõi sát và báo ngay bác sĩ nếu khó thở, sụp mí, nói khó, yếu liệt",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "Hemotoxin",
     "StepOrder": 1,
-    "Title": "BƯỚC 1: Giữ nạn nhân nằm yên và tháo vật siết chặt",
-    "ContentMarkdown": "- Không để tự đi lại.\n- Tháo nhẫn, vòng tay, đồng hồ.",
+    "Title": "BƯỚC 1: Nằm yên và tháo vật bó sát",
+    "ContentMarkdown": "- Tuyệt đối không để nạn nhân tự đi lại\n- Tháo ngay nhẫn, vòng tay, đồng hồ trước khi vết thương sưng nề",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "Hemotoxin",
     "StepOrder": 2,
-    "Title": "BƯỚC 2: Không quấn thêm băng ép toàn chi",
-    "ContentMarkdown": "- Cứu hộ viên xác nhận không nên quấn thêm băng ép toàn chi trong trường hợp này.\n- Nếu đang có băng ép hoặc nẹp, không tự tháo hoặc điều chỉnh mạnh khi chưa có chỉ dẫn trực tiếp.",
+    "Title": "BƯỚC 2: KHÔNG quấn băng ép toàn chi",
+    "ContentMarkdown": "- Tuyệt đối không tự quấn băng ép (trừ khi có chỉ định trực tiếp từ y tế)\n- Nếu đã băng/nẹp từ trước, không tự ý tháo bỏ hay nới lỏng",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "Hemotoxin",
     "StepOrder": 3,
     "Title": "BƯỚC 3: Cố định chi bằng nẹp lỏng",
-    "ContentMarkdown": "- Mục tiêu là hạn chế vận động.\n- Không siết chặt.",
+    "ContentMarkdown": "- Dùng nẹp cứng để giữ chi bị cắn bất động\n- Tuyệt đối không buộc nẹp quá chặt gây tắc mạch máu",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "Hemotoxin",
     "StepOrder": 4,
-    "Title": "BƯỚC 4: Chuyển viện sớm",
-    "ContentMarkdown": "- Theo dõi sưng tăng nhanh, đau tăng, chảy máu bất thường.\n- Ưu tiên cơ sở có khả năng xử trí rắn cắn.",
+    "Title": "BƯỚC 4: Chuyển viện khẩn cấp và theo dõi",
+    "ContentMarkdown": "- Đưa ngay đến cơ sở y tế có khả năng trị rắn cắn\n- Theo dõi sát và báo bác sĩ ngay nếu sưng lan nhanh, đau dữ dội, hoặc chảy máu bất thường",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "Mixed",
     "StepOrder": 1,
     "Title": "BƯỚC 1: Giữ nạn nhân nằm yên hoàn toàn",
-    "ContentMarkdown": "- Không để tự đi lại.\n- Hạn chế tối đa vận động.",
+    "ContentMarkdown": "- Tuyệt đối không để nạn nhân tự đi lại\n- Hạn chế mọi vận động để tránh nọc phát tán",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "Mixed",
     "StepOrder": 2,
-    "Title": "BƯỚC 2: Không tự quấn băng ép toàn chi",
-    "ContentMarkdown": "- Cứu hộ viên xác nhận trường hợp này không nên tự quấn băng ép toàn chi.\n- Nếu đang có băng ép hoặc nẹp, không tự tháo hoặc chỉnh mạnh khi chưa có hướng dẫn trực tiếp.",
+    "Title": "BƯỚC 2: KHÔNG tự quấn băng ép toàn chi",
+    "ContentMarkdown": "- Tuyệt đối không tự quấn băng ép (trừ khi có y tế chỉ định)\n- Nếu đã băng/nẹp từ trước, không tự ý tháo bỏ hay nới lỏng",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "Mixed",
     "StepOrder": 3,
-    "Title": "BƯỚC 3: Cố định chi bằng nẹp",
-    "ContentMarkdown": "- Mục tiêu là hạn chế cử động.\n- Không siết chặt.",
+    "Title": "BƯỚC 3: Cố định chi bằng nẹp lỏng",
+    "ContentMarkdown": "- Dùng nẹp cứng để giữ chi bị cắn bất động\n- Tuyệt đối không buộc nẹp quá chặt gây tắc mạch máu",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "Mixed",
     "StepOrder": 4,
-    "Title": "BƯỚC 4: Chuyển viện khẩn cấp",
-    "ContentMarkdown": "- Theo dõi khó thở, sưng lan nhanh, đau tăng hoặc chảy máu bất thường.",
+    "Title": "BƯỚC 4: Chuyển viện khẩn cấp và theo dõi",
+    "ContentMarkdown": "- Đưa ngay đến cơ sở y tế có khả năng trị rắn cắn\n- Theo dõi sát và báo bác sĩ ngay nếu có dấu hiệu khó thở, sưng lan nhanh, đau tăng, hoặc chảy máu bất thường",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "NonVenomous",
     "StepOrder": 1,
-    "Title": "BƯỚC 1: Bình tĩnh và tiếp tục theo dõi an toàn",
-    "ContentMarkdown": "- Cứu hộ viên đánh giá hiện chưa gợi ý tình huống ngộ độc nặng do rắn độc.\n- Tuy vậy vẫn cần theo dõi thêm nếu đau tăng, sưng tăng hoặc xuất hiện triệu chứng bất thường.",
+    "Title": "BƯỚC 1: Giữ bình tĩnh và theo dõi tại chỗ",
+    "ContentMarkdown": "- Nạn nhân cần giữ bình tĩnh, không hoảng loạn\n- Theo dõi sát: Nếu vết cắn sưng đau tăng nhanh hoặc có triệu chứng lạ, phải chuyển sang hướng cấp cứu ngay",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "NonVenomous",
     "StepOrder": 2,
-    "Title": "BƯỚC 2: Rửa nhẹ vết thương bằng nước sạch",
-    "ContentMarkdown": "- Rửa nhẹ nhàng.\n- Không chà mạnh.\n- Không đắp thuốc dân gian hoặc hóa chất.",
+    "Title": "BƯỚC 2: Rửa sạch vết thương bằng nước",
+    "ContentMarkdown": "-Rửa nhẹ nhàng vết cắn dưới vòi nước sạch hoặc nước muối sinh lý\n- Tuyệt đối không chà xát mạnh, không đắp thuốc dân gian hay hóa chất lên vết thương",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "NonVenomous",
     "StepOrder": 3,
-    "Title": "BƯỚC 3: Băng gạc sạch và theo dõi",
-    "ContentMarkdown": "- Giữ vết thương sạch.\n- Đi khám nếu sưng đỏ tăng, sốt, đau tăng hoặc có triệu chứng toàn thân.",
+    "Title": "BƯỚC 3: Băng che bằng gạc sạch",
+    "ContentMarkdown": "- Dùng băng gạc y tế sạch băng che nhẹ vết thương để tránh bụi bẩn và nhiễm trùng\n- Đi khám ngay nếu vết thương sưng đỏ tấy, mưng mủ hoặc nạn nhân bị sốt",
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "NonVenomous",
     "StepOrder": 4,
-    "Title": "BƯỚC 4: Xem xét tiêm phòng uốn ván nếu cần",
-    "ContentMarkdown": "- Thực hiện theo đánh giá của cơ sở y tế.",
+    "Title": "BƯỚC 4: Đến cơ sở y tế kiểm tra",
+    "ContentMarkdown": "- Nên đưa nạn nhân đi khám để bác sĩ vệ sinh lại vết thương và tiêm phòng uốn ván (nếu cần thiết)",
     "LanguageCode": "Vietnamese"
   }
 ]

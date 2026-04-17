@@ -525,6 +525,7 @@ public class DispatchService : IDispatchService
             // Masked coordinates (rounded to 3 decimal places for general area, ~110 meters accuracy)
             Latitude = Math.Round(incident.Location.Y, 3),
             Longitude = Math.Round(incident.Location.X, 3),
+            AddressString = incident.AddressString,
             CurrentStatus = incident.CurrentStatus,
             PriorityLevel = incident.PriorityLevel,
             CreatedAt = incident.CreatedAt,

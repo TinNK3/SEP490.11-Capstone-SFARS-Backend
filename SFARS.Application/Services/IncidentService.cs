@@ -240,6 +240,7 @@ namespace SFARS.Application.Services
                     PriorityLevel = i.PriorityLevel,
                     Latitude = i.Location.Y,
                     Longitude = i.Location.X,
+                    AddressString = i.AddressString,
 
                     CreatedAt = i.CreatedAt,
                     IncidentImage = i.Medias.OrderBy(m => m.MediaType).Select(m => m.MediaUrl).FirstOrDefault()
@@ -357,6 +358,7 @@ namespace SFARS.Application.Services
                     // Round to 3 decimal places (~110m resolution) for privacy
                     Latitude = Math.Round(i.Location.Y, 3),
                     Longitude = Math.Round(i.Location.X, 3),
+                    AddressString = i.AddressString,
                     CurrentStatus = i.CurrentStatus,
                     PriorityLevel = i.PriorityLevel,
                     CreatedAt = i.CreatedAt,
