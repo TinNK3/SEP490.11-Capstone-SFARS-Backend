@@ -528,6 +528,7 @@ public class DispatchService : IDispatchService
             AddressString = incident.AddressString,
             CurrentStatus = incident.CurrentStatus,
             PriorityLevel = incident.PriorityLevel,
+            IsVerified = incident.CurrentAiReview != null && incident.CurrentAiReview.AdminReviewerId != null,
             CreatedAt = incident.CreatedAt,
             // Display incident image (Snake or Wound)
             IncidentImage = incident.Medias.OrderBy(m => m.MediaType).Select(m => m.MediaUrl).FirstOrDefault()

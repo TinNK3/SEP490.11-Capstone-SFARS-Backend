@@ -241,6 +241,7 @@ namespace SFARS.Application.Services
                     Latitude = i.Location.Y,
                     Longitude = i.Location.X,
                     AddressString = i.AddressString,
+                    IsVerified = i.CurrentAiReview != null && i.CurrentAiReview.AdminReviewerId != null,
 
                     CreatedAt = i.CreatedAt,
                     IncidentImage = i.Medias.OrderBy(m => m.MediaType).Select(m => m.MediaUrl).FirstOrDefault()
@@ -360,6 +361,7 @@ namespace SFARS.Application.Services
                     Longitude = Math.Round(i.Location.X, 3),
                     AddressString = i.AddressString,
                     CurrentStatus = i.CurrentStatus,
+                    IsVerified = i.CurrentAiReview != null && i.CurrentAiReview.AdminReviewerId != null,
                     PriorityLevel = i.PriorityLevel,
                     CreatedAt = i.CreatedAt,
                     IncidentImage = i.Medias.OrderBy(m => m.MediaType).Select(m => m.MediaUrl).FirstOrDefault()
