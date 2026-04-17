@@ -219,9 +219,7 @@ public class AnalyticsIncidentService : IAnalyticsIncidentService
 
         var reviewedCount = aiReviews.Count(r =>
             r != AiReviewStatus.Pending &&
-            r != AiReviewStatus.Deferred &&
-            r != AiReviewStatus.UnableToAssess &&
-            r != AiReviewStatus.Abandoned);
+            r != AiReviewStatus.UnableToAssess);
 
         if (reviewedCount == 0) return 0;
 

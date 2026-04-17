@@ -60,10 +60,24 @@ public class SnakeController : ControllerBase
     }
 
     /// <summary>
-    /// Retrieves all snake entities asynchronously with optional searching and filtering.
+    /// Retrieves all active snake entities for public use.
+    /// Inactive/incomplete snakes are hidden from end users.
     /// </summary>
     [HttpGet(APIRoute.Snake.GetAll, Name = nameof(GetAllAsync))]
     public async Task<IActionResult> GetAllAsync([FromQuery] SnakeSpecParams specParams)
+    {
+        // Default to active only for public API — admin uses separate endpoint
+        specParams.IsActive ??= true;
+        return Ok(await _snakeService.GetAllSnakesAsync(specParams));
+    }
+
+    /// <summary>
+    /// Admin retrieves all snakes including inactive/incomplete ones.
+    /// Used to manage snakes created from AI Review that need info completion.
+    /// </summary>
+    [Authorize(Roles = UserTypeConstants.Admin)]
+    [HttpGet(APIRoute.Snake.AdminGetAll, Name = nameof(AdminGetAllAsync))]
+    public async Task<IActionResult> AdminGetAllAsync([FromQuery] SnakeSpecParams specParams)
     {
         return Ok(await _snakeService.GetAllSnakesAsync(specParams));
     }

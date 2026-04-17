@@ -36,6 +36,9 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
             .HasMaxLength(30)
             .HasColumnName("human_reviewed_toxin_group");
 
+        builder.Property(e => e.HumanConfirmedSnakeBite)
+            .HasColumnName("human_confirmed_snake_bite");
+
         builder.Property(e => e.Location)
             .IsRequired()
             .HasColumnType("geography")
@@ -92,6 +95,12 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
             .HasForeignKey(i => i.CurrentAiInferenceId)
             .OnDelete(DeleteBehavior.SetNull)
             .HasConstraintName("FK_Incident_AiInference_CurrentAiInferenceId");
+
+        builder.HasOne(i => i.CurrentAiReview)
+            .WithMany()
+            .HasForeignKey(i => i.CurrentAiReviewId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("FK_Incident_AiInferenceReview_CurrentAiReviewId");
 
         builder.HasOne(i => i.Chat)
             .WithOne(c => c.Incident)

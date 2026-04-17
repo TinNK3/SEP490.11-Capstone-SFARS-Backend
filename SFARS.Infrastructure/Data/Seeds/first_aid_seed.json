@@ -51,56 +51,28 @@
   {
     "ToxinGroup": "GeneralProhibition",
     "StepOrder": 1,
-    "Title": "Không rạch vết thương",
+    "Title": "Tuyệt đối không rạch, hút nọc, chườm đá, đắp lá hay hóa chất.",
     "ContentMarkdown": null,
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "GeneralProhibition",
     "StepOrder": 2,
-    "Title": "Không hút nọc",
+    "Title": "Không buộc garo hoặc siết nghẹt chi.",
     "ContentMarkdown": null,
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "GeneralProhibition",
     "StepOrder": 3,
-    "Title": "Không đắp lá, thuốc dân gian hoặc hóa chất",
+    "Title": "Không sử dụng rượu bia, chất kích thích.",
     "ContentMarkdown": null,
     "LanguageCode": "Vietnamese"
   },
   {
     "ToxinGroup": "GeneralProhibition",
     "StepOrder": 4,
-    "Title": "Không chườm đá",
-    "ContentMarkdown": null,
-    "LanguageCode": "Vietnamese"
-  },
-  {
-    "ToxinGroup": "GeneralProhibition",
-    "StepOrder": 5,
-    "Title": "Không garo hoặc siết nghẹt chi",
-    "ContentMarkdown": null,
-    "LanguageCode": "Vietnamese"
-  },
-  {
-    "ToxinGroup": "GeneralProhibition",
-    "StepOrder": 6,
-    "Title": "Không cho uống rượu hoặc chất kích thích",
-    "ContentMarkdown": null,
-    "LanguageCode": "Vietnamese"
-  },
-  {
-    "ToxinGroup": "GeneralProhibition",
-    "StepOrder": 7,
-    "Title": "Không để nạn nhân tự đi lại nếu có thể tránh được",
-    "ContentMarkdown": null,
-    "LanguageCode": "Vietnamese"
-  },
-  {
-    "ToxinGroup": "GeneralProhibition",
-    "StepOrder": 8,
-    "Title": "Không trì hoãn đến cơ sở y tế",
+    "Title": "Không để nạn nhân tự đi lại và không trì hoãn đến bệnh viện.",
     "ContentMarkdown": null,
     "LanguageCode": "Vietnamese"
   },

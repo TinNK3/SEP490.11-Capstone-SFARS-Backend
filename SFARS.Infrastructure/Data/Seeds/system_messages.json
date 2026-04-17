@@ -804,6 +804,24 @@
     "Vi": "Đánh giá này đã ở trạng thái cuối và không thể thay đổi."
   },
   {
+    "MsgId": "AiReview.Success0002",
+    "MsgContent": "Admin review submitted successfully.",
+    "En": "Admin review submitted successfully.",
+    "Vi": "Admin đã duyệt đánh giá AI thành công."
+  },
+  {
+    "MsgId": "AiReview.Fail0005",
+    "MsgContent": "Invalid admin decision. Must be AdminConfirmed or AdminRejected.",
+    "En": "Invalid admin decision. Must be AdminConfirmed or AdminRejected.",
+    "Vi": "Quyết định không hợp lệ. Phải là AdminConfirmed hoặc AdminRejected."
+  },
+  {
+    "MsgId": "AiReview.Fail0006",
+    "MsgContent": "This review has already been finalized by an admin.",
+    "En": "This review has already been finalized by an admin.",
+    "Vi": "Đánh giá này đã được admin duyệt trước đó."
+  },
+  {
     "MsgId": "AiReview.Warning.Pending",
     "MsgContent": "AI Review is still pending. Cannot close.",
     "En": "AI Review is still pending. Cannot close.",

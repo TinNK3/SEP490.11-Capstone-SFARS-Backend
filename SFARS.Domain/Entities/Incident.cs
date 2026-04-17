@@ -40,6 +40,8 @@ public class Incident : BaseEntity
     public Guid? CurrentAiReviewId { get; set; }
     public Guid? HumanReviewedSnakeId { get; set; }
     public ToxinGroup? HumanReviewedToxinGroup { get; set; }
+    public bool? HumanConfirmedSnakeBite { get; set; }
+    public virtual AiInferenceReview? CurrentAiReview { get; set; }
 
     public virtual User Victim { get; set; } = null!;
     public virtual Snake? Snake { get; set; }

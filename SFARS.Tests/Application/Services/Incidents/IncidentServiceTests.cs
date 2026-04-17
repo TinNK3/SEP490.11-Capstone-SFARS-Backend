@@ -428,8 +428,8 @@ public class IncidentServiceTests
         dto.Should().NotBeNull();
         dto!.Id.Should().Be(incidentId);
         dto.Code.Should().Be("SOS-2026-00001");
-        dto.Latitude.Should().Be(10.762622);
-        dto.Longitude.Should().Be(106.660172);
+        dto.Patient.Latitude.Should().Be(10.762622);
+        dto.Patient.Longitude.Should().Be(106.660172);
         dto.CreatedAt.Should().Be(expectedTime);
     }
 

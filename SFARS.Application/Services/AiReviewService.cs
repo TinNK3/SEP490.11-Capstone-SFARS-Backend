@@ -1,18 +1,18 @@
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SFARS.Application.Common;
 using SFARS.Application.Dtos.AiInference;
 using SFARS.Application.Dtos.AiReview;
-using SFARS.Domain.Common.Constants;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
+using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
 using SFARS.Infrastructure.Configurations;
-using Hangfire;
 
 namespace SFARS.Application.Services;
 
@@ -23,23 +23,35 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
     private readonly ILogger<AiReviewService> _logger;
     private readonly IBackgroundJobClient _backgroundJobs;
     private readonly MlopsOptions _mlopsOptions;
+    private readonly IFileStorageService _fileStorageService;
 
     public AiReviewService(
         IUnitOfWork unitOfWork,
         ISystemMessageService msgService,
         ILogger<AiReviewService> logger,
         IBackgroundJobClient backgroundJobs,
-        IOptions<MlopsOptions> mlopsOptions)
+        IOptions<MlopsOptions> mlopsOptions,
+        IFileStorageService fileStorageService)
     {
         _unitOfWork = unitOfWork;
         _msgService = msgService;
         _logger = logger;
         _backgroundJobs = backgroundJobs;
         _mlopsOptions = mlopsOptions.Value;
+        _fileStorageService = fileStorageService;
     }
 
-    public async Task<IServiceResult> SubmitReviewAsync(Guid incidentId, Guid rescuerId, SubmitAiReviewRequestDto request)
+    /// <summary>
+    /// Rescuer submits their assessment — updates ONLY Incident snapshot fields.
+    /// AiInferenceReview record stays in Pending.
+    /// The review is optional: rescuer may close the incident without submitting.
+    /// </summary>
+    public async Task<IServiceResult> SubmitReviewAsync(Guid incidentId, Guid rescuerId, SubmitAiReviewRequestDto request,
+        Stream? snakeImageStream = null, string? snakeImageFileName = null, string? snakeImageContentType = null)
     {
+        if (request.ReviewStatus != AiReviewStatus.ConfirmedCorrect && request.ReviewStatus != AiReviewStatus.Corrected && request.ReviewStatus != AiReviewStatus.UnableToAssess)
+            return new ServiceResult(ResultCodeConst.SYS_Warning0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001));
+
         var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
         if (incident == null)
             return new ServiceResult(ResultCodeConst.SYS_Warning0002, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002));
@@ -54,7 +66,8 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
         if (review.ReviewerId != rescuerId)
             return new ServiceResult(ResultCodeConst.AiReview_Fail0003, await _msgService.GetMessageAsync(ResultCodeConst.AiReview_Fail0003));
 
-        if (review.ReviewStatus == AiReviewStatus.ConfirmedCorrect || review.ReviewStatus == AiReviewStatus.Corrected || review.ReviewStatus == AiReviewStatus.UnableToAssess)
+        // If admin has already finalized this review, rescuer cannot modify
+        if (review.AdminReviewerId.HasValue)
             return new ServiceResult(ResultCodeConst.AiReview_Fail0004, await _msgService.GetMessageAsync(ResultCodeConst.AiReview_Fail0004));
 
         // Load the inference + media to determine if this is a wound or snake review
@@ -65,34 +78,56 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
         bool isWoundReview = media?.MediaType == MediaType.BiteWoundPhoto;
 
         // Validate per review type
-        if (!isWoundReview && request.ReviewStatus == AiReviewStatus.Corrected && request.CorrectedToxinGroup == null)
-            return new ServiceResult(ResultCodeConst.SYS_Warning0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001));
+        if (!isWoundReview && request.ReviewStatus == AiReviewStatus.Corrected)
+        {
+            if (request.CorrectedSnakeId.HasValue)
+            {
+                var correctedSnake = await _unitOfWork.Repository<Snake, Guid>().GetByIdAsync(request.CorrectedSnakeId.Value);
+                if (correctedSnake != null)
+                {
+                    request.CorrectedToxinGroup = correctedSnake.ToxinGroup;
+                }
+                else if (request.CorrectedToxinGroup == null)
+                {
+                    return new ServiceResult(ResultCodeConst.SYS_Warning0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001));
+                }
+            }
+            else if (request.CorrectedToxinGroup == null)
+            {
+                return new ServiceResult(ResultCodeConst.SYS_Warning0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001));
+            }
+        }
 
         if (request.ReviewStatus == AiReviewStatus.UnableToAssess && request.UnableToAssessReasonChoice == null)
             return new ServiceResult(ResultCodeConst.SYS_Warning0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001));
 
-        var oldStatus = review.ReviewStatus;
+        // Handle new snake image upload (create inactive snake)
+        if (request.ReviewStatus == AiReviewStatus.Corrected && snakeImageStream != null)
+        {
+            var newSnakeId = await CreateInactiveSnakeWithImageAsync(
+                snakeImageStream,
+                snakeImageFileName!,
+                snakeImageContentType!,
+                request.CorrectedToxinGroup,
+                request.NewSnakeCommonName,
+                rescuerId);
 
-        // Apply common changes
-        review.ReviewStatus = request.ReviewStatus;
-        review.Comment = request.Comment;
-        
-        if (request.ReviewStatus != AiReviewStatus.Deferred)
-            review.ReviewedAt = DateTime.UtcNow;
+            request.CorrectedSnakeId = newSnakeId;
+        }
 
-        review.UpdatedBy = rescuerId;
-        review.UpdatedAt = DateTime.UtcNow;
+        // Update Incident snapshot fields ONLY
+        incident.CurrentAiReviewStatus = request.ReviewStatus;
+        incident.UpdatedBy = rescuerId;
+        incident.UpdatedAt = DateTime.UtcNow;
 
         if (isWoundReview)
         {
-            ApplyWoundReviewChanges(review, incident, inference!, request);
+            ApplyWoundSnapshotChanges(incident, request);
         }
         else
         {
-            await ApplySnakeReviewChangesAsync(review, incident, inference, request);
+            await ApplySnakeSnapshotChangesAsync(incident, inference, request);
         }
-
-        incident.CurrentAiReviewStatus = request.ReviewStatus;
 
         // Audit log
         var audit = new AiReviewAuditLog
@@ -101,7 +136,7 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
             IncidentId = incidentId,
             ReviewId = review.Id,
             RescuerId = rescuerId,
-            OldStatus = oldStatus,
+            OldStatus = review.ReviewStatus,
             NewStatus = request.ReviewStatus,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = rescuerId
@@ -110,8 +145,136 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
 
         await _unitOfWork.SaveChangesAsync();
 
-        // Check retrain threshold (only for verified reviews)
-        if (request.ReviewStatus == AiReviewStatus.ConfirmedCorrect || request.ReviewStatus == AiReviewStatus.Corrected)
+        return new ServiceResult(ResultCodeConst.AiReview_Success0001, await _msgService.GetMessageAsync(ResultCodeConst.AiReview_Success0001), request.ReviewStatus.ToString());
+    }
+
+    /// <summary>
+    /// Admin finalizes the AI review — this is the ONLY path that updates AiInferenceReview.
+    /// Triggers retrain check only on AdminConfirmed.
+    /// </summary>
+    public async Task<IServiceResult> AdminReviewAsync(Guid incidentId, Guid adminId, SubmitAiReviewRequestDto request,
+        Stream? snakeImageStream = null, string? snakeImageFileName = null, string? snakeImageContentType = null)
+    {
+
+        if (request.CorrectedSnakeId.HasValue && !request.CorrectedToxinGroup.HasValue)
+        {
+            var correctedSnake = await _unitOfWork.Repository<Snake, Guid>().GetByIdAsync(request.CorrectedSnakeId.Value);
+            if (correctedSnake != null)
+            {
+                request.CorrectedToxinGroup = correctedSnake.ToxinGroup;
+            }
+        }
+
+        // Validate decision
+        if (request.ReviewStatus != AiReviewStatus.ConfirmedCorrect && request.ReviewStatus != AiReviewStatus.Corrected && request.ReviewStatus != AiReviewStatus.UnableToAssess)
+        {
+            return new ServiceResult(ResultCodeConst.SYS_Warning0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001));
+        }
+
+        var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
+        if (incident == null)
+            return new ServiceResult(ResultCodeConst.SYS_Warning0002, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002));
+
+        if (!incident.CurrentAiReviewId.HasValue)
+            return new ServiceResult(ResultCodeConst.AiReview_Fail0001, await _msgService.GetMessageAsync(ResultCodeConst.AiReview_Fail0001));
+
+        var review = await _unitOfWork.Repository<AiInferenceReview, Guid>().GetByIdAsync(incident.CurrentAiReviewId.Value);
+        if (review == null)
+            return new ServiceResult(ResultCodeConst.AiReview_Fail0002, await _msgService.GetMessageAsync(ResultCodeConst.AiReview_Fail0002));
+
+        // Prevent double-finalization
+        if (review.AdminReviewerId.HasValue)
+            return new ServiceResult(ResultCodeConst.AiReview_Fail0006, await _msgService.GetMessageAsync(ResultCodeConst.AiReview_Fail0006));
+
+        // Load inference + media for context
+        var inference = await _unitOfWork.Repository<AiInference, Guid>().GetByIdAsync(review.AiInferenceId);
+        IncidentMedia? media = inference?.IncidentMediaId != null
+            ? await _unitOfWork.Repository<IncidentMedia, Guid>().GetByIdAsync(inference.IncidentMediaId.Value)
+            : null;
+        bool isWoundReview = media?.MediaType == MediaType.BiteWoundPhoto;
+
+        var oldStatus = review.ReviewStatus;
+
+        // Handle new snake image upload from admin
+        if (request.ReviewStatus == AiReviewStatus.Corrected
+            && snakeImageStream != null)
+        {
+            var newSnakeId = await CreateInactiveSnakeWithImageAsync(
+                snakeImageStream,
+                snakeImageFileName!,
+                snakeImageContentType!,
+                request.CorrectedToxinGroup,
+                request.NewSnakeCommonName,
+                adminId);
+
+            request.CorrectedSnakeId = newSnakeId;
+        }
+
+        // Finalize AiInferenceReview
+        review.AdminReviewerId = adminId;
+        review.AdminComment = request.Comment;
+        review.ReviewedAt = DateTime.UtcNow;
+        review.UpdatedBy = adminId;
+        review.UpdatedAt = DateTime.UtcNow;
+
+        bool rescuerHasReviewed = incident.CurrentAiReviewStatus.HasValue
+            && incident.CurrentAiReviewStatus != AiReviewStatus.Pending;
+
+        review.ReviewStatus = request.ReviewStatus;
+
+        if (request.ReviewStatus == AiReviewStatus.ConfirmedCorrect)
+        {
+            if (rescuerHasReviewed && incident.CurrentAiReviewStatus == AiReviewStatus.Corrected)
+            {
+                // Admin approves what the rescuer corrected → adopt rescuer's data
+                review.CorrectedSnakeId = incident.HumanReviewedSnakeId;
+                review.CorrectedToxinGroup = incident.HumanReviewedToxinGroup;
+                if (isWoundReview) review.IsConfirmedWoundSnakeBite = incident.HumanConfirmedSnakeBite;
+            }
+            else
+            {
+                // Admin confirms the original AI result (rescuer also confirmed or never reviewed)
+                review.CorrectedSnakeId = null;
+                review.CorrectedToxinGroup = null;
+                if (isWoundReview) review.IsConfirmedWoundSnakeBite = request.IsConfirmedSnakeBite ?? review.IsConfirmedWoundSnakeBite;
+            }
+        }
+        else if (request.ReviewStatus == AiReviewStatus.Corrected)
+        {
+            // Admin provides their own correction (overrides everything)
+            review.CorrectedSnakeId = request.CorrectedSnakeId;
+            review.CorrectedToxinGroup = request.CorrectedToxinGroup;
+            if (isWoundReview) review.IsConfirmedWoundSnakeBite = request.IsConfirmedSnakeBite;
+        }
+        else // UnableToAssess
+        {
+            review.CorrectedSnakeId = null;
+            review.CorrectedToxinGroup = null;
+            if (isWoundReview) review.IsConfirmedWoundSnakeBite = null;
+        }
+        review.UnableToAssessReasonChoice = request.UnableToAssessReasonChoice;
+
+        // Audit log
+        var audit = new AiReviewAuditLog
+        {
+            Id = Guid.NewGuid(),
+            IncidentId = incidentId,
+            ReviewId = review.Id,
+            RescuerId = adminId,
+            OldStatus = oldStatus,
+            NewStatus = review.ReviewStatus,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = adminId
+        };
+        await _unitOfWork.Repository<AiReviewAuditLog, Guid>().AddAsync(audit);
+
+        await _unitOfWork.SaveChangesAsync();
+
+        // Trigger retrain check only when Confirmed or Corrected
+        bool isVerifiedSample = (request.ReviewStatus == AiReviewStatus.ConfirmedCorrect) 
+            || (request.ReviewStatus == AiReviewStatus.Corrected);
+
+        if (isVerifiedSample)
         {
             if (isWoundReview)
                 _backgroundJobs.Enqueue<AiReviewService>(s => s.CheckAndTriggerWoundRetrainAsync());
@@ -119,48 +282,34 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
                 _backgroundJobs.Enqueue<AiReviewService>(s => s.CheckAndTriggerSnakeRetrainAsync());
         }
 
-        return new ServiceResult(ResultCodeConst.AiReview_Success0001, await _msgService.GetMessageAsync(ResultCodeConst.AiReview_Success0001), request.ReviewStatus.ToString());
+        return new ServiceResult(ResultCodeConst.AiReview_Success0002, await _msgService.GetMessageAsync(ResultCodeConst.AiReview_Success0002), request.ReviewStatus.ToString());
     }
 
-    // Snake review: sets corrected species / toxin group and recalculates priority
-    private async Task ApplySnakeReviewChangesAsync(
-        AiInferenceReview review, Incident incident, AiInference? inference, SubmitAiReviewRequestDto request)
+    // Rescuer Snapshot Helpers
+
+    private async Task ApplySnakeSnapshotChangesAsync(
+        Incident incident, AiInference? inference, SubmitAiReviewRequestDto request)
     {
         switch (request.ReviewStatus)
         {
             case AiReviewStatus.ConfirmedCorrect:
-                if (inference == null)
-                    break;
-                incident.HumanReviewedToxinGroup = inference.SelectedToxinGroup;
-                incident.HumanReviewedSnakeId = inference.SelectedSnakeId;
-                review.CorrectedSnakeId = null;
-                review.CorrectedToxinGroup = null;
-                review.UnableToAssessReasonChoice = null;
+                if (inference != null)
+                {
+                    incident.HumanReviewedToxinGroup = inference.SelectedToxinGroup;
+                    incident.HumanReviewedSnakeId = inference.SelectedSnakeId;
+                }
                 break;
             case AiReviewStatus.Corrected:
-                review.CorrectedSnakeId = request.CorrectedSnakeId;
-                review.CorrectedToxinGroup = request.CorrectedToxinGroup;
-                review.UnableToAssessReasonChoice = null;
                 incident.HumanReviewedToxinGroup = request.CorrectedToxinGroup;
                 incident.HumanReviewedSnakeId = request.CorrectedSnakeId;
                 break;
             case AiReviewStatus.UnableToAssess:
-                review.UnableToAssessReasonChoice = request.UnableToAssessReasonChoice;
-                review.CorrectedSnakeId = null;
-                review.CorrectedToxinGroup = null;
-                incident.HumanReviewedToxinGroup = null;
-                incident.HumanReviewedSnakeId = null;
-                break;
-            case AiReviewStatus.Deferred:
-                review.UnableToAssessReasonChoice = null;
-                review.CorrectedSnakeId = null;
-                review.CorrectedToxinGroup = null;
                 incident.HumanReviewedToxinGroup = null;
                 incident.HumanReviewedSnakeId = null;
                 break;
         }
 
-        // Recalculate priority based on snake toxicity
+        // Recalculate priority
         switch (request.ReviewStatus)
         {
             case AiReviewStatus.ConfirmedCorrect:
@@ -183,46 +332,65 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
         }
     }
 
-    // Wound review: for wound photos, no snake species info to correct.
-    // Priority stays High (wound context — always requires urgent attention).
-    private void ApplyWoundReviewChanges(
-        AiInferenceReview review, Incident incident, AiInference inference, SubmitAiReviewRequestDto request)
+    private void ApplyWoundSnapshotChanges(Incident incident, SubmitAiReviewRequestDto request)
     {
-        switch (request.ReviewStatus)
+        if (request.ReviewStatus == AiReviewStatus.ConfirmedCorrect || request.ReviewStatus == AiReviewStatus.Corrected)
         {
-            case AiReviewStatus.ConfirmedCorrect:
-                // AI was correct - no fields to override
-                review.CorrectedSnakeId = null;
-                review.CorrectedToxinGroup = null;
-                review.UnableToAssessReasonChoice = null;
-                break;
-            case AiReviewStatus.Corrected:
-                // AI was wrong - ground truth is the inverse of AI prediction.
-                // No extra fields needed — the inverse is derived at export time.
-                review.CorrectedSnakeId = null;
-                review.CorrectedToxinGroup = null;
-                review.UnableToAssessReasonChoice = null;
-                break;
-            case AiReviewStatus.UnableToAssess:
-                review.UnableToAssessReasonChoice = request.UnableToAssessReasonChoice;
-                review.CorrectedSnakeId = null;
-                review.CorrectedToxinGroup = null;
-                break;
-            case AiReviewStatus.Deferred:
-                review.UnableToAssessReasonChoice = null;
-                review.CorrectedSnakeId = null;
-                review.CorrectedToxinGroup = null;
-                break;
+            incident.HumanConfirmedSnakeBite = request.IsConfirmedSnakeBite;
+        }
+        else
+        {
+            incident.HumanConfirmedSnakeBite = null;
         }
 
-        // Wound reviews: keep priority High regardless (wound = always urgent)
         incident.PriorityLevel = SeverityLevel.High;
     }
 
+    // Snake Image Upload Helper
+
     /// <summary>
-    /// Checks if we have enough new verified snake samples to trigger the MLOps retraining pipeline.
-    /// Runs as a background job to avoid blocking the main rescue flow.
+    /// Creates a new inactive Snake record with a single uploaded image.
+    /// Admin must later complete the snake's info via the Snake management API.
     /// </summary>
+    private async Task<Guid> CreateInactiveSnakeWithImageAsync(
+        Stream imageStream, string fileName, string contentType,
+        ToxinGroup? toxinGroup, string? commonName, Guid createdBy)
+    {
+        var snake = new Snake
+        {
+            Id = Guid.NewGuid(),
+            CommonName = string.IsNullOrWhiteSpace(commonName) ? AiInferenceConstants.InactiveSnakeCommonName : commonName,
+            ScientificName = $"{AiInferenceConstants.InactiveSnakeScientificNamePrefix}{DateTime.UtcNow:yyyyMMddHHmmss}_{Guid.NewGuid().ToString("N")[..6]}",
+            ToxicityLevel = default, // Admin must update this
+            ToxinGroup = toxinGroup ?? ToxinGroup.Unknown,
+            IsActive = false,
+            Note = AiInferenceConstants.InactiveSnakeNote,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = createdBy
+        };
+
+        await _unitOfWork.Repository<Snake, Guid>().AddAsync(snake);
+
+        // Upload image to Cloudinary
+        var uploadResult = await _fileStorageService.UploadAsync(imageStream, fileName, "snakes", contentType);
+
+        var snakeImage = new SnakeImage
+        {
+            Id = Guid.NewGuid(),
+            SnakeId = snake.Id,
+            ImageUrl = uploadResult.Url,
+            IsPrimary = true
+        };
+
+        await _unitOfWork.Repository<SnakeImage, Guid>().AddAsync(snakeImage);
+
+        _logger.LogInformation("Created inactive snake {SnakeId} with image from AI Review by user {UserId}", snake.Id, createdBy);
+
+        return snake.Id;
+    }
+
+    // Auto-Retrain Checks
+
     [DisableConcurrentExecution(timeoutInSeconds: 60)]
     public async Task CheckAndTriggerSnakeRetrainAsync()
     {
@@ -230,7 +398,6 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
         {
             int threshold = _mlopsOptions.AutoRetrainThreshold;
 
-            // Find the last successful or currently active retrain job to set the start date for counting
             var lastRetrain = await _unitOfWork.Repository<RetrainHistory, Guid>()
                 .GetQueryable(tracked: false)
                 .AsNoTracking()
@@ -242,7 +409,6 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
 
             DateTime? since = lastRetrain?.StartedAt;
 
-            // Query only the IDs and count for performance (avoiding full object hydration)
             var newSamplesCount = await (
                 from r in _unitOfWork.Repository<AiInferenceReview, Guid>().GetQueryable(tracked: false).AsNoTracking()
                 join ai in _unitOfWork.Repository<AiInference, Guid>().GetQueryable(tracked: false).AsNoTracking() on r.AiInferenceId equals ai.Id
@@ -253,12 +419,11 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
                 select r.Id
             ).CountAsync();
 
-            _logger.LogInformation("MLOps Snake Progress: {Count}/{Threshold} verified samples collected since {Since}", 
+            _logger.LogInformation("MLOps Snake Progress: {Count}/{Threshold} verified samples since {Since}", 
                 newSamplesCount, threshold, since?.ToString() ?? "Project Start");
 
             if (newSamplesCount >= threshold)
             {
-                // Prevent duplicate concurrent pipelines
                 bool isRunning = await _unitOfWork.Repository<RetrainHistory, Guid>()
                     .GetQueryable(tracked: false)
                     .AsNoTracking()
@@ -269,7 +434,7 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
 
                 if (!isRunning)
                 {
-                    _logger.LogWarning("🚀 AUTO-RETRAIN: Snake threshold reached! Enqueueing pipeline...");
+                    _logger.LogWarning("AUTO-RETRAIN: Snake threshold reached! Enqueueing pipeline...");
                     _backgroundJobs.Enqueue<IRetrainOrchestrationService>(s => s.TriggerRetrainAsync(since));
                 }
             }
@@ -280,10 +445,6 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
         }
     }
 
-    /// <summary>
-    /// Checks if we have enough new verified wound samples to trigger the MLOps retraining pipeline.
-    /// Runs as a background job to avoid blocking the main rescue flow.
-    /// </summary>
     [DisableConcurrentExecution(timeoutInSeconds: 60)]
     public async Task CheckAndTriggerWoundRetrainAsync()
     {
@@ -313,7 +474,7 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
                 select r.Id
             ).CountAsync();
 
-            _logger.LogInformation("MLOps Wound Progress: {Count}/{Threshold} verified samples collected since {Since}", 
+            _logger.LogInformation("MLOps Wound Progress: {Count}/{Threshold} verified samples since {Since}", 
                 newSamplesCount, threshold, since?.ToString() ?? "Project Start");
 
             if (newSamplesCount >= threshold)
@@ -328,7 +489,7 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
 
                 if (!isRunning)
                 {
-                    _logger.LogWarning("🚀 AUTO-RETRAIN: Wound threshold reached! Enqueueing pipeline...");
+                    _logger.LogWarning("AUTO-RETRAIN: Wound threshold reached! Enqueueing pipeline...");
                     _backgroundJobs.Enqueue<IRetrainOrchestrationService>(s => s.TriggerWoundRetrainAsync(since));
                 }
             }
@@ -338,6 +499,8 @@ public class AiReviewService : IAiReviewService<SubmitAiReviewRequestDto, FirstA
             _logger.LogError(ex, "Failed to check or trigger wound auto-retrain pipeline.");
         }
     }
+
+    // First Aid Protocol
 
     public async Task<(List<FirstAidStepDto> steps, List<string> prohibitions)> GetEffectiveFirstAidProtocolAsync(Incident incident)
     {

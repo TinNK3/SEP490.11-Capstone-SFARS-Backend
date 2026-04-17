@@ -120,4 +120,12 @@ public static class AiInferenceConstants
     public const string SuccessIdentifyFormat = "Nhận diện rắn: {0} (Độ tin cậy {1}%)"; // This was format expected in AiInferenceService previously? Actually, let's keep the exact string format.
 
     #endregion
+
+    #region Inactive Snake Creation
+
+    public const string InactiveSnakeCommonName = "[Chờ cập nhật]";
+    public const string InactiveSnakeScientificNamePrefix = "Unidentified_";
+    public const string InactiveSnakeNote = "Tạo tự động từ AI Review — cần admin cập nhật thông tin đầy đủ.";
+
+    #endregion
 }
