@@ -409,10 +409,11 @@ namespace SFARS.Application.Services
             var activeMission = incident.Missions
                 .OrderByDescending(m => m.CreatedAt)
                 .FirstOrDefault(m => m.Status == RescueStatus.Accepted || 
+                                     m.Status == RescueStatus.Arrived ||
                                      m.Status == RescueStatus.Completed);
 
             LocationCoords? rescuerLoc = null;
-            if (activeMission != null && (activeMission.Status == RescueStatus.Accepted || activeMission.Status == RescueStatus.Completed))
+            if (activeMission != null && (activeMission.Status == RescueStatus.Accepted || activeMission.Status == RescueStatus.Arrived || activeMission.Status == RescueStatus.Completed))
             {
                 var firstLog = await _unitOfWork.Repository<RescueTrackingLog, long>()
                     .GetQueryable(tracked: false)
