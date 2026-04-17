@@ -1,5 +1,4 @@
 using SFARS.Domain.Common.Enum;
-using SFARS.Application.Dtos.AiInference;
 
 namespace SFARS.Application.Dtos.Incident;
 
@@ -15,7 +14,8 @@ public class CommunityIncidentDto
     public string? AddressString { get; set; }
     public IncidentStatus CurrentStatus { get; set; }
     public SeverityLevel PriorityLevel { get; set; }
-    
+    public bool IsVerified { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     // Display incident image (Snake or Wound)

@@ -107,6 +107,28 @@ public class ChatService : IChatService
         new(@"\bchích\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)
     };
 
+    private const int NMessagesForDecay = 2;
+
+    #endregion
+
+    #region Data Structures
+
+    public enum UserIntent
+    {
+        Emergency,
+        InformationalMedical,
+        InformationalGeneral,
+        CasualChat,
+        Prohibited
+    }
+
+    public class ChatMessageContext
+    {
+        public string RiskLevel { get; set; } = "INFO";
+        public UserIntent Intent { get; set; } = UserIntent.InformationalGeneral;
+        public List<string> MentionedSymptoms { get; set; } = new();
+    }
+
     #endregion
 
     public ChatService(
@@ -205,34 +227,49 @@ public class ChatService : IChatService
         };
         await _unitOfWork.Repository<ChatMessage, Guid>().AddAsync(userMsg);
 
-        // 2. Determine State & Risk Level (Deterministic Triage)
+        // 2. Resolve Previous State from history
         var history = await GetConversationHistoryAsync(session.Id);
+        var prevContext = ResolvePreviousContext(history);
         var currentMsgLower = trimmedMessage.ToLowerInvariant();
         
-        // Extract symptoms already mentioned in this session
+        // 3. Classify Intent & Risk Level
+        var userIntent = ClassifyUserIntentRegex(currentMsgLower, prevContext.RiskLevel);
+        
+        // Deterministic Symptom Extraction
         var mentionedSymptoms = ExtractSymptoms(history, currentMsgLower);
         
-        // Determine Risk Level (Check current and past for Critical lock)
-        var riskLevel = DetermineRiskLevel(currentMsgLower, history);
+        // Determine Risk Level (Decay + Symptom Priority)
+        var riskLevel = DetermineRiskLevel(currentMsgLower, history, prevContext.RiskLevel);
         
-        bool hasProhibitedIntent = ProhibitedIntentPatterns.Any(p => p.IsMatch(currentMsgLower));
+        bool hasProhibitedIntent = userIntent == UserIntent.Prohibited;
 
-        // 3. Build context packet (Semantically retrieved medical data) → PLAIN TEXT
-        var medicalContext = await BuildContextAsPlainTextAsync(trimmedMessage);
+        // 4. Conditional RAG based on Intent
+        string medicalContext = string.Empty;
+        if (userIntent == UserIntent.Emergency || userIntent == UserIntent.InformationalMedical)
+        {
+            medicalContext = await BuildContextAsPlainTextAsync(trimmedMessage);
+        }
 
-        // 4. Build final context: triage state + medical data as readable text
-        var prefix = ResolvePrefix(riskLevel, hasProhibitedIntent);
+        // 5. Build final context packet for AI
+        var prefix = ResolvePrefix(riskLevel, hasProhibitedIntent, userIntent);
         var finalContextData = BuildContextText(prefix, riskLevel, mentionedSymptoms, medicalContext);
 
-        // 5. Generate AI analysis/response using RAG context
+        // 6. Generate AI response
         string aiResponseText;
         try
         {
             aiResponseText = await _geminiService.ChatWithContextAsync(
-                systemPrompt: BuildSystemPrompt(prefix, riskLevel),
+                systemPrompt: BuildSystemPrompt(prefix, riskLevel, userIntent),
                 contextData: finalContextData,
                 userMessage: trimmedMessage,
                 history: history);
+            
+            // Post-AI Intent Verification: If AI tagged a different intent, we might want to update it for next turn
+            var extractedIntent = ExtractIntentFromAi(aiResponseText);
+            if (extractedIntent.HasValue) userIntent = extractedIntent.Value;
+            
+            // Strip the intent tag from response for final user view
+            aiResponseText = CleanAiResponse(aiResponseText);
         }
         catch (Exception ex)
         {
@@ -256,14 +293,21 @@ public class ChatService : IChatService
         // Enforce deterministic prefix — if AI forgot, prepend it
         aiResponseText = EnforcePrefix(aiResponseText, prefix);
 
-        // Save AI message with context snapshot for traceability
+        // Save AI message with context snapshot (Structured JSON)
+        var contextSnapshot = new ChatMessageContext
+        {
+            RiskLevel = riskLevel,
+            Intent = userIntent,
+            MentionedSymptoms = mentionedSymptoms
+        };
+
         var aiMsg = new ChatMessage
         {
             Id = Guid.NewGuid(),
             ChatSessionId = session.Id,
             SenderType = ChatSenderType.AI,
             Content = aiResponseText,
-            ContextSnapshotJson = finalContextData,
+            ContextSnapshotJson = JsonSerializer.Serialize(contextSnapshot),
             ModelName = _geminiService.ModelName,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = userId
@@ -631,40 +675,169 @@ public class ChatService : IChatService
 
     /// <summary>
     /// Deterministic risk classification: CRITICAL > VERY_URGENT > URGENT > INFO.
-    /// Risk level "sticks" — once CRITICAL is detected in history, it remains CRITICAL.
+    /// Risk level "sticks" unless a decay condition is met.
+    /// Priority 1: New Critical symptoms (Respiratory, Neuro, Unconscious)
+    /// Priority 2: High-risk snake bite incident
+    /// Priority 3: Decay logic (if no new symptoms and shift detected)
     /// </summary>
-    private static string DetermineRiskLevel(string currentMsg, List<ChatHistoryItem>? history)
+    private static string DetermineRiskLevel(string currentMsg, List<ChatHistoryItem>? history, string previousRiskLevel)
     {
         var msgLower = currentMsg.ToLowerInvariant();
 
-        // 1. CRITICAL: Respiratory failure, neuro, unconscious, uncontrolled bleeding
-        bool isCritical = CriticalTerms.Any(t => msgLower.Contains(t));
-        if (!isCritical && history != null)
-        {
-            isCritical = history.Any(h => CriticalTerms.Any(t => h.Content.ToLowerInvariant().Contains(t)));
-        }
-        if (isCritical) return "CRITICAL";
+        // 1. HIGH PRIORITY: New Critical Symptoms in current message
+        bool isCriticalNow = CriticalTerms.Any(t => msgLower.Contains(t));
+        if (isCriticalNow) return "CRITICAL";
 
-        // 2. VERY_URGENT: Symptoms + high-risk species
-        bool hasSymptomOrHighRisk = SymptomTerms.Any(t => msgLower.Contains(t)) || HighRiskSnakes.Any(t => msgLower.Contains(t));
-        if (!hasSymptomOrHighRisk && history != null)
+        // 2. Incident & Symptoms Check
+        bool isIncidentNow = IncidentPatterns.Any(p => p.IsMatch(msgLower));
+        bool hasSymptomOrHighRiskNow = SymptomTerms.Any(t => msgLower.Contains(t)) || HighRiskSnakes.Any(t => msgLower.Contains(t));
+
+        // 3. Escalation Check
+        if (isIncidentNow && hasSymptomOrHighRiskNow) return "VERY_URGENT";
+        if (isIncidentNow) return "URGENT";
+
+        // 4. Persistence/Decay Logic
+        if (previousRiskLevel == "CRITICAL")
         {
-            hasSymptomOrHighRisk = history.Any(h => 
-                SymptomTerms.Any(t => h.Content.ToLowerInvariant().Contains(t)) || 
-                HighRiskSnakes.Any(t => h.Content.ToLowerInvariant().Contains(t)));
+            // Only stay CRITICAL if history confirms it and no clear shift
+            if (!HasClearShiftToInfo(currentMsg, history) || HasRecentEmergencyKeywords(history, NMessagesForDecay))
+            {
+                return "CRITICAL";
+            }
+            return GetDecayedRiskLevel("CRITICAL");
         }
 
-        // 3. URGENT: Confirmed bite
-        bool isIncident = IncidentPatterns.Any(p => p.IsMatch(msgLower));
-        if (!isIncident && history != null)
+        if (previousRiskLevel == "VERY_URGENT" || previousRiskLevel == "URGENT")
         {
-            isIncident = history.Any(h => IncidentPatterns.Any(p => p.IsMatch(h.Content.ToLowerInvariant())));
+            if (HasRecentEmergencyKeywords(history, NMessagesForDecay))
+            {
+                return previousRiskLevel;
+            }
+            return GetDecayedRiskLevel(previousRiskLevel);
         }
 
-        if (hasSymptomOrHighRisk && isIncident) return "VERY_URGENT";
-        if (isIncident) return "URGENT";
+        // Default or escalation for Info-seeking with symptoms
+        if (hasSymptomOrHighRiskNow) return "INFO"; 
 
         return "INFO";
+    }
+
+    private static bool HasClearShiftToInfo(string currentMsg, List<ChatHistoryItem>? history)
+    {
+        var msgLower = currentMsg.ToLowerInvariant();
+        // Clear info-seeking keywords
+        string[] infoKeywords = { "mô tả", "hình ảnh", "sống ở đâu", "chu kỳ", "thời gian", "bao lâu", "là gì" };
+        return infoKeywords.Any(k => msgLower.Contains(k)) && !SymptomTerms.Any(t => msgLower.Contains(t));
+    }
+
+    private static bool HasRecentEmergencyKeywords(List<ChatHistoryItem>? history, int numMessages)
+    {
+        if (history == null || history.Count == 0) return false;
+        
+        var recent = history.Skip(Math.Max(0, history.Count - numMessages)).ToList();
+        return recent.Any(h => 
+            CriticalTerms.Any(t => h.Content.ToLowerInvariant().Contains(t)) ||
+            SymptomTerms.Any(t => h.Content.ToLowerInvariant().Contains(t)) ||
+            HighRiskSnakes.Any(t => h.Content.ToLowerInvariant().Contains(t)) ||
+            IncidentPatterns.Any(p => p.IsMatch(h.Content.ToLowerInvariant()))
+        );
+    }
+
+    private static string GetDecayedRiskLevel(string currentLevel)
+    {
+        return currentLevel switch
+        {
+            "CRITICAL" => "VERY_URGENT",
+            "VERY_URGENT" => "URGENT",
+            "URGENT" => "INFO",
+            _ => "INFO"
+        };
+    }
+
+    private static UserIntent ClassifyUserIntentRegex(string message, string currentRiskLevel)
+    {
+        var msgLower = message.ToLowerInvariant();
+
+        // 1. Prohibited Intent (Highest priority safety)
+        if (ProhibitedIntentPatterns.Any(p => p.IsMatch(msgLower)))
+        {
+            return UserIntent.Prohibited;
+        }
+
+        // 2. Casual Chat
+        string[] casualKeywords = { "chào", "hi ", "hello", "cảm ơn", "thank", "tạm biệt", "bye" };
+        if (casualKeywords.Any(k => msgLower.StartsWith(k)) && msgLower.Length < 30)
+        {
+            return UserIntent.CasualChat;
+        }
+
+        // 3. Emergency (Inherited from Risk Level)
+        if (currentRiskLevel == "CRITICAL" || currentRiskLevel == "VERY_URGENT" || IncidentPatterns.Any(p => p.IsMatch(msgLower)))
+        {
+            return UserIntent.Emergency;
+        }
+
+        // 4. Informational Medical
+        if (AllSymptomExtractTerms.Any(t => msgLower.Contains(t)) || HighRiskSnakes.Any(t => msgLower.Contains(t)) || msgLower.Contains("sơ cứu"))
+        {
+            return UserIntent.InformationalMedical;
+        }
+
+        return UserIntent.InformationalGeneral;
+    }
+
+    private ChatMessageContext ResolvePreviousContext(List<ChatHistoryItem>? history)
+    {
+        if (history == null || history.Count == 0) return new ChatMessageContext();
+
+        // Find last AI message with context snapshot
+        var lastAiMsg = _unitOfWork.Repository<ChatMessage, Guid>()
+            .GetQueryable(tracked: false)
+            .Where(m => m.SenderType == ChatSenderType.AI && m.ContextSnapshotJson != null)
+            .OrderByDescending(m => m.CreatedAt)
+            .FirstOrDefault();
+
+        if (lastAiMsg == null) return new ChatMessageContext();
+
+        try
+        {
+            // Backward compatibility check
+            if (lastAiMsg.ContextSnapshotJson!.TrimStart().StartsWith("{"))
+            {
+                return JsonSerializer.Deserialize<ChatMessageContext>(lastAiMsg.ContextSnapshotJson) ?? new ChatMessageContext();
+            }
+            
+            // Old format was just plain text or custom string, try to infer RiskLevel
+            var ctx = new ChatMessageContext();
+            if (lastAiMsg.Content.Contains("[NGUY KỊCH]")) ctx.RiskLevel = "CRITICAL";
+            else if (lastAiMsg.Content.Contains("[RẤT KHẨN CẤP]")) ctx.RiskLevel = "VERY_URGENT";
+            else if (lastAiMsg.Content.Contains("[KHẨN CẤP]")) ctx.RiskLevel = "URGENT";
+            
+            return ctx;
+        }
+        catch
+        {
+            return new ChatMessageContext();
+        }
+    }
+
+    private static UserIntent? ExtractIntentFromAi(string aiResponse)
+    {
+        if (string.IsNullOrWhiteSpace(aiResponse)) return null;
+        
+        if (aiResponse.Contains("[INTENT: Emergency]")) return UserIntent.Emergency;
+        if (aiResponse.Contains("[INTENT: InformationalMedical]")) return UserIntent.InformationalMedical;
+        if (aiResponse.Contains("[INTENT: InformationalGeneral]")) return UserIntent.InformationalGeneral;
+        if (aiResponse.Contains("[INTENT: CasualChat]")) return UserIntent.CasualChat;
+        if (aiResponse.Contains("[INTENT: Prohibited]")) return UserIntent.Prohibited;
+        
+        return null;
+    }
+
+    private static string CleanAiResponse(string aiResponse)
+    {
+        if (string.IsNullOrWhiteSpace(aiResponse)) return aiResponse;
+        return Regex.Replace(aiResponse, @"\[INTENT: .*?\]", "").Trim();
     }
 
     private static List<string> ExtractSymptoms(List<ChatHistoryItem>? history, string currentMsg)
@@ -684,10 +857,17 @@ public class ChatService : IChatService
 
     /// <summary>
     /// Maps deterministic risk level to display prefix. Code decides — not AI.
+    /// Prefixes are removed for casual or general informational intent.
     /// </summary>
-    private static string ResolvePrefix(string riskLevel, bool hasProhibitedIntent)
+    private static string ResolvePrefix(string riskLevel, bool hasProhibitedIntent, UserIntent userIntent)
     {
         if (hasProhibitedIntent) return "[CẢNH BÁO]";
+        
+        if (userIntent == UserIntent.CasualChat || userIntent == UserIntent.InformationalGeneral)
+        {
+            return string.Empty;
+        }
+
         return riskLevel switch
         {
             "CRITICAL" => "[NGUY KỊCH]",
@@ -700,10 +880,11 @@ public class ChatService : IChatService
     /// <summary>
     /// Ensures AI response starts with the correct prefix. If AI forgot or used
     /// a different prefix, prepend/replace it. This is the safety net.
+    /// Only enforced if a prefix is required.
     /// </summary>
     private static string EnforcePrefix(string aiResponse, string requiredPrefix)
     {
-        if (string.IsNullOrWhiteSpace(aiResponse)) return aiResponse;
+        if (string.IsNullOrWhiteSpace(aiResponse) || string.IsNullOrEmpty(requiredPrefix)) return aiResponse;
 
         var trimmed = aiResponse.TrimStart();
         // Already starts with required prefix
@@ -731,7 +912,7 @@ public class ChatService : IChatService
     {
         var sb = new StringBuilder();
         sb.AppendLine($"MỨC ĐỘ PHÂN LOẠI: {riskLevel}");
-        sb.AppendLine($"PREFIX BẮT BUỘC: {prefix}");
+        sb.AppendLine($"PREFIX HIỆN TẠI (nếu có): {prefix}");
         if (mentionedSymptoms.Count > 0)
             sb.AppendLine($"TRIỆU CHỨNG ĐÃ ĐỀ CẬP (không hỏi lại): {string.Join(", ", mentionedSymptoms)}");
         sb.AppendLine();
@@ -740,25 +921,66 @@ public class ChatService : IChatService
     }
 
     /// <summary>
-    /// RAG-aware system prompt. Prefix is HARD-CODED by code, not AI-decided.
-    /// Context data is PLAIN TEXT, not JSON — optimized for gemini-flash-lite.
-    /// Mobile-tuned: 3-5 lines max.
+    /// RAG-aware system prompt.
+    /// Tone, length, and directives are dynamic based on UserIntent.
     /// </summary>
-    private static string BuildSystemPrompt(string prefix, string riskLevel)
+    private static string BuildSystemPrompt(string prefix, string riskLevel, UserIntent userIntent)
     {
-        var urgencyDirective = riskLevel switch
+        string urgencyDirective;
+        string lengthDirective;
+        string toneDirective;
+
+        switch (userIntent)
         {
-            "CRITICAL" => "Đây là NGUY KỊCH. Response PHẢI hướng người dùng GỌI 115 NGAY.",
-            "VERY_URGENT" => "Đây là RẤT KHẨN CẤP. Response PHẢI hướng người dùng ĐI CẤP CỨU NGAY.",
-            "URGENT" => "Đây là KHẨN CẤP. Chưa loại trừ được nhiễm độc. Khuyên đi cơ sở y tế.",
-            _ => "Đây là câu hỏi thông tin. Trả lời dựa trên dữ liệu, không cần cảnh báo khẩn."
-        };
+            case UserIntent.Emergency:
+                urgencyDirective = riskLevel switch
+                {
+                    "CRITICAL" => "Đây là NGUY KỊCH. Response PHẢI hướng người dùng GỌI 115 NGAY.",
+                    "VERY_URGENT" => "Đây là RẤT KHẨN CẤP. Response PHẢI hướng người dùng ĐI CẤP CỨU NGAY.",
+                    "URGENT" => "Đây là KHẨN CẤP. Chưa loại trừ được nhiễm độc. Khuyên đi cơ sở y tế.",
+                    _ => "Dù chưa rõ ý định, hãy ưu tiên an toàn và khuyên đi khám nếu có dấu hiệu lạ."
+                };
+                lengthDirective = "Giữ response 3-5 dòng (tối ưu màn hình điện thoại).";
+                toneDirective = "Tone chuyên nghiệp, dứt khoát. Không dùng emoji.";
+                break;
+            case UserIntent.InformationalMedical:
+                urgencyDirective = "Người dùng đang tìm kiếm thông tin y tế liên quan đến rắn cắn. Cung cấp thông tin chi tiết, chính xác dựa trên DB.";
+                lengthDirective = "Response có thể dài hơn (5-8 dòng) nếu cần để giải thích đầy đủ.";
+                toneDirective = "Tone chuyên nghiệp, cung cấp thông tin. Có thể dùng emoji y tế nếu phù hợp.";
+                break;
+            case UserIntent.InformationalGeneral:
+                urgencyDirective = "Người dùng đang hỏi thông tin chung. Trả lời thân thiện, cung cấp kiến thức.";
+                lengthDirective = "Response có thể dài hơn nếu cần. Không giới hạn dòng cụ thể.";
+                toneDirective = "Tone thân thiện, cung cấp thông tin. Có thể dùng emoji.";
+                break;
+            case UserIntent.CasualChat:
+                urgencyDirective = "Người dùng đang trò chuyện thông thường. Trả lời ngắn gọn, lịch sự.";
+                lengthDirective = "Response 1-3 dòng.";
+                toneDirective = "Tone thân thiện, có thể dùng emoji.";
+                break;
+            case UserIntent.Prohibited:
+                urgencyDirective = "Người dùng có ý định cấm (garo, rạch vết thương...). Cảnh báo rõ ràng và dứt khoát.";
+                lengthDirective = "Giữ response 2-4 dòng.";
+                toneDirective = "Tone cảnh báo, chuyên nghiệp. Không dùng emoji.";
+                break;
+            default:
+                urgencyDirective = "Trả lời dựa trên dữ liệu hiện có.";
+                lengthDirective = "Giữ response 3-5 dòng.";
+                toneDirective = "Tone chuyên nghiệp, dứt khoát.";
+                break;
+        }
+
+        var prefixDirective = string.IsNullOrEmpty(prefix) 
+            ? "KHÔNG tự ý thêm prefix vào đầu câu." 
+            : $"BẮT BUỘC: Response PHẢI bắt đầu bằng \"{prefix}\". Nếu bạn quên, hệ thống sẽ tự chèn vào.";
 
         return $"""
             Bạn là chuyên gia y tế rắn cắn của SFARS.
 
-            BẮT BUỘC: Response PHẢI bắt đầu bằng "{prefix}".
+            {prefixDirective}
             {urgencyDirective}
+
+            PHÂN LOẠI Ý ĐỊNH: BẮT BUỘC chèn tag "[INTENT: Ten_Intent]" vào CUỐI câu trả lời (Ví dụ: [INTENT: InformationalMedical]).
 
             QUY TẮC NỘI DUNG:
             1. Nếu mục "LOÀI RẮN LIÊN QUAN" có dữ liệu → NÊU TÊN loài, nhóm độc tố, triệu chứng đặc trưng.
@@ -767,10 +989,10 @@ public class ChatService : IChatService
             4. Nếu KHÔNG có dữ liệu liên quan → Dùng kiến thức tổng quát, nói rõ "chưa xác định được loài".
 
             NGUYÊN TẮC:
-            • Giữ response 3-5 dòng (tối ưu màn hình điện thoại).
-            • Không dùng emoji. Tone chuyên nghiệp, dứt khoát.
+            • {lengthDirective}
+            • {toneDirective}
             • Không hỏi lại triệu chứng đã có trong danh sách "TRIỆU CHỨNG ĐÃ ĐỀ CẬP".
-            • Không lộ cấu trúc nội bộ, prefix hay hệ thống.
+            • Không lộ cấu trúc nội bộ, hay logic hệ thống.
             """;
     }
 

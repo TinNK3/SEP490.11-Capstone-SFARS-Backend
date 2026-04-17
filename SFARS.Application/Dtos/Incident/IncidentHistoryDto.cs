@@ -11,6 +11,7 @@ namespace SFARS.Application.Dtos.Incident
         public double Latitude { get; set; }
         public double Longitude { get; set; }
         public string? AddressString { get; set; }
+        public bool IsVerified { get; set; }
 
         public DateTime CreatedAt { get; set; }
         public string? IncidentImage { get; set; }
