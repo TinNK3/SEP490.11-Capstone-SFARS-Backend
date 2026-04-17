@@ -78,14 +78,28 @@ public class ChatService : IChatService
         "hổ mang", "cạp nong", "cạp nia", "vảy trầu", "chàm quạp", "hổ chúa"
     };
 
+    private static readonly Regex[] InfoSeekingPatterns =
+    {
+        new(@"có độc không", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"triệu chứng.*là gì", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"như thế nào", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"làm sao để", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"cách sơ cứu", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"hỏi về", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"tìm hiểu", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+    };
+
     private static readonly Regex[] IncidentPatterns =
     {
-        new(@"\bbị\b.{0,30}\bcắn\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-        new(@"\brắn\b.{0,30}\bcắn\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-        new(@"\bvết\b.{0,30}\bcắn\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-        new(@"\bbị\b.{0,30}\bđớp\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-        new(@"\bvết\b.{0,30}\bđớp\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-        new(@"\bmới cắn\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        // Person-centric (Highly specific)
+        new(@"\b(tôi|người nhà|bạn|con|vợ|chồng|ai đó)\b.{0,20}\b(vừa|mới|đang)?\s?\b(bị|đã bị|bị rồi)\b.{0,20}\bcắn\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        // Action-centric
+        new(@"\b(vừa|mới)\s?\b(bị|đã bị)\b.{0,15}\bcắn\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        // Short Urgent Fallbacks (Safety net)
+        new(@"\bcấp cứu\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"\bcứu với\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"\bbị rắn cắn\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"\bbị cắn\s?\w*$", RegexOptions.IgnoreCase | RegexOptions.Compiled),
         new(@"\bphun độc\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)
     };
 
@@ -107,7 +121,7 @@ public class ChatService : IChatService
         new(@"\bchích\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)
     };
 
-    private const int NMessagesForDecay = 2;
+    private const int NMappingsForDecay = 2;
 
     #endregion
 
@@ -119,7 +133,8 @@ public class ChatService : IChatService
         InformationalMedical,
         InformationalGeneral,
         CasualChat,
-        Prohibited
+        Prohibited,
+        OutOfScope
     }
 
     public class ChatMessageContext
@@ -238,8 +253,8 @@ public class ChatService : IChatService
         // Deterministic Symptom Extraction
         var mentionedSymptoms = ExtractSymptoms(history, currentMsgLower);
         
-        // Determine Risk Level (Decay + Symptom Priority)
-        var riskLevel = DetermineRiskLevel(currentMsgLower, history, prevContext.RiskLevel);
+        // Determine Risk Level (Decay + Symptom Priority + Incident Check)
+        var riskLevel = DetermineRiskLevel(currentMsgLower, history, prevContext.RiskLevel, userIntent);
         
         bool hasProhibitedIntent = userIntent == UserIntent.Prohibited;
 
@@ -675,49 +690,51 @@ public class ChatService : IChatService
 
     /// <summary>
     /// Deterministic risk classification: CRITICAL > VERY_URGENT > URGENT > INFO.
-    /// Risk level "sticks" unless a decay condition is met.
-    /// Priority 1: New Critical symptoms (Respiratory, Neuro, Unconscious)
-    /// Priority 2: High-risk snake bite incident
-    /// Priority 3: Decay logic (if no new symptoms and shift detected)
+    /// Risk level "sticks" — once CRITICAL is detected in history, it remains CRITICAL.
     /// </summary>
-    private static string DetermineRiskLevel(string currentMsg, List<ChatHistoryItem>? history, string previousRiskLevel)
+    private static string DetermineRiskLevel(string currentMsg, List<ChatHistoryItem>? history, string previousRiskLevel, UserIntent currentUserIntent)
     {
         var msgLower = currentMsg.ToLowerInvariant();
 
-        // 1. HIGH PRIORITY: New Critical Symptoms in current message
         bool isCriticalNow = CriticalTerms.Any(t => msgLower.Contains(t));
-        if (isCriticalNow) return "CRITICAL";
 
-        // 2. Incident & Symptoms Check
-        bool isIncidentNow = IncidentPatterns.Any(p => p.IsMatch(msgLower));
-        bool hasSymptomOrHighRiskNow = SymptomTerms.Any(t => msgLower.Contains(t)) || HighRiskSnakes.Any(t => msgLower.Contains(t));
-
-        // 3. Escalation Check
-        if (isIncidentNow && hasSymptomOrHighRiskNow) return "VERY_URGENT";
-        if (isIncidentNow) return "URGENT";
-
-        // 4. Persistence/Decay Logic
-        if (previousRiskLevel == "CRITICAL")
+        if (isCriticalNow || (previousRiskLevel == "CRITICAL" && !HasClearShiftToInfo(currentMsg, history)))
         {
-            // Only stay CRITICAL if history confirms it and no clear shift
-            if (!HasClearShiftToInfo(currentMsg, history) || HasRecentEmergencyKeywords(history, NMessagesForDecay))
-            {
-                return "CRITICAL";
-            }
-            return GetDecayedRiskLevel("CRITICAL");
+            return "CRITICAL";
         }
 
-        if (previousRiskLevel == "VERY_URGENT" || previousRiskLevel == "URGENT")
+        bool isIncidentNow = IncidentPatterns.Any(p => p.IsMatch(msgLower));
+
+        bool isInfoSeeking = InfoSeekingPatterns.Any(p => p.IsMatch(msgLower));
+        if (isInfoSeeking && !isCriticalNow && !isIncidentNow)
         {
-            if (HasRecentEmergencyKeywords(history, NMessagesForDecay))
-            {
-                return previousRiskLevel;
-            }
+            return "INFO";
+        }
+
+        bool wasIncidentInHistory = history != null && history.Any(h => IncidentPatterns.Any(p => p.IsMatch(h.Content.ToLowerInvariant())));
+        bool isIncident = isIncidentNow || wasIncidentInHistory;
+
+        bool hasSymptomOrHighRiskNow = SymptomTerms.Any(t => msgLower.Contains(t)) || HighRiskSnakes.Any(t => msgLower.Contains(t));
+        bool wasSymptomOrHighRiskInHistory = history != null && history.Any(h => 
+            SymptomTerms.Any(t => h.Content.ToLowerInvariant().Contains(t)) || 
+            HighRiskSnakes.Any(t => h.Content.ToLowerInvariant().Contains(t)));
+        bool hasSymptomOrHighRisk = hasSymptomOrHighRiskNow || wasSymptomOrHighRiskInHistory;
+
+        if (isIncident)
+        {
+            if (hasSymptomOrHighRisk) return "VERY_URGENT";
+            return "URGENT";
+        }
+
+        if (previousRiskLevel != "INFO" && !isCriticalNow && !hasSymptomOrHighRiskNow && !isIncidentNow && !HasRecentEmergencyKeywords(history, NMappingsForDecay))
+        {
             return GetDecayedRiskLevel(previousRiskLevel);
         }
 
-        // Default or escalation for Info-seeking with symptoms
-        if (hasSymptomOrHighRiskNow) return "INFO"; 
+        if (hasSymptomOrHighRisk) 
+        {
+            return "INFO"; 
+        }
 
         return "INFO";
     }
@@ -764,20 +781,26 @@ public class ChatService : IChatService
             return UserIntent.Prohibited;
         }
 
-        // 2. Casual Chat
+        // 2. Info Seeking (Highest priority for accuracy)
+        if (InfoSeekingPatterns.Any(p => p.IsMatch(msgLower)))
+        {
+            return UserIntent.InformationalMedical;
+        }
+
+        // 3. Casual Chat
         string[] casualKeywords = { "chào", "hi ", "hello", "cảm ơn", "thank", "tạm biệt", "bye" };
         if (casualKeywords.Any(k => msgLower.StartsWith(k)) && msgLower.Length < 30)
         {
             return UserIntent.CasualChat;
         }
 
-        // 3. Emergency (Inherited from Risk Level)
+        // 4. Emergency (Inherited from Risk Level or specific phrases)
         if (currentRiskLevel == "CRITICAL" || currentRiskLevel == "VERY_URGENT" || IncidentPatterns.Any(p => p.IsMatch(msgLower)))
         {
             return UserIntent.Emergency;
         }
 
-        // 4. Informational Medical
+        // 5. Informational Medical (Specific terms)
         if (AllSymptomExtractTerms.Any(t => msgLower.Contains(t)) || HighRiskSnakes.Any(t => msgLower.Contains(t)) || msgLower.Contains("sơ cứu"))
         {
             return UserIntent.InformationalMedical;
@@ -830,6 +853,7 @@ public class ChatService : IChatService
         if (aiResponse.Contains("[INTENT: InformationalGeneral]")) return UserIntent.InformationalGeneral;
         if (aiResponse.Contains("[INTENT: CasualChat]")) return UserIntent.CasualChat;
         if (aiResponse.Contains("[INTENT: Prohibited]")) return UserIntent.Prohibited;
+        if (aiResponse.Contains("[INTENT: OutOfScope]")) return UserIntent.OutOfScope;
         
         return null;
     }
@@ -958,6 +982,11 @@ public class ChatService : IChatService
                 lengthDirective = "Response 1-3 dòng.";
                 toneDirective = "Tone thân thiện, có thể dùng emoji.";
                 break;
+            case UserIntent.OutOfScope:
+                urgencyDirective = "Người dùng đang nói về một chủ đề không liên quan đến rắn cắn hoặc y tế (ví dụ: toán học, lịch sử, câu nói đùa, vô nghĩa).";
+                lengthDirective = "BẮT BUỘC: Response chỉ được phép có duy nhất 1 CÂU NGẮN GỌN.";
+                toneDirective = "Lịch sự từ chối hoặc thông báo bạn chỉ có thể hỗ trợ các vấn đề liên quan đến rắn cắn. Hướng dẫn người dùng đặt câu hỏi đúng chuyên môn. KHÔNG cung cấp sơ cứu.";
+                break;
             case UserIntent.Prohibited:
                 urgencyDirective = "Người dùng có ý định cấm (garo, rạch vết thương...). Cảnh báo rõ ràng và dứt khoát.";
                 lengthDirective = "Giữ response 2-4 dòng.";
@@ -981,12 +1010,14 @@ public class ChatService : IChatService
             {urgencyDirective}
 
             PHÂN LOẠI Ý ĐỊNH: BẮT BUỘC chèn tag "[INTENT: Ten_Intent]" vào CUỐI câu trả lời (Ví dụ: [INTENT: InformationalMedical]).
+            Lưu ý: Nếu người dùng nhập nội dung vô nghĩa, hoặc hỏi về các chủ đề hoàn toàn không liên quan đến rắn cắn hay y tế, hãy dùng tag [INTENT: OutOfScope].
 
             QUY TẮC NỘI DUNG:
             1. Nếu mục "LOÀI RẮN LIÊN QUAN" có dữ liệu → NÊU TÊN loài, nhóm độc tố, triệu chứng đặc trưng.
             2. Nếu mục "HƯỚNG DẪN SƠ CỨU" có dữ liệu → SỬ DỤNG các bước sơ cứu từ đó.
             3. Nếu mục "HÀNH VI CẤM" có dữ liệu → BỔ SUNG cảnh báo.
             4. Nếu KHÔNG có dữ liệu liên quan → Dùng kiến thức tổng quát, nói rõ "chưa xác định được loài".
+            5. Nếu intent là OutOfScope hoặc chỉ là hỏi kiến thức chung mà không có dấu hiệu bị cắn -> TUYỆT ĐỐI KHÔNG tự động cung cấp hướng dẫn sơ cứu trừ khi được yêu cầu.
 
             NGUYÊN TẮC:
             • {lengthDirective}
