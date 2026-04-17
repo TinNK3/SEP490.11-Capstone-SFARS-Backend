@@ -11,7 +11,8 @@ public class CommunityIncidentDto
     // Masked coordinates (rounded to 3 decimal places for general area, ~110 meters accuracy)
     public double Latitude { get; set; }
     public double Longitude { get; set; }
-    
+
+    public string? AddressString { get; set; }
     public IncidentStatus CurrentStatus { get; set; }
     public SeverityLevel PriorityLevel { get; set; }
     
