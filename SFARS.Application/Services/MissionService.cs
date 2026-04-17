@@ -447,6 +447,13 @@ System.Diagnostics.Debug.WriteLine($"Watchdog scheduled at {mission.Id}");
         {
             mission.Status = RescueStatus.Completed;
             mission.CompletedAt = DateTime.UtcNow;
+
+            // Cleanup: If review is still pending, clear pointers as it's no longer mandatory
+            if (incident.CurrentAiReviewStatus == AiReviewStatus.Pending)
+            {
+                incident.CurrentAiReviewId = null;
+                incident.CurrentAiReviewStatus = null;
+            }
         }
         else if (newStatus == IncidentStatus.Arrived)
         {
@@ -515,8 +522,7 @@ System.Diagnostics.Debug.WriteLine($"Watchdog scheduled at {mission.Id}");
                 IncidentId = incident.Id,
                 MissionId = mission.Id,
                 OldStatus = oldStatus.ToString(),
-                NewStatus = newStatus.ToString(),
-                IsReviewMissing = incident.CurrentAiReviewId.HasValue && incident.CurrentAiReviewStatus == AiReviewStatus.Pending
+                NewStatus = newStatus.ToString()
             };
 
             await _locationHub.Clients
