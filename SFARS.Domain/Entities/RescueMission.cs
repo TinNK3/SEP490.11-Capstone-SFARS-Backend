@@ -37,5 +37,5 @@ public class RescueMission : BaseEntity
     public virtual Incident Incident { get; set; } = null!;
     public virtual User Rescuer { get; set; } = null!;
     public virtual ICollection<RescueTrackingLog> TrackingLogs { get; set; } = new List<RescueTrackingLog>();
-    public virtual Review? Review { get; set; }
+
 }

@@ -214,7 +214,7 @@ public class AnalyticsServiceTests
             CompletedAt = created1.AddMinutes(100),
             RescuerNotes = "Stable",
             PatientConditionAtHandover = "Conscious",
-            Review = new Review { MissionId = missionId1, Rating = 5, Comment = "Great support" },
+
             TrackingLogs = new List<RescueTrackingLog>
             {
                 new() { MissionId = missionId1, RescuerId = rescuerId, Location = new Point(106.71, 10.71) { SRID = 4326 }, SpeedKMH = 40 },
@@ -256,8 +256,6 @@ public class AnalyticsServiceTests
         completedMission.TrackingData.TotalCheckpoints.Should().Be(3);
         completedMission.TrackingData.AvgSpeed.Should().Be(50);
         completedMission.TrackingData.MaxSpeed.Should().Be(60);
-        completedMission.Details.VictimRating.Should().Be(5);
-        completedMission.Details.VictimComment.Should().Be("Great support");
 
         var acceptedMission = data.Missions.Single(x => x.MissionId == missionId2);
         acceptedMission.TrackingData.TotalCheckpoints.Should().Be(0);

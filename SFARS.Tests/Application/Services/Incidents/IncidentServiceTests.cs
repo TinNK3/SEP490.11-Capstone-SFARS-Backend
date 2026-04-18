@@ -39,7 +39,6 @@ public class IncidentServiceTests
     protected readonly Mock<IGenericRepository<Incident, Guid>> _incidentRepoMock;
     protected readonly Mock<IGenericRepository<IncidentMedia, Guid>> _incidentMediaRepoMock;
     protected readonly Mock<IGenericRepository<IncidentStatusHistory, Guid>> _statusHistoryRepoMock;
-    protected readonly Mock<IGenericRepository<IncidentChat, Guid>> _chatRepoMock;
     protected readonly Mock<IGenericRepository<NotificationLog, Guid>> _notificationRepoMock;
     protected readonly Mock<IGenericRepository<User, Guid>> _userRepoMock;
     protected readonly Mock<ISpeechToTextService> _sttServiceMock;
@@ -63,7 +62,6 @@ public class IncidentServiceTests
         _incidentRepoMock = new Mock<IGenericRepository<Incident, Guid>>();
         _incidentMediaRepoMock = new Mock<IGenericRepository<IncidentMedia, Guid>>();
         _statusHistoryRepoMock = new Mock<IGenericRepository<IncidentStatusHistory, Guid>>();
-        _chatRepoMock = new Mock<IGenericRepository<IncidentChat, Guid>>();
         _notificationRepoMock = new Mock<IGenericRepository<NotificationLog, Guid>>();
         _userRepoMock = new Mock<IGenericRepository<User, Guid>>();
         _sttServiceMock = new Mock<ISpeechToTextService>();
@@ -77,7 +75,6 @@ public class IncidentServiceTests
         _unitOfWorkMock.Setup(x => x.Repository<Incident, Guid>()).Returns(_incidentRepoMock.Object);
         _unitOfWorkMock.Setup(x => x.Repository<IncidentMedia, Guid>()).Returns(_incidentMediaRepoMock.Object);
         _unitOfWorkMock.Setup(x => x.Repository<IncidentStatusHistory, Guid>()).Returns(_statusHistoryRepoMock.Object);
-        _unitOfWorkMock.Setup(x => x.Repository<IncidentChat, Guid>()).Returns(_chatRepoMock.Object);
         _unitOfWorkMock.Setup(x => x.Repository<NotificationLog, Guid>()).Returns(_notificationRepoMock.Object);
         _unitOfWorkMock.Setup(x => x.Repository<User, Guid>()).Returns(_userRepoMock.Object);
 
@@ -177,7 +174,6 @@ public class IncidentServiceTests
         // Verify all entities were added
         _incidentRepoMock.Verify(x => x.AddAsync(It.IsAny<Incident>()), Times.Once);
         _statusHistoryRepoMock.Verify(x => x.AddAsync(It.IsAny<IncidentStatusHistory>()), Times.Once);
-        _chatRepoMock.Verify(x => x.AddAsync(It.IsAny<IncidentChat>()), Times.Once);
         _notificationRepoMock.Verify(x => x.AddAsync(It.IsAny<NotificationLog>()), Times.Once);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(), Times.Once);
     }

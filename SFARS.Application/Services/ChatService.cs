@@ -109,6 +109,14 @@ public class ChatService : IChatService
         "sưng nề", "bọng nước", "nôn nhiều", "chóng mặt", "đau", "ngất", "lơ mơ", "máu chảy"
     };
 
+    private static readonly Regex[] ExpertPatterns =
+    {
+        new(@"\bchuyên gia\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"\bbác sĩ\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"\bchuyên môn\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"\bnhà nghiên cứu\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+    };
+
     /// <summary>
     /// Prohibited intent patterns using word boundaries to avoid false positives.
     /// </summary>
@@ -142,6 +150,7 @@ public class ChatService : IChatService
         public string RiskLevel { get; set; } = "INFO";
         public UserIntent Intent { get; set; } = UserIntent.InformationalGeneral;
         public List<string> MentionedSymptoms { get; set; } = new();
+        public bool IsExpertUser { get; set; } = false;
     }
 
     #endregion
@@ -250,6 +259,9 @@ public class ChatService : IChatService
         // 3. Classify Intent & Risk Level
         var userIntent = ClassifyUserIntentRegex(currentMsgLower, prevContext.RiskLevel);
         
+        var isExpertNow = ExpertPatterns.Any(p => p.IsMatch(currentMsgLower));
+        var isExpertUser = prevContext.IsExpertUser || isExpertNow;
+
         // Deterministic Symptom Extraction
         var mentionedSymptoms = ExtractSymptoms(history, currentMsgLower);
         
@@ -274,7 +286,7 @@ public class ChatService : IChatService
         try
         {
             aiResponseText = await _geminiService.ChatWithContextAsync(
-                systemPrompt: BuildSystemPrompt(prefix, riskLevel, userIntent),
+                systemPrompt: BuildSystemPrompt(prefix, riskLevel, userIntent, isExpertUser),
                 contextData: finalContextData,
                 userMessage: trimmedMessage,
                 history: history);
@@ -313,7 +325,8 @@ public class ChatService : IChatService
         {
             RiskLevel = riskLevel,
             Intent = userIntent,
-            MentionedSymptoms = mentionedSymptoms
+            MentionedSymptoms = mentionedSymptoms,
+            IsExpertUser = isExpertUser
         };
 
         var aiMsg = new ChatMessage
@@ -527,7 +540,7 @@ public class ChatService : IChatService
 
         if (matchedSnakes.Count == 0 && instructions.Count == 0)
         {
-            sb.AppendLine("KHÔNG TÌM THẤY DỮ LIỆU PHÙ HỢP — hãy dùng kiến thức y khoa tổng quát.");
+            sb.AppendLine("KHÔNG TÌM THẤY DỮ LIỆU PHÙ HỢP — Dùng kiến thức an toàn chung. TUYỆT ĐỐI KHÔNG khuyên người dùng tự chữa trị hoặc tự bắt độc vật nếu không có kỹ năng. Hãy bắt buộc lưu ý luôn ghi rõ 'Theo thông tin y khoa chung...' vào câu trả lời.");
         }
 
         return sb.ToString();
@@ -946,9 +959,9 @@ public class ChatService : IChatService
 
     /// <summary>
     /// RAG-aware system prompt.
-    /// Tone, length, and directives are dynamic based on UserIntent.
+    /// Tone, length, and directives are dynamic based on UserIntent and ExpertContext.
     /// </summary>
-    private static string BuildSystemPrompt(string prefix, string riskLevel, UserIntent userIntent)
+    private static string BuildSystemPrompt(string prefix, string riskLevel, UserIntent userIntent, bool isExpertUser)
     {
         string urgencyDirective;
         string lengthDirective;
@@ -964,39 +977,45 @@ public class ChatService : IChatService
                     "URGENT" => "Đây là KHẨN CẤP. Chưa loại trừ được nhiễm độc. Khuyên đi cơ sở y tế.",
                     _ => "Dù chưa rõ ý định, hãy ưu tiên an toàn và khuyên đi khám nếu có dấu hiệu lạ."
                 };
-                lengthDirective = "Giữ response 3-5 dòng (tối ưu màn hình điện thoại).";
+                lengthDirective = "Chỉ liệt kê TỐI ĐA 2-3 ý cấp bách nhất bằng gạch đầu dòng siêu ngắn (tối ưu thiết bị di động). Bỏ qua các ý ít rủi ro.";
                 toneDirective = "Tone chuyên nghiệp, dứt khoát. Không dùng emoji.";
                 break;
             case UserIntent.InformationalMedical:
-                urgencyDirective = "Người dùng đang tìm kiếm thông tin y tế liên quan đến rắn cắn. Cung cấp thông tin chi tiết, chính xác dựa trên DB.";
-                lengthDirective = "Response có thể dài hơn (5-8 dòng) nếu cần để giải thích đầy đủ.";
-                toneDirective = "Tone chuyên nghiệp, cung cấp thông tin. Có thể dùng emoji y tế nếu phù hợp.";
+                urgencyDirective = "Cung cấp thông tin chi tiết, chính xác dựa trên DB.";
+                lengthDirective = "BẮT BUỘC: Chỉ tóm tắt tối đa 3 ý quan trọng nhất bằng gạch đầu dòng ngắn. LUÔN thêm câu hỏi mở ở cuối để hỏi người dùng: 'Bạn có muốn xem chi tiết hơn về [Chủ đề] không?'";
+                toneDirective = "Tone chuyên nghiệp, cung cấp thông tin y tế sát sườn.";
                 break;
             case UserIntent.InformationalGeneral:
-                urgencyDirective = "Người dùng đang hỏi thông tin chung. Trả lời thân thiện, cung cấp kiến thức.";
-                lengthDirective = "Response có thể dài hơn nếu cần. Không giới hạn dòng cụ thể.";
-                toneDirective = "Tone thân thiện, cung cấp thông tin. Có thể dùng emoji.";
+                urgencyDirective = "Cung cấp thông tin chung thân thiện, dễ hiểu.";
+                lengthDirective = "BẮT BUỘC: Chỉ tóm tắt tối đa 3 ý quan trọng nhất bằng gạch đầu dòng ngắn. LUÔN thêm câu hỏi mở ở cuối để kết nối sâu hơn.";
+                toneDirective = "Thân thiện, cung cấp thông tin.";
                 break;
             case UserIntent.CasualChat:
-                urgencyDirective = "Người dùng đang trò chuyện thông thường. Trả lời ngắn gọn, lịch sự.";
-                lengthDirective = "Response 1-3 dòng.";
-                toneDirective = "Tone thân thiện, có thể dùng emoji.";
+                urgencyDirective = "Giao tiếp xã giao thông thường, mượt mà.";
+                lengthDirective = "Response cực ngắn 1-2 dòng là đủ.";
+                toneDirective = "Thân thiện, lịch sự, có thể dùng emoji.";
                 break;
             case UserIntent.OutOfScope:
-                urgencyDirective = "Người dùng đang nói về một chủ đề không liên quan đến rắn cắn hoặc y tế (ví dụ: toán học, lịch sử, câu nói đùa, vô nghĩa).";
-                lengthDirective = "BẮT BUỘC: Response chỉ được phép có duy nhất 1 CÂU NGẮN GỌN.";
-                toneDirective = "Lịch sự từ chối hoặc thông báo bạn chỉ có thể hỗ trợ các vấn đề liên quan đến rắn cắn. Hướng dẫn người dùng đặt câu hỏi đúng chuyên môn. KHÔNG cung cấp sơ cứu.";
+                urgencyDirective = "Người dùng hỏi gì đó không liên quan đến Bò sát hoặc Y tế.";
+                lengthDirective = "BẮT BUỘC: Response chỉ 1 câu ngắn gọn.";
+                toneDirective = "Lịch sự báo bạn không biết, và MỜI họ đặt câu hỏi về sơ cứu động vật cắn hoặc tra cứu thông tin loài rắn. KHÔNG cung cấp y tế sai.";
                 break;
             case UserIntent.Prohibited:
                 urgencyDirective = "Người dùng có ý định cấm (garo, rạch vết thương...). Cảnh báo rõ ràng và dứt khoát.";
-                lengthDirective = "Giữ response 2-4 dòng.";
-                toneDirective = "Tone cảnh báo, chuyên nghiệp. Không dùng emoji.";
+                lengthDirective = "Tóm tắt rủi ro thành 2-3 ý ngắn bằng gạch đầu dòng. LUÔN hỏi 'Bạn có muốn biết cách sơ cứu đúng chuẩn ngay bây giờ không?'.";
+                toneDirective = "Cảnh báo, nghiêm túc. Không dùng emoji.";
                 break;
             default:
                 urgencyDirective = "Trả lời dựa trên dữ liệu hiện có.";
-                lengthDirective = "Giữ response 3-5 dòng.";
-                toneDirective = "Tone chuyên nghiệp, dứt khoát.";
+                lengthDirective = "Giữ response 2-4 dòng (dùng gạch đầu dòng).";
+                toneDirective = "Tone chuyên nghiệp.";
                 break;
+        }
+
+        // Apply Expert Override
+        if (isExpertUser && userIntent != UserIntent.OutOfScope && userIntent != UserIntent.CasualChat)
+        {
+            toneDirective = "BỎ QUA các cảnh báo y tế/an toàn cơ bản giáo điều (vì họ đã là chuyên gia). Tone đi thẳng vào dữ liệu khoa học sâu sắc, dùng từ ngữ chuyên ngành để trao đổi trực tiếp như 2 bác sĩ.";
         }
 
         var prefixDirective = string.IsNullOrEmpty(prefix) 

@@ -280,33 +280,17 @@ namespace SFARS.API.Extensions
         #endregion
 
         #region FirstAidDetail
-        // Mapping from typeof(CreateFirstAidDetailRequest) to typeof(FirstAidDetailDto)
-        public static FirstAidDetailDto ToFirstAidDetailDto(this CreateFirstAidDetailRequest req)
+        // Mapping from typeof(UpsertFirstAidDetailRequest) to typeof(FirstAidDetailDto)
+        public static FirstAidDetailDto ToFirstAidDetailDto(this UpsertFirstAidDetailRequest req)
         {
             return new FirstAidDetailDto
             {
-                ToxinGroup = req.ToxinGroup,
-                SnakeId = req.SnakeId,
+                ToxinGroup = req.ToxinGroup.ToString(),
+                SnakeId = null,
                 StepOrder = req.StepOrder,
                 Title = req.Title,
                 ContentMarkdown = req.ContentMarkdown,
-                ImageUrl = req.ImageUrl,
-                LanguageCode = req.LanguageCode
-            };
-        }
-
-        // Mapping from typeof(UpdateFirstAidDetailRequest) to typeof(FirstAidDetailDto)
-        public static FirstAidDetailDto ToFirstAidDetailDto(this UpdateFirstAidDetailRequest req)
-        {
-            return new FirstAidDetailDto
-            {
-                ToxinGroup = req.ToxinGroup,
-                SnakeId = req.SnakeId,
-                StepOrder = req.StepOrder,
-                Title = req.Title,
-                ContentMarkdown = req.ContentMarkdown,
-                ImageUrl = req.ImageUrl,
-                LanguageCode = req.LanguageCode
+                LanguageCode = "Vietnamese"
             };
         }
         #endregion

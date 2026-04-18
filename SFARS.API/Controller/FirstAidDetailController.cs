@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SFARS.API.Extension;
 using SFARS.API.Extensions;
 using SFARS.API.Payloads;
 using SFARS.API.Payloads.Request.Admin;
 using SFARS.Domain.Common.Constants;
+using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Specifications.Params;
 
@@ -52,10 +54,17 @@ public class FirstAidDetailController : ControllerBase
     /// </summary>
     [Authorize(Roles = UserTypeConstants.Admin)]
     [HttpPost(APIRoute.Admin.CreateFirstAidDetail, Name = nameof(CreateFirstAidDetailAsync))]
-    public async Task<IActionResult> CreateFirstAidDetailAsync([FromBody] CreateFirstAidDetailRequest req)
+    public async Task<IActionResult> CreateFirstAidDetailAsync([FromForm] UpsertFirstAidDetailRequest req, IFormFile? imageFile)
     {
         var dto = req.ToFirstAidDetailDto();
-        var result = await _service.CreateAsync(CurrentUserId, dto);
+        
+        // Wrap image file into a domain-friendly upload info object
+        FirstAidImageUploadInfo? imageInfo = imageFile == null ? null : new FirstAidImageUploadInfo(
+            imageFile.OpenReadStream(),
+            imageFile.FileName,
+            imageFile.ContentType);
+
+        var result = await _service.CreateAsync(CurrentUserId, dto, imageInfo);
         return this.ToIActionResult(result);
     }
 
@@ -64,10 +73,17 @@ public class FirstAidDetailController : ControllerBase
     /// </summary>
     [Authorize(Roles = UserTypeConstants.Admin)]
     [HttpPut(APIRoute.Admin.UpdateFirstAidDetail, Name = nameof(UpdateFirstAidDetailAsync))]
-    public async Task<IActionResult> UpdateFirstAidDetailAsync(Guid id, [FromBody] UpdateFirstAidDetailRequest req)
+    public async Task<IActionResult> UpdateFirstAidDetailAsync(Guid id, [FromForm] UpsertFirstAidDetailRequest req, IFormFile? imageFile)
     {
         var dto = req.ToFirstAidDetailDto();
-        var result = await _service.UpdateAsync(id, CurrentUserId, dto);
+
+        // Wrap image file into a domain-friendly upload info object
+        FirstAidImageUploadInfo? imageInfo = imageFile == null ? null : new FirstAidImageUploadInfo(
+            imageFile.OpenReadStream(),
+            imageFile.FileName,
+            imageFile.ContentType);
+
+        var result = await _service.UpdateAsync(id, CurrentUserId, dto, imageInfo);
         return this.ToIActionResult(result);
     }
 

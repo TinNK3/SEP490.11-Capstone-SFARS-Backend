@@ -157,15 +157,7 @@ namespace SFARS.Application.Services
                 CreatedBy = userId
             };
 
-            // Create IncidentChat (empty shell for future AI chat)
-            var chat = new IncidentChat
-            {
-                Id = Guid.NewGuid(),
-                IncidentId = incident.Id,
-                Title = string.Empty,
-                CreatedAt = now,
-                CreatedBy = userId
-            };
+
 
             // Create NotificationLog for victim (confirmation)
             var notification = new NotificationLog
@@ -185,13 +177,11 @@ namespace SFARS.Application.Services
             var incidentCode = $"SOS-{now.Year}-{sequenceValue:D5}";
 
             incident.Code = incidentCode;
-            chat.Title = $"Chat - {incidentCode}";
             notification.Message = string.Format(notifyTemplate, incidentCode);
 
             // Add all entities to repositories
             await _unitOfWork.Repository<Incident, Guid>().AddAsync(incident);
             await _unitOfWork.Repository<IncidentStatusHistory, Guid>().AddAsync(statusHistory);
-            await _unitOfWork.Repository<IncidentChat, Guid>().AddAsync(chat);
             await _unitOfWork.Repository<NotificationLog, Guid>().AddAsync(notification);
 
             // Save - atomic transaction
