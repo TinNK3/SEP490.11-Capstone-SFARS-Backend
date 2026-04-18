@@ -102,9 +102,6 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("FK_Incident_AiInferenceReview_CurrentAiReviewId");
 
-        builder.HasOne(i => i.Chat)
-            .WithOne(c => c.Incident)
-            .HasForeignKey<IncidentChat>(c => c.IncidentId);
 
         // Public tracking (QR code sharing)
         builder.Property(e => e.TrackingCode)

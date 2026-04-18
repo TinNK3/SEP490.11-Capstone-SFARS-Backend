@@ -43,8 +43,6 @@ public class AiInferenceServiceTests
     private readonly Mock<IGenericRepository<AiInferenceCandidate, Guid>> _candidateRepoMock;
     private readonly Mock<IGenericRepository<Snake, Guid>> _snakeRepoMock;
     private readonly Mock<IGenericRepository<FirstAidDetail, Guid>> _firstAidRepoMock;
-    private readonly Mock<IGenericRepository<IncidentChat, Guid>> _chatRepoMock;
-    private readonly Mock<IGenericRepository<IncidentChatMessage, Guid>> _chatMessageRepoMock;
     private readonly Mock<Hangfire.IBackgroundJobClient> _backgroundJobClientMock;
 
     private readonly AiInferenceService _sut;
@@ -71,8 +69,7 @@ public class AiInferenceServiceTests
         _candidateRepoMock = new Mock<IGenericRepository<AiInferenceCandidate, Guid>>();
         _snakeRepoMock = new Mock<IGenericRepository<Snake, Guid>>();
         _firstAidRepoMock = new Mock<IGenericRepository<FirstAidDetail, Guid>>();
-        _chatRepoMock = new Mock<IGenericRepository<IncidentChat, Guid>>();
-        _chatMessageRepoMock = new Mock<IGenericRepository<IncidentChatMessage, Guid>>();
+
 
         _unitOfWorkMock.Setup(x => x.Repository<Incident, Guid>()).Returns(_incidentRepoMock.Object);
         _unitOfWorkMock.Setup(x => x.Repository<IncidentMedia, Guid>()).Returns(_mediaRepoMock.Object);
@@ -80,8 +77,7 @@ public class AiInferenceServiceTests
         _unitOfWorkMock.Setup(x => x.Repository<AiInferenceCandidate, Guid>()).Returns(_candidateRepoMock.Object);
         _unitOfWorkMock.Setup(x => x.Repository<Snake, Guid>()).Returns(_snakeRepoMock.Object);
         _unitOfWorkMock.Setup(x => x.Repository<FirstAidDetail, Guid>()).Returns(_firstAidRepoMock.Object);
-        _unitOfWorkMock.Setup(x => x.Repository<IncidentChat, Guid>()).Returns(_chatRepoMock.Object);
-        _unitOfWorkMock.Setup(x => x.Repository<IncidentChatMessage, Guid>()).Returns(_chatMessageRepoMock.Object);
+
 
         var storageOptions = new StorageOptions
         {
@@ -104,7 +100,7 @@ public class AiInferenceServiceTests
         // Default empty list mocks for common repository calls
         _firstAidRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<FirstAidDetail>());
         _snakeRepoMock.Setup(r => r.GetAllAsync(false)).ReturnsAsync(new List<Snake>());
-        _chatRepoMock.Setup(r => r.GetAllAsync(true)).ReturnsAsync(new List<IncidentChat>());
+
         _unitOfWorkMock.Setup(x => x.SaveChangesAsync()).ReturnsAsync(1);
 
         _backgroundJobClientMock = new Mock<Hangfire.IBackgroundJobClient>();

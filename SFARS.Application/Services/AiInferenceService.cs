@@ -463,52 +463,7 @@ public class AiInferenceService : IAiInferenceService
             incident.UpdatedAt = now;
             incident.UpdatedBy = userId;
 
-            var existingChat = await _unitOfWork.Repository<IncidentChat, Guid>()
-                .GetAllAsync(tracked: true);
-            var chat = existingChat.FirstOrDefault(c => c.IncidentId == incidentId);
 
-            bool shouldSendInitialChat = isSkip || isSnakeClassified || isBiteWoundPhoto;
-
-            if (chat != null && shouldSendInitialChat)
-            {
-                string chatContent;
-                if (isSkip)
-                {
-                    chatContent = AiInferenceConstants.ChatSkipped;
-                }
-                else if (isBiteWoundPhoto)
-                {
-                    chatContent = !isWoundDetected ? AiInferenceConstants.ChatWoundNoDetection
-                                : isSnakeBite == true ? AiInferenceConstants.ChatWoundSnakeBite 
-                                : AiInferenceConstants.ChatWoundNotSnakeBite;
-                }
-                else
-                {
-                    chatContent = string.Format(
-                            AiInferenceConstants.ChatInitialFormat,
-                            primarySnake!.CommonName,
-                            primarySnake!.ScientificName,
-                            (Math.Round(topConfidence, 4) * 100).ToString("0.##"),
-                            GetDangerSummary(primarySnake!.ToxicityLevel),
-                            primarySnake!.ToxinGroup.ToString());
-                }
-
-                var chatMessage = new IncidentChatMessage
-                {
-                    Id = Guid.NewGuid(),
-                    ChatId = chat.Id,
-                    SenderType = ChatSenderType.AI,
-                    SenderId = null,
-                    AiInferenceId = aiInference.Id,
-                    Content = chatContent,
-                    ModelName = isSkip ? "System" : isBiteWoundPhoto ? _woundOptions.Value.ModelName : AiInferenceConstants.ModelName,
-                    CreatedAt = now,
-                    CreatedBy = userId
-                };
-                await _unitOfWork.Repository<IncidentChatMessage, Guid>().AddAsync(chatMessage);
-
-                chat.LastMessageAt = now;
-            }
 
             var saveResult = await _unitOfWork.SaveChangesAsync();
             if (saveResult <= 0)

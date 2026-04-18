@@ -34,7 +34,7 @@ public partial class SFARSDbContext : DbContext
     public DbSet<IncidentMedia> IncidentMedias { get; set; }
     public DbSet<RescueMission> RescueMissions { get; set; }
     public DbSet<RescueTrackingLog> RescueTrackingLogs { get; set; }
-    public DbSet<Review> Reviews { get; set; }
+
 
     // Community
     public DbSet<ContentPost> ContentPosts { get; set; }
@@ -70,10 +70,7 @@ public partial class SFARSDbContext : DbContext
     public DbSet<IncidentSymptom> IncidentSymptoms { get; set; }
     public DbSet<RetrainHistory> RetrainHistories { get; set; }
 
-    // Chat (Incident-specific)
-    public DbSet<IncidentChat> IncidentChats { get; set; }
-    public DbSet<IncidentChatMessage> IncidentChatMessages { get; set; }
-    public DbSet<IncidentChatMessageMedia> IncidentChatMessageMedias { get; set; }
+    // Chat (Incident-specific) // Removed
 
     // Chat (General — RAG-based AI chatbox)
     public DbSet<ChatSession> ChatSessions { get; set; }

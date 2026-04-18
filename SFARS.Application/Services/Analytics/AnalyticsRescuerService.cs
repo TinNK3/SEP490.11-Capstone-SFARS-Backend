@@ -97,8 +97,7 @@ public class AnalyticsRescuerService : IAnalyticsRescuerService
                 VictimAddress = x.Incident.Victim.Address,
                 IncidentLocation = x.Incident.Location,
                 IncidentPriority = x.Incident.PriorityLevel,
-                IncidentDescription = x.Incident.Description,
-                x.Review
+                IncidentDescription = x.Incident.Description
             })
             .ToListAsync();
 
@@ -170,9 +169,7 @@ public class AnalyticsRescuerService : IAnalyticsRescuerService
                 Details = new MissionDetailsDto
                 {
                     RescuerNotes = m.RescuerNotes,
-                    PatientConditionAtHandover = m.PatientConditionAtHandover,
-                    VictimRating = m.Review?.Rating,
-                    VictimComment = m.Review?.Comment
+                    PatientConditionAtHandover = m.PatientConditionAtHandover
                 },
                 TrackingData = new TrackingDataDto
                 {

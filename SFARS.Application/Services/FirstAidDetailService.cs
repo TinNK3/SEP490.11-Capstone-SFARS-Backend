@@ -6,6 +6,7 @@ using SFARS.Application.Dtos.FirstAidDetail;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
+using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
 using SFARS.Domain.Specifications;
@@ -20,17 +21,20 @@ public class FirstAidDetailService : IFirstAidDetailService
     private readonly IMapper _mapper;
     private readonly ISystemMessageService _msgService;
     private readonly ILogger<FirstAidDetailService> _logger;
+    private readonly IFileStorageService _storageService;
 
     public FirstAidDetailService(
         IUnitOfWork uow,
         IMapper mapper,
         ISystemMessageService msgService,
-        ILogger<FirstAidDetailService> logger)
+        ILogger<FirstAidDetailService> logger,
+        IFileStorageService storageService)
     {
         _uow = uow;
         _mapper = mapper;
         _msgService = msgService;
         _logger = logger;
+        _storageService = storageService;
     }
 
     /// <inheritdoc />
@@ -99,7 +103,7 @@ public class FirstAidDetailService : IFirstAidDetailService
     }
 
     /// <inheritdoc />
-    public async Task<IServiceResult> CreateAsync<TDto>(Guid adminId, TDto dto) where TDto : class
+    public async Task<IServiceResult> CreateAsync<TDto>(Guid adminId, TDto dto, FirstAidImageUploadInfo? imageInfo = null) where TDto : class
     {
         var request = dto as FirstAidDetailDto;
         if (request == null)
@@ -107,12 +111,8 @@ public class FirstAidDetailService : IFirstAidDetailService
 
         var repo = _uow.Repository<FirstAidDetail, Guid>();
 
-        if (!Enum.TryParse<ToxinGroup>(request.ToxinGroup, ignoreCase: true, out var parsedToxin))
-        {
-            return new ServiceResult(
-                ResultCodeConst.FirstAid_Warning0003,
-                await _msgService.GetMessageAsync(ResultCodeConst.FirstAid_Warning0003));
-        }
+        Enum.TryParse<ToxinGroup>(request.ToxinGroup, ignoreCase: true, out var parsedToxin);
+
 
         if (!Enum.TryParse<SystemLanguage>(request.LanguageCode, ignoreCase: true, out var parsedLang))
         {
@@ -147,6 +147,18 @@ public class FirstAidDetailService : IFirstAidDetailService
                 await _msgService.GetMessageAsync(ResultCodeConst.FirstAid_Warning0002));
         }
 
+        // Handle Image Upload within Service logic
+        string? finalImageUrl = request.ImageUrl;
+        if (imageInfo != null)
+        {
+            var uploadResult = await _storageService.UploadAsync(
+                imageInfo.Stream, 
+                imageInfo.FileName, 
+                "first_aid", 
+                imageInfo.ContentType);
+            finalImageUrl = uploadResult.Url;
+        }
+
         var entity = new FirstAidDetail
         {
             ToxinGroup = parsedToxin,
@@ -154,7 +166,7 @@ public class FirstAidDetailService : IFirstAidDetailService
             StepOrder = request.StepOrder,
             Title = request.Title.Trim(),
             ContentMarkdown = request.ContentMarkdown?.Trim(),
-            ImageUrl = request.ImageUrl?.Trim(),
+            ImageUrl = finalImageUrl?.Trim(),
             LanguageCode = parsedLang,
             CreatedBy = adminId,
             CreatedAt = DateTime.UtcNow,
@@ -174,7 +186,7 @@ public class FirstAidDetailService : IFirstAidDetailService
     }
 
     /// <inheritdoc />
-    public async Task<IServiceResult> UpdateAsync<TDto>(Guid id, Guid adminId, TDto dto) where TDto : class
+    public async Task<IServiceResult> UpdateAsync<TDto>(Guid id, Guid adminId, TDto dto, FirstAidImageUploadInfo? imageInfo = null) where TDto : class
     {
         var request = dto as FirstAidDetailDto;
         if (request == null)
@@ -190,12 +202,8 @@ public class FirstAidDetailService : IFirstAidDetailService
                 await _msgService.GetMessageAsync(ResultCodeConst.FirstAid_Warning0001));
         }
 
-        if (!Enum.TryParse<ToxinGroup>(request.ToxinGroup, ignoreCase: true, out var parsedToxin))
-        {
-            return new ServiceResult(
-                ResultCodeConst.FirstAid_Warning0003,
-                await _msgService.GetMessageAsync(ResultCodeConst.FirstAid_Warning0003));
-        }
+        Enum.TryParse<ToxinGroup>(request.ToxinGroup, ignoreCase: true, out var parsedToxin);
+
 
         if (!Enum.TryParse<SystemLanguage>(request.LanguageCode, ignoreCase: true, out var parsedLang))
         {
@@ -231,12 +239,28 @@ public class FirstAidDetailService : IFirstAidDetailService
                 await _msgService.GetMessageAsync(ResultCodeConst.FirstAid_Warning0002));
         }
 
+        // Handle Image Upload (Optional Update)
+        if (imageInfo != null)
+        {
+            // Delete old image if it exists
+            if (!string.IsNullOrWhiteSpace(entity.ImageUrl))
+            {
+                await _storageService.DeleteByUrlAsync(entity.ImageUrl);
+            }
+
+            var uploadResult = await _storageService.UploadAsync(
+                imageInfo.Stream, 
+                imageInfo.FileName, 
+                "first_aid", 
+                imageInfo.ContentType);
+            entity.ImageUrl = uploadResult.Url;
+        }
+
         entity.ToxinGroup = parsedToxin;
         entity.SnakeId = request.SnakeId;
         entity.StepOrder = request.StepOrder;
         entity.Title = request.Title.Trim();
         entity.ContentMarkdown = request.ContentMarkdown?.Trim();
-        entity.ImageUrl = request.ImageUrl?.Trim();
         entity.LanguageCode = parsedLang;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = adminId;
