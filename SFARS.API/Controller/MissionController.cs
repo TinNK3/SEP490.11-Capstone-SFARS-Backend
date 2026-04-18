@@ -36,6 +36,18 @@ namespace SFARS.API.Controller
         }
 
         /// <summary>
+        /// Get current rescuer's pending to-do missions (unclosed or unreviewed)
+        /// </summary>
+        [Authorize(Roles = UserTypeConstants.Rescuer)]
+        [HttpGet(APIRoute.Mission.GetTodoMissions, Name = nameof(GetTodoMissionsAsync))]
+        public async Task<IActionResult> GetTodoMissionsAsync([FromQuery] MissionSpecParams specParams)
+        {
+            var rescuerId = User.GetUserId();
+            var result = await _missionService.GetTodoMissionsAsync(rescuerId, specParams);
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
         /// Accept an SOS dispatch incident
         /// </summary>
         /// <param name="id">Incident ID</param>
