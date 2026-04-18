@@ -276,6 +276,8 @@ namespace SFARS.Application.Services
                     PriorityLevel = i.PriorityLevel,
                     AiConfidenceScore = i.AiConfidenceScore,
                     IncidentImage = i.Medias.OrderBy(m => m.MediaType).Select(m => m.MediaUrl).FirstOrDefault(),
+                    IsVerified = i.CurrentAiReview != null && i.CurrentAiReview.AdminReviewerId != null,
+                    CurrentAiReviewStatus = i.CurrentAiReviewStatus,
                     VictimId = i.VictimId,
                     VictimName = i.Victim.FullName,
                     CreatedAt = i.CreatedAt
@@ -521,6 +523,164 @@ namespace SFARS.Application.Services
 
                     dto.PrimarySnake = allPredictions.FirstOrDefault();
                     dto.OtherCandidates = allPredictions.Skip(dto.PrimarySnake != null ? 1 : 0).ToList();
+                }
+            }
+
+            return new ServiceResult(
+                ResultCodeConst.SYS_Success0002,
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+                dto
+            );
+        }
+
+        public async Task<IServiceResult> GetAdminIncidentDetailAsync(Guid incidentId)
+        {
+            var spec = new BaseSpecification<Incident>(i => i.Id == incidentId);
+            spec.ApplyInclude(q => q.Include(i => i.Victim));
+            spec.ApplyInclude(q => q.Include(i => i.Medias));
+            spec.ApplyInclude(q => q.Include(i => i.Missions));
+            spec.ApplyInclude(q => q.Include(i => i.CurrentAiInference!)
+                                     .ThenInclude(ai => ai.Candidates)
+                                     .ThenInclude(c => c.Snake!));
+            spec.ApplyInclude(q => q.Include(i => i.CurrentAiReview!)
+                                     .ThenInclude(r => r.Reviewer!));
+            spec.ApplyInclude(q => q.Include(i => i.CurrentAiReview!)
+                                     .ThenInclude(r => r.AdminReviewer!));
+            spec.ApplyInclude(q => q.Include(i => i.CurrentAiReview!)
+                                     .ThenInclude(r => r.CorrectedSnake!));
+
+            var incident = await _unitOfWork.Repository<Incident, Guid>()
+                .GetWithSpecAsync(spec, tracked: false);
+
+            if (incident == null)
+            {
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004)
+                );
+            }
+
+            var activeMission = incident.Missions
+                .OrderByDescending(m => m.CreatedAt)
+                .FirstOrDefault(m => m.Status == RescueStatus.Accepted || 
+                                     m.Status == RescueStatus.Arrived ||
+                                     m.Status == RescueStatus.Completed);
+
+            LocationCoords? rescuerLoc = null;
+            if (activeMission != null && (activeMission.Status == RescueStatus.Accepted || activeMission.Status == RescueStatus.Arrived || activeMission.Status == RescueStatus.Completed))
+            {
+                var firstLog = await _unitOfWork.Repository<RescueTrackingLog, long>()
+                    .GetQueryable(tracked: false)
+                    .Where(t => t.MissionId == activeMission.Id)
+                    .OrderBy(t => t.LoggedAt)
+                    .FirstOrDefaultAsync();
+
+                if (firstLog != null)
+                {
+                    rescuerLoc = new LocationCoords 
+                    { 
+                        Latitude = firstLog.Location.Y, 
+                        Longitude = firstLog.Location.X 
+                    };
+                }
+            }
+
+            var dto = new AdminIncidentDetailDto
+            {
+                Id = incident.Id,
+                Code = incident.Code,
+                Patient = new LocationCoords { Latitude = incident.Location.Y, Longitude = incident.Location.X },
+                Rescuer = rescuerLoc,
+                AddressString = incident.AddressString,
+                Description = incident.Description,
+                CurrentStatus = incident.CurrentStatus,
+                PriorityLevel = incident.PriorityLevel,
+                IncidentImage = incident.Medias.OrderBy(m => m.MediaType).Select(m => m.MediaUrl).FirstOrDefault(),
+                CreatedAt = incident.CreatedAt,
+                RescuerId = activeMission?.RescuerId
+            };
+
+            if (incident.CurrentAiInference != null)
+            {
+                var aiCandidates = incident.CurrentAiInference.Candidates
+                    .OrderBy(c => c.Rank)
+                    .Select(c => new SnakeCandidateDto
+                    {
+                        SnakeId = c.SnakeId,
+                        ScientificName = c.Snake.ScientificName,
+                        CommonName = c.Snake.CommonName,
+                        Confidence = c.Confidence,
+                        ToxicityLevel = c.Snake.ToxicityLevel,
+                        ToxinGroup = c.Snake.ToxinGroup,
+                        DangerSummary = AiInferenceConstants.GetDangerLabel(c.Snake.ToxicityLevel),
+                        TypicalSymptoms = c.Snake.TypicalSymptoms
+                    }).ToList();
+
+                var aiWoundAnalysis = incident.CurrentAiInference.IsSnakeBite.HasValue ? new WoundAnalysisDto
+                {
+                    IsWoundDetected = true,
+                    IsSnakeBite = incident.CurrentAiInference.IsSnakeBite.Value,
+                    Confidence = incident.AiConfidenceScore ?? 0
+                } : null;
+
+                dto.OriginalAiPrediction = new OriginalAiPredictionDto
+                {
+                    AiInferenceId = incident.CurrentAiInference.Id,
+                    AiConfidenceScore = incident.AiConfidenceScore,
+                    WoundAnalysis = aiWoundAnalysis,
+                    PrimarySnake = aiCandidates.FirstOrDefault(),
+                    OtherCandidates = aiCandidates.Skip(1).ToList()
+                };
+            }
+
+            if (incident.CurrentAiReview != null)
+            {
+                var review = incident.CurrentAiReview;
+                
+                string? rescuerSnakeName = null;
+                if (incident.HumanReviewedSnakeId.HasValue)
+                {
+                    var rescuerSnake = await _unitOfWork.Repository<Snake, Guid>().GetByIdAsync(incident.HumanReviewedSnakeId.Value);
+                    rescuerSnakeName = rescuerSnake?.CommonName ?? rescuerSnake?.ScientificName;
+                }
+                
+                dto.RescuerReviewData = new RescuerReviewDataDto
+                {
+                    ReviewerId = review.ReviewerId,
+                    ReviewerName = review.Reviewer?.FullName,
+                    ReviewStatus = incident.CurrentAiReviewStatus ?? AiReviewStatus.Pending,
+                    CorrectedSnakeId = incident.HumanReviewedSnakeId,
+                    CorrectedSnakeName = rescuerSnakeName,
+                    CorrectedToxinGroup = incident.HumanReviewedToxinGroup,
+                    IsConfirmedWoundSnakeBite = incident.HumanConfirmedSnakeBite,
+                    UnableToAssessReasonChoice = null, // Rescuer doesn't save unable reason in snapshot currently, wait it doesn't? Actually Rescuer might, but we can just use the review if it wasn't admin overwritten. But for now we just use review's if admin is null.
+                    RescuerComment = review.Comment,
+                    ReviewedAt = review.ReviewedAt
+                };
+                
+                // If the admin hasn't reviewed yet, then the review record actually still holds the rescuer's reason choice.
+                if (review.AdminReviewerId == null) 
+                {
+                    dto.RescuerReviewData.UnableToAssessReasonChoice = review.UnableToAssessReasonChoice;
+                }
+
+                if (review.AdminReviewerId != null)
+                {
+                    dto.AdminReviewData = new AdminReviewDataDto
+                    {
+                        AdminReviewerId = review.AdminReviewerId.Value,
+                        AdminReviewerName = review.AdminReviewer?.FullName,
+                        ReviewStatus = review.ReviewStatus,
+                        CorrectedSnakeId = review.CorrectedSnakeId,
+                        CorrectedSnakeName = review.CorrectedSnake?.CommonName ?? review.CorrectedSnake?.ScientificName,
+                        CorrectedToxinGroup = review.CorrectedToxinGroup,
+                        IsConfirmedWoundSnakeBite = review.IsConfirmedWoundSnakeBite,
+                        UnableToAssessReasonChoice = review.UnableToAssessReasonChoice,
+                        AdminComment = review.AdminComment,
+                        AdminReviewedAt = review.UpdatedAt ?? review.ReviewedAt
+                    };
+                    
+                    // In Admin case, if Rescuer had an unable to assess reason, it might be overwritten. So we just leave rescuer's as null or copy it if status was UnableToAssess. (Logic separation).
                 }
             }
 

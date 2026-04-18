@@ -66,6 +66,17 @@ namespace SFARS.API.Controller
         }
 
         /// <summary>
+        /// Get incident detail for Admin, including raw AI and human review data
+        /// </summary>
+        [Authorize(Roles = UserTypeConstants.Admin)]
+        [HttpGet(APIRoute.Incident.GetDetailAdmin, Name = nameof(GetAdminIncidentDetailAsync))]
+        public async Task<IActionResult> GetAdminIncidentDetailAsync([FromRoute] Guid id)
+        {
+            var result = await _incidentService.GetAdminIncidentDetailAsync(id);
+            return this.ToIActionResult(result);
+        }
+
+        /// <summary>
         /// Get status history for a specific incident for Admin
         /// </summary>
         [Authorize(Roles = UserTypeConstants.Admin)]
