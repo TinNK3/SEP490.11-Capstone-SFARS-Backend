@@ -176,6 +176,7 @@ namespace SFARS.API.Payloads
         {
             // [GET]
             public const string GetMyMissions = Base + "/missions/me";
+            public const string GetTodoMissions = Base + "/missions/me/to-do";
             // [POST]
             public const string Accept = Base + "/missions/{id}/accept";
             // [PATCH]

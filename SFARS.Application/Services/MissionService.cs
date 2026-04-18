@@ -94,6 +94,52 @@ public class MissionService : IMissionService
         );
     }
 
+    public async Task<IServiceResult> GetTodoMissionsAsync(Guid rescuerId, MissionSpecParams specParams)
+    {
+        if (rescuerId == Guid.Empty)
+        {
+            return new ServiceResult(
+                ResultCodeConst.Auth_Warning0013,
+                await _msgService.GetMessageAsync(ResultCodeConst.Auth_Warning0013)
+            );
+        }
+
+        var countSpec = new RescuerTodoMissionSpecification(specParams, rescuerId, isCount: true);
+        var totalItems = await _unitOfWork.Repository<RescueMission, Guid>().CountAsync(countSpec);
+
+        var spec = new RescuerTodoMissionSpecification(specParams, rescuerId, isCount: false);
+
+        var missions = await _unitOfWork.Repository<RescueMission, Guid>().GetAllWithSpecAsync(spec);
+
+        var dtos = missions.Select(m => new RescuerTodoMissionDto
+        {
+            IncidentId = m.IncidentId,
+            IncidentCode = m.Incident?.Code,
+            MissionId = m.Id,
+            IncidentStatus = m.Incident!.CurrentStatus,
+            ReviewStatus = m.Incident.CurrentAiReviewStatus,
+            MissionStartedAt = m.StartedAt,
+            MissionCompletedAt = m.CompletedAt,
+            PatientName = m.Incident.Victim?.FullName,
+            Address = m.Incident.AddressString,
+            AiPredictedSnakeName = m.Incident.CurrentAiInference?.SelectedSnake?.CommonName ?? m.Incident.CurrentAiInference?.SelectedSnake?.ScientificName,
+            IsBiteWound = m.Incident.Medias?.Any(x => x.MediaType == MediaType.BiteWoundPhoto) ?? false,
+            MediaThumbnailUrl = m.Incident.Medias?.OrderByDescending(x => x.CreatedAt).FirstOrDefault(x => x.MediaType == MediaType.SnakePhoto || x.MediaType == MediaType.BiteWoundPhoto)?.MediaUrl
+        }).ToList();
+
+        var limit = specParams.GetTake();
+        var page = specParams.GetPage();
+        var totalPages = limit > 0 ? (int)Math.Ceiling(totalItems / (double)limit) : 0;
+
+        var pagedResult = new PaginatedResultDto<RescuerTodoMissionDto>(dtos, page, limit, totalPages, totalItems);
+
+        return new ServiceResult(
+            ResultCodeConst.SYS_Success0002,
+            await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
+            pagedResult
+        );
+    }
+
     public async Task<IServiceResult> AcceptMissionAsync(Guid incidentId, Guid rescuerId)
     {
         // Load rescuer without tracking for distance and status checks
