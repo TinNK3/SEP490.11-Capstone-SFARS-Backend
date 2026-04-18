@@ -19,9 +19,12 @@ namespace SFARS.Application.Dtos.Incident
         public SeverityLevel PriorityLevel { get; set; } = SeverityLevel.Medium;
         
         // AI Prediction
-
         public double? AiConfidenceScore { get; set; }
         public string? IncidentImage { get; set; }
+        
+        // AI Review Snapshot
+        public bool IsVerified { get; set; }
+        public AiReviewStatus? CurrentAiReviewStatus { get; set; }
         
         // Relations
         public Guid VictimId { get; set; }

@@ -149,6 +149,7 @@ namespace SFARS.API.Payloads
             public const string GetMyIncidents = Base + "/incidents/me";
             public const string GetRecentCommunity = Base + "/incidents/recent";
             public const string GetAllAdmin = Base + "/admin/incidents";
+            public const string GetDetailAdmin = Base + "/admin/incidents/{id}";
             public const string GetStatusHistoryAdmin = Base + "/admin/incidents/{id}/status-history";
             public const string Tracking = Base + "/incidents/{id}/tracking";
             public const string TrackingByCode = Base + "/tracking";

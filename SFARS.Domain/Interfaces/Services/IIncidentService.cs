@@ -14,6 +14,7 @@ namespace SFARS.Domain.Interfaces.Services
         Task<IServiceResult> GetStatusHistoryAsync(Guid incidentId);
         Task<IServiceResult> GetRecentCommunityIncidentsAsync(BaseSpecParams specParams);
         Task<IServiceResult> GetIncidentByIdAsync(Guid incidentId);
+        Task<IServiceResult> GetAdminIncidentDetailAsync(Guid incidentId);
         
         /// <summary>
         /// Upload media (photo/video) for an incident
