@@ -489,6 +489,7 @@ namespace SFARS.Infrastructure.Data
                         bool isChanged = false;
                         if (existing.Title != seed.Title) { existing.Title = seed.Title; isChanged = true; }
                         if (existing.ContentMarkdown != seed.ContentMarkdown) { existing.ContentMarkdown = seed.ContentMarkdown; isChanged = true; }
+                        if (existing.ImageUrl != seed.ImageUrl) { existing.ImageUrl = seed.ImageUrl; isChanged = true; }
 
                         if (isChanged)
                         {
