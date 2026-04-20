@@ -4,188 +4,215 @@
     "StepOrder": 1,
     "Title": "BƯỚC 1: Đưa nạn nhân ra vùng an toàn và nằm yên",
     "ContentMarkdown": "- Đưa nạn nhân rời khỏi khu vực có rắn\n- Tuyệt đối không để nạn nhân tự đi lại.\n- Hạn chế tối đa vận động để nọc chậm phát tán",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620142/01.N%E1%BA%B1m_y%C3%AAn_tr%E1%BA%A5n_an-removebg-preview_kwpucp.png"
   },
   {
     "ToxinGroup": "Unknown",
     "StepOrder": 2,
     "Title": "BƯỚC 2: Cởi bỏ trang sức, đồ bó sát",
     "ContentMarkdown": "- Tháo ngay nhẫn, vòng tay, đồng hồ, giày dép chật quanh vùng bị cắn trước khi vết thương sưng nề",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620142/2._Th%C3%A1o_v%E1%BA%ADt_d%E1%BB%A5ng_si%E1%BA%BFt_ch%E1%BA%B7t-removebg-preview_lrupi4.png"
   },
   {
     "ToxinGroup": "Unknown",
     "StepOrder": 3,
     "Title": "BƯỚC 3: Cố định vết thương bằng nẹp",
     "ContentMarkdown": "- Dùng nẹp gỗ, bìa cứng để cố định chi bị cắn\n- Buộc lỏng vừa phải, tuyệt đối không siết chặt gây tắc mạch máu",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620142/3._N%E1%BA%B9p_c%E1%BB%91_%C4%91%E1%BB%8Bnh_chi-removebg-preview_ywkm20.png"
   },
   {
     "ToxinGroup": "Unknown",
     "StepOrder": 4,
     "Title": "BƯỚC 4: Đặt chi ngang mức tim",
     "ContentMarkdown": "- Giữ vùng bị cắn ở tư thế thoải mái, ngang vị trí của tim\n- Không giơ lên quá cao hay buông thõng thấp",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620142/4.T%C6%B0_th%E1%BA%BF_an_to%C3%A0n-removebg-preview_onjnve.png"
   },
   {
     "ToxinGroup": "Unknown",
     "StepOrder": 5,
     "Title": "BƯỚC 5: Không tự tháo băng/nẹp nếu đang có",
     "ContentMarkdown": "- Nếu trước đó đã băng ép, tuyệt đối không tự nới lỏng hay tháo bỏ\n- Chỉ xử lý khi có bác sĩ hoặc nhân viên y tế yêu cầu",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620447/B%C6%AF%E1%BB%9AC_5_Kh%C3%B4ng_t%E1%BB%B1_th%C3%A1o_b%C4%83ng_n%E1%BA%B9p_n%E1%BA%BFu_%C4%91ang_c%C3%B3-removebg-preview_twg9p0.png"
   },
   {
     "ToxinGroup": "Unknown",
     "StepOrder": 6,
     "Title": "BƯỚC 6: Gọi cấp cứu ngay lập tức",
     "ContentMarkdown": "- Gọi ngay cơ sở y tế gần nhất\n- Di chuyển nạn nhân bằng cáng hoặc bế, cõng. Không cho nạn nhân tự đi",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620448/B%C6%AF%E1%BB%9AC_6_G%E1%BB%8Di_c%E1%BA%A5p_c%E1%BB%A9u__v%E1%BA%ADn_chuy%E1%BB%83n-removebg-preview_nxnvns.png"
   },
   {
     "ToxinGroup": "Unknown",
     "StepOrder": 7,
     "Title": "BƯỚC 7: Theo dõi các dấu hiệu nguy kịch",
     "ContentMarkdown": "- Chú ý nếu khó thở, sụp mí, sưng lan nhanh, chảy máu, hoặc lơ mơ để báo ngay cho bác sĩ",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620448/Theo_d%C3%B5i_d%E1%BA%A5u_hi%E1%BB%87u_nguy_k%E1%BB%8Bch-removebg-preview_lb375s.png"
   },
   {
     "ToxinGroup": "GeneralProhibition",
     "StepOrder": 1,
     "Title": "Tuyệt đối không rạch, hút nọc, chườm đá, đắp lá hay hóa chất",
     "ContentMarkdown": null,
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620598/1.Kh%C3%B4ng_r%E1%BA%A1ch_v%E1%BA%BFt_th%C6%B0%C6%A1ng-removebg-preview_qmeweq.png"
   },
   {
     "ToxinGroup": "GeneralProhibition",
     "StepOrder": 2,
     "Title": "Không buộc garo hoặc siết nghẹt chi",
     "ContentMarkdown": null,
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620586/5.Kh%C3%B4ng_si%E1%BA%BFt_ngh%E1%BA%B9t-removebg-preview_zbxpxg.png"
   },
   {
     "ToxinGroup": "GeneralProhibition",
     "StepOrder": 3,
     "Title": "Không sử dụng rượu bia, chất kích thích",
     "ContentMarkdown": null,
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620586/6.Kh%C3%B4ng_u%E1%BB%91ng_r%C6%B0%E1%BB%A3u-removebg-preview_pp2qnl.png"
   },
   {
     "ToxinGroup": "GeneralProhibition",
     "StepOrder": 4,
     "Title": "Không để nạn nhân tự đi lại và không trì hoãn đến bệnh viện",
     "ContentMarkdown": null,
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620585/7.Kh%C3%B4ng_t%E1%BB%B1_%C4%91i_l%E1%BA%A1i-removebg-preview_buvbho.png"
   },
   {
     "ToxinGroup": "Neurotoxin",
     "StepOrder": 1,
     "Title": "BƯỚC 1: Giữ nạn nhân nằm yên hoàn toàn",
     "ContentMarkdown": "- Tuyệt đối không để tự đi lại\n- Hạn chế mọi vận động để tránh nọc phát tán",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620142/01.N%E1%BA%B1m_y%C3%AAn_tr%E1%BA%A5n_an-removebg-preview_kwpucp.png"
   },
   {
     "ToxinGroup": "Neurotoxin",
     "StepOrder": 2,
     "Title": "BƯỚC 2: Thực hiện băng ép bất động theo chỉ dẫn của cứu hộ viên",
     "ContentMarkdown": "- Chỉ quấn băng thun/băng đàn hồi khi có hướng dẫn trực tiếp từ cứu hộ viên\n- Tuyệt đối không dùng dây thừng hoặc garo siết nghẹt",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620449/_Neuro__B%C4%83ng_%C3%A9p_theo_h%C6%B0%E1%BB%9Bng_d%E1%BA%ABn-removebg-preview_qsvpao.png"
   },
   {
     "ToxinGroup": "Neurotoxin",
     "StepOrder": 3,
     "Title": "BƯỚC 3: Nẹp cố định toàn bộ chi",
     "ContentMarkdown": "- Dùng nẹp cứng (gỗ, tre) giữ chi bị cắn bất động tối đa",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620142/3._N%E1%BA%B9p_c%E1%BB%91_%C4%91%E1%BB%8Bnh_chi-removebg-preview_ywkm20.png"
   },
   {
     "ToxinGroup": "Neurotoxin",
     "StepOrder": 4,
     "Title": "BƯỚC 4: Chuyển viện khẩn cấp và theo dõi",
     "ContentMarkdown": "- Đưa đến cơ sở y tế gần nhất có khả năng trị rắn cắn\n- Theo dõi sát và báo ngay bác sĩ nếu khó thở, sụp mí, nói khó, yếu liệt",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620448/B%C6%AF%E1%BB%9AC_6_G%E1%BB%8Di_c%E1%BA%A5p_c%E1%BB%A9u__v%E1%BA%ADn_chuy%E1%BB%83n-removebg-preview_nxnvns.png"
   },
   {
     "ToxinGroup": "Hemotoxin",
     "StepOrder": 1,
     "Title": "BƯỚC 1: Nằm yên và tháo vật bó sát",
     "ContentMarkdown": "- Tuyệt đối không để nạn nhân tự đi lại\n- Tháo ngay nhẫn, vòng tay, đồng hồ trước khi vết thương sưng nề",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620142/2._Th%C3%A1o_v%E1%BA%ADt_d%E1%BB%A5ng_si%E1%BA%BFt_ch%E1%BA%B7t-removebg-preview_lrupi4.png"
   },
   {
     "ToxinGroup": "Hemotoxin",
     "StepOrder": 2,
     "Title": "BƯỚC 2: KHÔNG quấn băng ép toàn chi",
     "ContentMarkdown": "- Tuyệt đối không tự quấn băng ép (trừ khi có chỉ định trực tiếp từ y tế)\n- Nếu đã băng/nẹp từ trước, không tự ý tháo bỏ hay nới lỏng",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620448/_HemoMixed__KH%C3%94NG_qu%E1%BA%A5n_b%C4%83ng_%C3%A9p-removebg-preview_hg2lo7.png"
   },
   {
     "ToxinGroup": "Hemotoxin",
     "StepOrder": 3,
     "Title": "BƯỚC 3: Cố định chi bằng nẹp lỏng",
     "ContentMarkdown": "- Dùng nẹp cứng để giữ chi bị cắn bất động\n- Tuyệt đối không buộc nẹp quá chặt gây tắc mạch máu",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620142/3._N%E1%BA%B9p_c%E1%BB%91_%C4%91%E1%BB%8Bnh_chi-removebg-preview_ywkm20.png"
   },
   {
     "ToxinGroup": "Hemotoxin",
     "StepOrder": 4,
     "Title": "BƯỚC 4: Chuyển viện khẩn cấp và theo dõi",
     "ContentMarkdown": "- Đưa ngay đến cơ sở y tế có khả năng trị rắn cắn\n- Theo dõi sát và báo bác sĩ ngay nếu sưng lan nhanh, đau dữ dội, hoặc chảy máu bất thường",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620448/B%C6%AF%E1%BB%9AC_6_G%E1%BB%8Di_c%E1%BA%A5p_c%E1%BB%A9u__v%E1%BA%ADn_chuy%E1%BB%83n-removebg-preview_nxnvns.png"
   },
   {
     "ToxinGroup": "Mixed",
     "StepOrder": 1,
     "Title": "BƯỚC 1: Giữ nạn nhân nằm yên hoàn toàn",
     "ContentMarkdown": "- Tuyệt đối không để nạn nhân tự đi lại\n- Hạn chế mọi vận động để tránh nọc phát tán",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620142/01.N%E1%BA%B1m_y%C3%AAn_tr%E1%BA%A5n_an-removebg-preview_kwpucp.png"
   },
   {
     "ToxinGroup": "Mixed",
     "StepOrder": 2,
     "Title": "BƯỚC 2: KHÔNG tự quấn băng ép toàn chi",
     "ContentMarkdown": "- Tuyệt đối không tự quấn băng ép (trừ khi có y tế chỉ định)\n- Nếu đã băng/nẹp từ trước, không tự ý tháo bỏ hay nới lỏng",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620448/_HemoMixed__KH%C3%94NG_qu%E1%BA%A5n_b%C4%83ng_%C3%A9p-removebg-preview_hg2lo7.png"
   },
   {
     "ToxinGroup": "Mixed",
     "StepOrder": 3,
     "Title": "BƯỚC 3: Cố định chi bằng nẹp lỏng",
     "ContentMarkdown": "- Dùng nẹp cứng để giữ chi bị cắn bất động\n- Tuyệt đối không buộc nẹp quá chặt gây tắc mạch máu",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620142/3._N%E1%BA%B9p_c%E1%BB%91_%C4%91%E1%BB%8Bnh_chi-removebg-preview_ywkm20.png"
   },
   {
     "ToxinGroup": "Mixed",
     "StepOrder": 4,
     "Title": "BƯỚC 4: Chuyển viện khẩn cấp và theo dõi",
     "ContentMarkdown": "- Đưa ngay đến cơ sở y tế có khả năng trị rắn cắn\n- Theo dõi sát và báo bác sĩ ngay nếu có dấu hiệu khó thở, sưng lan nhanh, đau tăng, hoặc chảy máu bất thường",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620448/B%C6%AF%E1%BB%9AC_6_G%E1%BB%8Di_c%E1%BA%A5p_c%E1%BB%A9u__v%E1%BA%ADn_chuy%E1%BB%83n-removebg-preview_nxnvns.png"
   },
   {
     "ToxinGroup": "NonVenomous",
     "StepOrder": 1,
     "Title": "BƯỚC 1: Giữ bình tĩnh và theo dõi tại chỗ",
     "ContentMarkdown": "- Nạn nhân cần giữ bình tĩnh, không hoảng loạn\n- Theo dõi sát: Nếu vết cắn sưng đau tăng nhanh hoặc có triệu chứng lạ, phải chuyển sang hướng cấp cứu ngay",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776620142/01.N%E1%BA%B1m_y%C3%AAn_tr%E1%BA%A5n_an-removebg-preview_kwpucp.png"
   },
   {
     "ToxinGroup": "NonVenomous",
     "StepOrder": 2,
     "Title": "BƯỚC 2: Rửa sạch vết thương bằng nước",
     "ContentMarkdown": "-Rửa nhẹ nhàng vết cắn dưới vòi nước sạch hoặc nước muối sinh lý\n- Tuyệt đối không chà xát mạnh, không đắp thuốc dân gian hay hóa chất lên vết thương",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776621410/03.Non-venomous_R%E1%BB%ADa_v%E1%BA%BFt_th%C6%B0%C6%A1ng-removebg-preview_1_rdn5tf.png"
   },
   {
     "ToxinGroup": "NonVenomous",
     "StepOrder": 3,
     "Title": "BƯỚC 3: Băng che bằng gạc sạch",
     "ContentMarkdown": "- Dùng băng gạc y tế sạch băng che nhẹ vết thương để tránh bụi bẩn và nhiễm trùng\n- Đi khám ngay nếu vết thương sưng đỏ tấy, mưng mủ hoặc nạn nhân bị sốt",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776621407/04.Non-venomous___B%C4%83ng_g%E1%BA%A1c-removebg-preview_u4t4hx.png"
   },
   {
     "ToxinGroup": "NonVenomous",
     "StepOrder": 4,
     "Title": "BƯỚC 4: Đến cơ sở y tế kiểm tra",
     "ContentMarkdown": "- Nên đưa nạn nhân đi khám để bác sĩ vệ sinh lại vết thương và tiêm phòng uốn ván (nếu cần thiết)",
-    "LanguageCode": "Vietnamese"
+    "LanguageCode": "Vietnamese",
+    "ImageUrl": "https://res.cloudinary.com/dj22kn3aa/image/upload/v1776621407/5.Non-venomous___%C4%90i_kh%C3%A1m_b%C3%A1c_s%C4%A9-removebg-preview_xq3akm.png"
   }
 ]
