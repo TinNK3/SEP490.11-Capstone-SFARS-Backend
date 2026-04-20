@@ -143,7 +143,7 @@ public class CommunityPostService : ICommunityPostService
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Tạo bài đăng thành công", dto);
     }
 
-    public async Task<IServiceResult> UpdatePostAsync(Guid postId, Guid authorId, string? content, List<string>? retainedMediaUrls, List<MediaUploadInfo>? newMediaFiles)
+    public async Task<IServiceResult> UpdatePostAsync(Guid postId, Guid requesterId, string? content, List<string>? retainedMediaUrls, List<MediaUploadInfo>? newMediaFiles, bool isAdmin = false)
     {
         var spec = new BaseSpecification<ContentPost>(p => p.Id == postId && p.Type == PostType.Community);
         // Không Include Medias để tránh lỗi EF Core Tracking khi thao tác xóa
@@ -153,7 +153,7 @@ public class CommunityPostService : ICommunityPostService
         if (post is null)
             return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Bài đăng không tồn tại.");
 
-        if (post.AuthorId != authorId)
+        if (!isAdmin && post.AuthorId != requesterId)
             return new ServiceResult(ResultCodeConst.SYS_Warning0007, "Bạn không có quyền sửa bài đăng này.");
 
         if (string.IsNullOrWhiteSpace(content) && (retainedMediaUrls is null || retainedMediaUrls.Count == 0) && (newMediaFiles is null || newMediaFiles.Count == 0))
@@ -162,7 +162,7 @@ public class CommunityPostService : ICommunityPostService
         post.BodyContent = content;
         post.Title = content?.Length > 0 ? TruncateContent(content, 100) : "Community Post";
         post.UpdatedAt = DateTime.UtcNow;
-        post.UpdatedBy = authorId;
+        post.UpdatedBy = requesterId;
 
         var mediaRepo = _uow.Repository<PostMedia, Guid>();
         
@@ -210,7 +210,7 @@ public class CommunityPostService : ICommunityPostService
                     Url = uploadResult.Url,
                     ContentType = file.ContentType,
                     Order = targetOrder++,
-                    CreatedBy = authorId
+                    CreatedBy = requesterId
                 };
                 
                 await mediaRepo.AddAsync(newMedia); // Kích hoạt Added state
@@ -223,7 +223,7 @@ public class CommunityPostService : ICommunityPostService
         returnSpec.ApplyInclude(q => q.Include(p => p.Author).Include(p => p.Medias).Include(p => p.Likes));
 
         var updated = await _uow.Repository<ContentPost, Guid>().GetWithSpecAsync(returnSpec, tracked: false);
-        var dto = MapToDto(updated!, authorId, limitMedia: false);
+        var dto = MapToDto(updated!, requesterId, limitMedia: false);
 
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Sửa bài đăng thành công", dto);
     }

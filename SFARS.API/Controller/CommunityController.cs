@@ -51,12 +51,12 @@ public class CommunityController : ControllerBase
     public async Task<IActionResult> DeletePostAsync(Guid id)
         => this.ToIActionResult(await _svc.DeletePostAsync(id, User.GetUserId(), User.IsInRole(UserTypeConstants.Admin)));
 
-    /// <summary>Sửa bài đăng (chỉ tác giả)</summary>
+    /// <summary>Sửa bài đăng (tác giả hoặc Admin)</summary>
     [HttpPut(APIRoute.Community.UpdatePost, Name = nameof(UpdatePostAsync))]
     public async Task<IActionResult> UpdatePostAsync(Guid id, [FromForm] UpdateCommunityPostRequest req)
     {
         var newFiles = req.NewMediaFiles?.Select(f => new MediaUploadInfo(f.OpenReadStream(), f.FileName, f.ContentType)).ToList();
-        return this.ToIActionResult(await _svc.UpdatePostAsync(id, User.GetUserId(), req.Content, req.RetainedMediaUrls, newFiles));
+        return this.ToIActionResult(await _svc.UpdatePostAsync(id, User.GetUserId(), req.Content, req.RetainedMediaUrls, newFiles, User.IsInRole(UserTypeConstants.Admin)));
     }
 
     /// <summary>Ẩn bài đăng (chỉ tác giả)</summary>
