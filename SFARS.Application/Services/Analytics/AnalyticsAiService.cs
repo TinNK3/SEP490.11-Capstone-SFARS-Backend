@@ -3,6 +3,7 @@ using SFARS.Application.Common;
 using SFARS.Application.Dtos.Analytics;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
+using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Repositories.Base;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
@@ -21,26 +22,33 @@ public class AnalyticsAiService : IAnalyticsAiService
     private readonly IGenericRepository<AiInference, Guid> _aiRepo;
     private readonly IGenericRepository<AiInferenceReview, Guid> _aiReviewRepo;
     private readonly IGenericRepository<RescueMission, Guid> _rescueRepo;
+    private readonly ISpeciesClassificationService _speciesService;
     private readonly ISystemMessageService _msgService;
 
     public AnalyticsAiService(
         IGenericRepository<AiInference, Guid> aiRepo,
         IGenericRepository<AiInferenceReview, Guid> aiReviewRepo,
         IGenericRepository<RescueMission, Guid> rescueRepo,
+        ISpeciesClassificationService speciesService,
         ISystemMessageService msgService)
     {
         _aiRepo = aiRepo;
         _aiReviewRepo = aiReviewRepo;
         _rescueRepo = rescueRepo;
+        _speciesService = speciesService;
         _msgService = msgService;
     }
 
     public async Task<IServiceResult> GetAiAccuracyMetricsAsync(AnalyticsSpecParams filter)
     {
+        var supportedScientificNames = _speciesService.GetSupportedSpecies()
+            .Select(x => x.Replace("_", " "))
+            .ToList();
+
         var query = AnalyticsQueryHelper.ApplyCreatedAtUtcRange(_aiRepo.GetQueryable(false), filter);
 
         var metrics = await query
-            .Where(x => x.SelectedSnake != null)
+            .Where(x => x.SelectedSnake != null && supportedScientificNames.Contains(x.SelectedSnake.ScientificName))
             .Select(x => new
             {
                 SpeciesName = x.SelectedSnake!.CommonName,

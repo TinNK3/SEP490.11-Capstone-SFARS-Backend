@@ -16,8 +16,14 @@ public interface ISpeciesClassificationService
     
     /// <summary>
     /// Hot-reload the species ONNX model from disk without app restart.
+    /// Also reloads class mapping from the configured ClassMappingPath file.
     /// </summary>
     Task<bool> ReloadSpeciesModelAsync(string? newModelPath = null);
+
+    /// <summary>
+    /// Returns the list of species (scientific names) the current model can identify.
+    /// </summary>
+    IReadOnlyList<string> GetSupportedSpecies();
 }
 
 

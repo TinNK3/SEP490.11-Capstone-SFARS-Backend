@@ -32,8 +32,12 @@ public class DataSetExportService : IDataSetExportService
                 .Where(a => a.Incident.CurrentAiReviewId != null)
                 .Where(a => a.IncidentMedia != null && a.IncidentMedia.MediaType == MediaType.SnakePhoto)
             join r in _unitOfWork.Repository<AiInferenceReview, Guid>().GetQueryable(tracked: false)
+                .Include(r => r.CorrectedSnake)
                 on ai.Id equals r.AiInferenceId
             where (r.ReviewStatus == AiReviewStatus.ConfirmedCorrect || r.ReviewStatus == AiReviewStatus.Corrected)
+                  && r.AdminReviewerId != null
+                  // Exclude reviews pointing to inactive (new/placeholder) snakes
+                  && (r.ReviewStatus != AiReviewStatus.Corrected || r.CorrectedSnake == null || r.CorrectedSnake.IsActive)
                   && (specParams.CreatedFrom == null || r.ReviewedAt >= specParams.CreatedFrom)
                   && (specParams.CreatedTo == null || r.ReviewedAt <= specParams.CreatedTo)
             select new { ai, r };
@@ -98,6 +102,7 @@ public class DataSetExportService : IDataSetExportService
             join r in _unitOfWork.Repository<AiInferenceReview, Guid>().GetQueryable(tracked: false)
                 on ai.Id equals r.AiInferenceId
             where (r.ReviewStatus == AiReviewStatus.ConfirmedCorrect || r.ReviewStatus == AiReviewStatus.Corrected)
+                  && r.AdminReviewerId != null
                   && (specParams.CreatedFrom == null || r.ReviewedAt >= specParams.CreatedFrom)
                   && (specParams.CreatedTo == null || r.ReviewedAt <= specParams.CreatedTo)
             select new { ai, r };
@@ -115,9 +120,8 @@ public class DataSetExportService : IDataSetExportService
             var ai = item.ai;
             var review = item.r;
 
-            bool groundTruthIsSnakeBite = review.ReviewStatus == AiReviewStatus.ConfirmedCorrect
-                ? ai.IsSnakeBite!.Value
-                : !ai.IsSnakeBite!.Value;
+            bool groundTruthIsSnakeBite = review.IsConfirmedWoundSnakeBite 
+                ?? ai.IsSnakeBite!.Value;
 
             string confirmedLabel = groundTruthIsSnakeBite ? "Snake_Bite" : "Non_Snake_Bite";
 
