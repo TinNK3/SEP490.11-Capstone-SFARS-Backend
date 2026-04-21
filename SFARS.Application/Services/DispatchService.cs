@@ -297,6 +297,11 @@ public class DispatchService : IDispatchService
         });
 
         await _unitOfWork.SaveChangesAsync();
+
+        // Real-time: Notify community that this abandoned incident is now officially closed
+        await NotifyCommunityAsync(incidentId);
+
+        _logger.LogWarning("Auto-closed abandoned incident {Id} and notified community.", incidentId);
     }
 
     private async Task RunTierInternalAsync(
