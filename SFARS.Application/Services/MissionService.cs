@@ -589,6 +589,10 @@ System.Diagnostics.Debug.WriteLine($"Watchdog scheduled at {mission.Id}");
                 { "newStatus", newStatus.ToString() }
             };
             await _fcmService.SendToUserAsync(incident.VictimId, fcmTitle, fcmBody, fcmData);
+
+            // Real-time: Notify community about the status update (Arrived/Closed)
+            // This ensures other rescuers see the live progress on the map/list
+            await _dispatchService.NotifyCommunityAsync(incident.Id);
         }
 
         return new ServiceResult(ResultCodeConst.Mission_Success0001, await _msgService.GetMessageAsync(ResultCodeConst.Mission_Success0001));
