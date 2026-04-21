@@ -12,6 +12,7 @@ using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Repositories.Base;
+using SFARS.Domain.Interfaces.Infrastructure;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Specifications;
 using SFARS.Domain.Specifications.Interfaces;
@@ -35,6 +36,7 @@ public class AnalyticsServiceTests
     private readonly Mock<ISystemMessageService> _msgServiceMock;
     private readonly Mock<INotificationService> _notificationServiceMock;
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
+    private readonly Mock<ISpeciesClassificationService> _speciesServiceMock;
     private readonly AnalyticsService _sut;
 
     public AnalyticsServiceTests()
@@ -49,6 +51,7 @@ public class AnalyticsServiceTests
         _msgServiceMock = new Mock<ISystemMessageService>();
         _notificationServiceMock = new Mock<INotificationService>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
+        _speciesServiceMock = new Mock<ISpeciesClassificationService>();
 
         _msgServiceMock
             .Setup(x => x.GetMessageAsync(It.IsAny<string>()))
@@ -93,6 +96,7 @@ public class AnalyticsServiceTests
             _aiRepoMock.Object,
             _aiReviewRepoMock.Object,
             _rescueRepoMock.Object,
+            _speciesServiceMock.Object,
             _msgServiceMock.Object);
 
         var exportService = new AnalyticsExportService(
@@ -317,6 +321,7 @@ public class AnalyticsServiceTests
         };
 
         _aiRepoMock.Setup(x => x.GetQueryable(false)).Returns(ToAsyncQueryable(aiData));
+        _speciesServiceMock.Setup(x => x.GetSupportedSpecies()).Returns(new List<string> { "Naja_naja", "Unknownus" });
 
         // Act
         var result = await _sut.GetAiAccuracyMetricsAsync(new AnalyticsSpecParams());

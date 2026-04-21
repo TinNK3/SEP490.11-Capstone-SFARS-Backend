@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using NetTopologySuite;
 using NetTopologySuite.Geometries;
 using SFARS.Application.Common;
-using SFARS.Application.Dtos.Analytics;
 using SFARS.Application.Interfaces.Services;
 using SFARS.Application.Services.Analytics;
 using SFARS.Domain.Common.Enum;
@@ -10,7 +9,6 @@ using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
 using SFARS.Domain.Interfaces.Services;
 using SFARS.Domain.Interfaces.Services.Base;
-using SFARS.Domain.Specifications;
 using SFARS.Domain.Specifications.Params;
 
 namespace SFARS.Application.Services;
@@ -72,15 +70,11 @@ public class AnalyticsService : IAnalyticsService
 
     public async Task<IServiceResult> PingHeatmapHotspotAsync(double latitude, double longitude, string? customMessage = null)
     {
-        // 1. Tạo Point của điểm nóng
         var geometryFactory = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
         var hotspotLocation = geometryFactory.CreatePoint(new Coordinate(longitude, latitude));
         
-        // Bán kính cảnh báo: 10km (10,000 mét)
         double radiusInMeters = 10000;
 
-        // 2. Tìm User có tọa độ trong bán kính 10km (không yêu cầu DeviceToken)
-        //    Notification sẽ được gửi qua SignalR realtime, FCM chỉ là bonus
         var userIds = await _unitOfWork.Repository<User, Guid>().GetQueryable(false)
             .Where(u => u.CurrentLocation != null 
                      && u.CurrentLocation.Distance(hotspotLocation) <= radiusInMeters)
@@ -94,15 +88,11 @@ public class AnalyticsService : IAnalyticsService
                 await _msgService.GetMessageAsync(ResultCodeConst.Analytics_Warning0001));
         }
 
-        // 3. Build notification content
         var title = "⚠️ Cảnh báo khu vực nguy hiểm";
         var body = !string.IsNullOrWhiteSpace(customMessage)
             ? customMessage
             : $"Khu vực gần ({latitude:F4}°N, {longitude:F4}°E) được ghi nhận có nhiều sự cố rắn cắn. Hãy đề cao cảnh giác khi di chuyển trong khu vực này.";
 
-        // 4. Gửi thông báo qua NotificationService:
-        //    ✅ Luôn save NotificationLog vào DB
-        //    ✅ Luôn gửi SignalR realtime (ReceiveNotification + IncrementUnreadCount)
         await _notificationService.SendNotificationsAsync(
             userIds, title, body, NotificationType.Alert);
 
