@@ -10,6 +10,7 @@ using SFARS.Application.Dtos.Transaction;
 using SFARS.Application.Dtos.User;
 using SFARS.Application.Dtos.Community;
 using SFARS.Domain.Entities;
+using SFARS.Domain.Common.Enum;
 
 namespace SFARS.Application.Mappings
 {
@@ -35,12 +36,18 @@ namespace SFARS.Application.Mappings
                 .Map(dest => dest.ActionDisplay,
                      src => src.Action.ToString());
 
-            // Incident mapping: Point → Lat/Lon, Victim → VictimName
+            // Incident mapping: Senior-style declarative mapping
             config.NewConfig<Incident, IncidentDto>()
-                .Map(dest => dest.Latitude, src => src.Location != null ? src.Location.Y : 0)
-                .Map(dest => dest.Longitude, src => src.Location != null ? src.Location.X : 0)
-                .Map(dest => dest.VictimName, src => src.Victim != null ? src.Victim.FullName : null)
-                .Map(dest => dest.MinutesSinceBite, src => src.MinutesSinceBite);
+                .Map(dest => dest.Latitude, src => src.Location.Y)
+                .Map(dest => dest.Longitude, src => src.Location.X)
+                .Map(dest => dest.VictimName, src => src.Victim.FullName)
+                .Map(dest => dest.IncidentImage, src => src.Medias
+                    .Where(x => x.MediaType == MediaType.SnakePhoto || x.MediaType == MediaType.BiteWoundPhoto)
+                    .OrderByDescending(x => x.CreatedAt)
+                    .Select(x => x.MediaUrl)
+                    .FirstOrDefault())
+                .Map(dest => dest.IsVerified, src => src.CurrentAiReviewStatus == AiReviewStatus.ConfirmedCorrect 
+                                                   || src.CurrentAiReviewStatus == AiReviewStatus.Corrected);
 
 
             // RescuerProfile → RescuerProfileDto: include User fields via navigation property
