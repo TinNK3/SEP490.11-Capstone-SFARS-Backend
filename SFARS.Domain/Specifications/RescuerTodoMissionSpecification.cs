@@ -11,13 +11,8 @@ public class RescuerTodoMissionSpecification : BaseSpecification<RescueMission>
         : base(m => 
             m.RescuerId == rescuerId &&
             (m.Status == RescueStatus.Accepted || m.Status == RescueStatus.Arrived || m.Status == RescueStatus.Completed) &&
-            (
-                m.Incident.CurrentStatus == IncidentStatus.Assigned || 
-                m.Incident.CurrentStatus == IncidentStatus.Arrived ||
-                (
-                    m.Incident.CurrentAiReviewStatus == AiReviewStatus.Pending
-                )
-            ))
+            m.Incident.CurrentAiReviewStatus == AiReviewStatus.Pending &&
+            m.Incident.Medias.Any(x => x.MediaType == MediaType.SnakePhoto || x.MediaType == MediaType.BiteWoundPhoto))
     {
         if (!isCount)
         {
