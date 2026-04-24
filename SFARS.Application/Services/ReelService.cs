@@ -311,10 +311,14 @@ public class ReelService : IReelService
         var repo = _uow.Repository<ReelComment, Guid>();
         var totalCount = await repo.CountAsync(ReelCommentSpecification.ForCount(reelId));
         
+        var reel = await _uow.Repository<Reel, Guid>().GetByIdAsync(reelId);
+        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel không tồn tại.");
+        int totalComments = reel.CommentCount;
+
         if (totalCount == 0)
         {
             return new ServiceResult(ResultCodeConst.SYS_Success0001, "Thành công", 
-                new PaginatedResultDto<ReelCommentResponseDto>(new List<ReelCommentResponseDto>(), pageNumber, pageSize, 0, 0));
+                new CommentPaginatedResultDto<ReelCommentResponseDto>(new List<ReelCommentResponseDto>(), pageNumber, pageSize, 0, 0, totalComments));
         }
 
         var skip = (pageNumber - 1) * pageSize;
@@ -338,7 +342,7 @@ public class ReelService : IReelService
         }).ToList();
 
         var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
-        var response = new PaginatedResultDto<ReelCommentResponseDto>(dtos, pageNumber, pageSize, totalPages, totalCount);
+        var response = new CommentPaginatedResultDto<ReelCommentResponseDto>(dtos, pageNumber, pageSize, totalPages, (int)totalCount, totalComments);
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Thành công", response);
     }
 

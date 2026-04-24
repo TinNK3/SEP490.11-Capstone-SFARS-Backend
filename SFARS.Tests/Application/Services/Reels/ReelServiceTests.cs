@@ -179,6 +179,7 @@ public class ReelServiceTests
             new ReelComment { Id = Guid.NewGuid(), ReelId = reelId, User = new User { FirstName = "A", LastName = "B" }, SubComments = new List<ReelComment>() }
         };
 
+        _reelRepoMock.Setup(r => r.GetByIdAsync(reelId)).ReturnsAsync(new Reel { Id = reelId, CommentCount = 5 });
         _commentRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<ReelComment>>())).ReturnsAsync(1);
         _commentRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<ReelComment>>(), false)).ReturnsAsync(comments);
 
@@ -187,10 +188,11 @@ public class ReelServiceTests
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
-        var data = result.Data as PaginatedResultDto<ReelCommentResponseDto>;
+        var data = result.Data as CommentPaginatedResultDto<ReelCommentResponseDto>;
         data.Should().NotBeNull();
         data!.Items.Should().HaveCount(1);
         data.Pagination.TotalItems.Should().Be(1);
+        data.TotalComments.Should().Be(5);
     }
 
     [Fact]

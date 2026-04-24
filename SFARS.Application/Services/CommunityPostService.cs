@@ -424,6 +424,10 @@ public class CommunityPostService : ICommunityPostService
     {
         var repo = _uow.Repository<PostComment, Guid>();
         
+        var post = await _uow.Repository<ContentPost, Guid>().GetByIdAsync(postId);
+        if (post == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Bài đăng không tồn tại.");
+        int totalComments = post.CommentCount;
+
         // Chỉ lấy comment cấp 1 (ParentId == null)
         var countSpec = new BaseSpecification<PostComment>(c => c.PostId == postId && c.ParentId == null && !c.IsDeleted);
         var totalItems = await repo.CountAsync(countSpec);
@@ -431,7 +435,7 @@ public class CommunityPostService : ICommunityPostService
         if (totalItems == 0)
         {
             return new ServiceResult(ResultCodeConst.SYS_Success0002, "Thành công", 
-                new PaginatedResultDto<PostCommentDto>(Enumerable.Empty<PostCommentDto>(), pageNumber, pageSize, 0, 0));
+                new CommentPaginatedResultDto<PostCommentDto>(Enumerable.Empty<PostCommentDto>(), pageNumber, pageSize, 0, 0, totalComments));
         }
 
         var spec = new BaseSpecification<PostComment>(c => c.PostId == postId && c.ParentId == null && !c.IsDeleted);
@@ -443,7 +447,7 @@ public class CommunityPostService : ICommunityPostService
         var dtos = comments.Select(c => MapCommentToDto(c, c.Replies.Count(r => !r.IsDeleted))).ToList();
 
         var totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
-        var result = new PaginatedResultDto<PostCommentDto>(dtos, pageNumber, pageSize, totalPages, totalItems);
+        var result = new CommentPaginatedResultDto<PostCommentDto>(dtos, pageNumber, pageSize, totalPages, totalItems, totalComments);
 
         return new ServiceResult(ResultCodeConst.SYS_Success0002, "Thành công", result);
     }
