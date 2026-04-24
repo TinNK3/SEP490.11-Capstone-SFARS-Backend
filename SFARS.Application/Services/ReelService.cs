@@ -313,12 +313,21 @@ public class ReelService : IReelService
         
         var reel = await _uow.Repository<Reel, Guid>().GetByIdAsync(reelId);
         if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel không tồn tại.");
-        int totalComments = reel.CommentCount;
+
+        var totalAbsoluteCount = await repo.CountAsync(new ReelCommentSpecification(c => c.ReelId == reelId && !c.IsDeleted));
+
+        // Sync CommentCount if desynced
+        if (reel.CommentCount != totalAbsoluteCount)
+        {
+            reel.CommentCount = totalAbsoluteCount;
+            _uow.Repository<Reel, Guid>().Update(reel);
+            await _uow.SaveChangesAsync();
+        }
 
         if (totalCount == 0)
         {
             return new ServiceResult(ResultCodeConst.SYS_Success0001, "Thành công", 
-                new CommentPaginatedResultDto<ReelCommentResponseDto>(new List<ReelCommentResponseDto>(), pageNumber, pageSize, 0, 0, totalComments));
+                new CommentPaginatedResultDto<ReelCommentResponseDto>(new List<ReelCommentResponseDto>(), pageNumber, pageSize, 0, 0, totalAbsoluteCount));
         }
 
         var skip = (pageNumber - 1) * pageSize;
@@ -338,11 +347,11 @@ public class ReelService : IReelService
             Content = c.Content,
             CreatedAt = c.CreatedAt,
             ParentId = c.ParentCommentId,
-            TotalReplies = c.SubComments.Count()
+            TotalReplies = c.SubComments.Count(s => !s.IsDeleted)
         }).ToList();
 
         var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
-        var response = new CommentPaginatedResultDto<ReelCommentResponseDto>(dtos, pageNumber, pageSize, totalPages, (int)totalCount, totalComments);
+        var response = new CommentPaginatedResultDto<ReelCommentResponseDto>(dtos, pageNumber, pageSize, totalPages, (int)totalCount, totalAbsoluteCount);
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Thành công", response);
     }
 
@@ -374,7 +383,7 @@ public class ReelService : IReelService
             Content = c.Content,
             CreatedAt = c.CreatedAt,
             ParentId = c.ParentCommentId,
-            TotalReplies = c.SubComments.Count()
+            TotalReplies = c.SubComments.Count(s => !s.IsDeleted)
         }).ToList();
 
         var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
@@ -391,26 +400,35 @@ public class ReelService : IReelService
         if (comment.UserId != currentUserId)
             return new ServiceResult(ResultCodeConst.SYS_Warning0007, "Not authorized to delete this comment");
 
-        comment.IsDeleted = true;
-        comment.UpdatedAt = DateTime.UtcNow;
-        repo.Update(comment);
-
-        var subSpec = new ReelCommentSpecification(c => c.ParentCommentId == commentId && !c.IsDeleted);
-        var subComments = await repo.GetAllWithSpecAsync(subSpec);
-        int totalDeleted = 1 + subComments.Count();
-
-        foreach (var sub in subComments)
+        // Mark as deleted recursively
+        var allComments = await repo.GetAllWithSpecAsync(new BaseSpecification<ReelComment>(c => c.ReelId == comment.ReelId && !c.IsDeleted), tracked: true);
+        var toDelete = new List<ReelComment>();
+        
+        void FindDescendants(Guid pid)
         {
-            sub.IsDeleted = true;
-            sub.UpdatedAt = DateTime.UtcNow;
-            repo.Update(sub);
+            var children = allComments.Where(c => c.ParentCommentId == pid).ToList();
+            foreach (var child in children)
+            {
+                toDelete.Add(child);
+                FindDescendants(child.Id);
+            }
+        }
+        
+        FindDescendants(commentId);
+        toDelete.Add(comment);
+
+        foreach (var c in toDelete)
+        {
+            c.IsDeleted = true;
+            c.UpdatedAt = DateTime.UtcNow;
+            repo.Update(c);
         }
 
         var reelRepo = _uow.Repository<Reel, Guid>();
         var reel = await reelRepo.GetByIdAsync(comment.ReelId);
         if (reel != null)
         {
-            reel.CommentCount = Math.Max(0, reel.CommentCount - totalDeleted);
+            reel.CommentCount = Math.Max(0, reel.CommentCount - toDelete.Count);
             reel.UpdatedAt = DateTime.UtcNow;
             reelRepo.Update(reel);
         }

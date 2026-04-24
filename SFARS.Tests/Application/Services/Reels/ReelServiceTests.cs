@@ -180,8 +180,11 @@ public class ReelServiceTests
         };
 
         _reelRepoMock.Setup(r => r.GetByIdAsync(reelId)).ReturnsAsync(new Reel { Id = reelId, CommentCount = 5 });
-        _commentRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<ReelComment>>())).ReturnsAsync(1);
+        _commentRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<ReelComment>>())).ReturnsAsync(1); // Root count
+        _commentRepoMock.Setup(r => r.CountAsync(It.Is<ISpecification<ReelComment>>(s => s.Criteria.ToString().Contains("ReelId") && !s.Criteria.ToString().Contains("ParentCommentId"))))
+            .ReturnsAsync(5); // Absolute count
         _commentRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<ReelComment>>(), false)).ReturnsAsync(comments);
+        _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
 
         // Act
         var result = await _sut.GetCommentsAsync(reelId, 1, 10);
@@ -282,21 +285,24 @@ public class ReelServiceTests
         var reelId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var parentId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        var grandChildId = Guid.NewGuid();
         
-        var reel = new Reel { Id = reelId, CommentCount = 20 };
+        var reel = new Reel { Id = reelId, CommentCount = 10 };
         var parentComment = new ReelComment { Id = parentId, ReelId = reelId, UserId = userId, IsDeleted = false };
         
-        // Giả lập có 3 sub-comment
-        var subComments = new List<ReelComment>
+        // Giả lập cây: Parent -> Child -> GrandChild
+        var allComments = new List<ReelComment>
         {
-            new ReelComment { Id = Guid.NewGuid(), ParentCommentId = parentId, IsDeleted = false },
-            new ReelComment { Id = Guid.NewGuid(), ParentCommentId = parentId, IsDeleted = false },
-            new ReelComment { Id = Guid.NewGuid(), ParentCommentId = parentId, IsDeleted = false }
+            parentComment,
+            new ReelComment { Id = childId, ReelId = reelId, ParentCommentId = parentId, IsDeleted = false },
+            new ReelComment { Id = grandChildId, ReelId = reelId, ParentCommentId = childId, IsDeleted = false },
+            new ReelComment { Id = Guid.NewGuid(), ReelId = reelId, ParentCommentId = parentId, IsDeleted = false }
         };
 
         _commentRepoMock.Setup(r => r.GetByIdAsync(parentId)).ReturnsAsync(parentComment);
         _commentRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<ReelComment>>(), It.IsAny<bool>()))
-            .ReturnsAsync(subComments);
+            .ReturnsAsync(allComments);
             
         _reelRepoMock.Setup(r => r.GetByIdAsync(reelId)).ReturnsAsync(reel);
         _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
@@ -307,9 +313,9 @@ public class ReelServiceTests
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
         parentComment.IsDeleted.Should().BeTrue();
-        reel.CommentCount.Should().Be(16); // 20 - (1 cha + 3 con) = 16
-
-        // Kiểm tra 1 cha + 3 con đều được cập nhật
+        reel.CommentCount.Should().Be(6); // 10 - 4 (1 cha + 2 con + 1 cháu) = 6
+        
+        // Kiểm tra xem tất cả comment trong cây đều được gọi Update
         _commentRepoMock.Verify(r => r.Update(It.IsAny<ReelComment>()), Times.Exactly(4));
     }
     #endregion

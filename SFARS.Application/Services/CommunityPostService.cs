@@ -426,7 +426,15 @@ public class CommunityPostService : ICommunityPostService
         
         var post = await _uow.Repository<ContentPost, Guid>().GetByIdAsync(postId);
         if (post == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Bài đăng không tồn tại.");
-        int totalComments = post.CommentCount;
+        var totalAbsoluteCount = await repo.CountAsync(new BaseSpecification<PostComment>(c => c.PostId == postId && !c.IsDeleted));
+
+        // Sync CommentCount if desynced
+        if (post.CommentCount != totalAbsoluteCount)
+        {
+            post.CommentCount = totalAbsoluteCount;
+            _uow.Repository<ContentPost, Guid>().Update(post);
+            await _uow.SaveChangesAsync();
+        }
 
         // Chỉ lấy comment cấp 1 (ParentId == null)
         var countSpec = new BaseSpecification<PostComment>(c => c.PostId == postId && c.ParentId == null && !c.IsDeleted);
@@ -435,7 +443,7 @@ public class CommunityPostService : ICommunityPostService
         if (totalItems == 0)
         {
             return new ServiceResult(ResultCodeConst.SYS_Success0002, "Thành công", 
-                new CommentPaginatedResultDto<PostCommentDto>(Enumerable.Empty<PostCommentDto>(), pageNumber, pageSize, 0, 0, totalComments));
+                new CommentPaginatedResultDto<PostCommentDto>(Enumerable.Empty<PostCommentDto>(), pageNumber, pageSize, 0, 0, totalAbsoluteCount));
         }
 
         var spec = new BaseSpecification<PostComment>(c => c.PostId == postId && c.ParentId == null && !c.IsDeleted);
@@ -447,7 +455,7 @@ public class CommunityPostService : ICommunityPostService
         var dtos = comments.Select(c => MapCommentToDto(c, c.Replies.Count(r => !r.IsDeleted))).ToList();
 
         var totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
-        var result = new CommentPaginatedResultDto<PostCommentDto>(dtos, pageNumber, pageSize, totalPages, totalItems, totalComments);
+        var result = new CommentPaginatedResultDto<PostCommentDto>(dtos, pageNumber, pageSize, totalPages, totalItems, totalAbsoluteCount);
 
         return new ServiceResult(ResultCodeConst.SYS_Success0002, "Thành công", result);
     }
@@ -489,28 +497,36 @@ public class CommunityPostService : ICommunityPostService
         if (comment.AuthorId != requesterId)
             return new ServiceResult(ResultCodeConst.SYS_Warning0007, "Bạn không có quyền xóa comment này.");
 
-        comment.IsDeleted = true;
-        comment.UpdatedAt = DateTime.UtcNow;
+        // Mark as deleted recursively
         var commentRepo = _uow.Repository<PostComment, Guid>();
-        commentRepo.Update(comment);
+        var allComments = await commentRepo.GetAllWithSpecAsync(new BaseSpecification<PostComment>(c => c.PostId == comment.PostId && !c.IsDeleted), tracked: true);
+        var toDelete = new List<PostComment>();
 
-        // Tìm và ẩn tất cả các reply trực tiếp (nếu có)
-        var repliesSpec = new BaseSpecification<PostComment>(r => r.ParentId == commentId && !r.IsDeleted);
-        var replies = await commentRepo.GetAllWithSpecAsync(repliesSpec);
-        int deletedCount = 1 + replies.Count(); // 1 cha + n con
-
-        foreach (var reply in replies)
+        void FindDescendants(Guid pid)
         {
-            reply.IsDeleted = true;
-            reply.UpdatedAt = DateTime.UtcNow;
-            commentRepo.Update(reply);
+            var children = allComments.Where(c => c.ParentId == pid).ToList();
+            foreach (var child in children)
+            {
+                toDelete.Add(child);
+                FindDescendants(child.Id);
+            }
+        }
+
+        FindDescendants(commentId);
+        toDelete.Add(comment);
+
+        foreach (var c in toDelete)
+        {
+            c.IsDeleted = true;
+            c.UpdatedAt = DateTime.UtcNow;
+            commentRepo.Update(c);
         }
 
         // Giảm CommentCount của Post theo tổng số lượng bị ẩn
         var post = await _uow.Repository<ContentPost, Guid>().GetByIdAsync(comment.PostId);
         if (post != null)
         {
-            post.CommentCount = Math.Max(0, post.CommentCount - deletedCount);
+            post.CommentCount = Math.Max(0, post.CommentCount - toDelete.Count);
             post.UpdatedAt = DateTime.UtcNow;
             _uow.Repository<ContentPost, Guid>().Update(post);
         }

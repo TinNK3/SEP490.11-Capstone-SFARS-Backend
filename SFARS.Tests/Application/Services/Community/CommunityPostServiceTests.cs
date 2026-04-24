@@ -478,9 +478,12 @@ public class CommunityPostServiceTests
         };
 
         _postRepoMock.Setup(r => r.GetByIdAsync(postId)).ReturnsAsync(new ContentPost { Id = postId, CommentCount = 10 });
-        _commentRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<PostComment>>())).ReturnsAsync(1);
+        _commentRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<PostComment>>())).ReturnsAsync(1); // Root count
+        _commentRepoMock.Setup(r => r.CountAsync(It.Is<ISpecification<PostComment>>(s => s.Criteria.ToString().Contains("PostId") && !s.Criteria.ToString().Contains("ParentId"))))
+            .ReturnsAsync(10); // Absolute count
         _commentRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<PostComment>>(), false))
             .ReturnsAsync(comments);
+        _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
 
         // Act
         var result = await _sut.GetCommentsAsync(postId, 1, 10);
@@ -680,20 +683,23 @@ public class CommunityPostServiceTests
         var postId = Guid.NewGuid();
         var authorId = Guid.NewGuid();
         var parentId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        var grandChildId = Guid.NewGuid();
         
         var post = new ContentPost { Id = postId, CommentCount = 10 };
         var parentComment = new PostComment { Id = parentId, PostId = postId, AuthorId = authorId, IsDeleted = false };
         
-        // Giả lập có 2 reply trực tiếp
-        var replies = new List<PostComment>
+        // Giả lập cây: Parent -> Child -> GrandChild
+        var allComments = new List<PostComment>
         {
-            new PostComment { Id = Guid.NewGuid(), ParentId = parentId, IsDeleted = false },
-            new PostComment { Id = Guid.NewGuid(), ParentId = parentId, IsDeleted = false }
+            parentComment,
+            new PostComment { Id = childId, PostId = postId, ParentId = parentId, IsDeleted = false },
+            new PostComment { Id = grandChildId, PostId = postId, ParentId = childId, IsDeleted = false }
         };
 
         _commentRepoMock.Setup(r => r.GetByIdAsync(parentId)).ReturnsAsync(parentComment);
         _commentRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<PostComment>>(), It.IsAny<bool>()))
-            .ReturnsAsync(replies);
+            .ReturnsAsync(allComments);
             
         _postRepoMock.Setup(r => r.GetByIdAsync(postId)).ReturnsAsync(post);
         _uowMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
@@ -704,10 +710,10 @@ public class CommunityPostServiceTests
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
         parentComment.IsDeleted.Should().BeTrue();
-        post.CommentCount.Should().Be(7); // 10 - (1 cha + 2 con) = 7
+        post.CommentCount.Should().Be(7); // 10 - 3 (1 cha + 1 con + 1 cháu) = 7
         
-        // Kiểm tra xem tất cả các bản ghi (cha và 2 con) đều được bảo lưu soft delete
-        _commentRepoMock.Verify(r => r.Update(It.IsAny<PostComment>()), Times.Exactly(3)); 
+        // Kiểm tra xem tất cả các bản ghi (cha và con cháu) đều được cập nhật
+        _commentRepoMock.Verify(r => r.Update(It.IsAny<PostComment>()), Times.Exactly(3));
     }
     #endregion
 }
