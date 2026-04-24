@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SFARS.Application.Common;
+using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Reels;
 using SFARS.Domain.Entities;
 using SFARS.Domain.Interfaces;
@@ -83,9 +84,12 @@ public class ReelService : IReelService
             reelList.Add(new ReelResponseDto
             {
                 Id = r.Id,
-                UserId = r.UserId,
-                UserFullName = r.User.FullName,
-                UserAvatar = r.User.Avatar,
+                Author = new ReelAuthorDto
+                {
+                    Id = r.UserId,
+                    FullName = r.User.FullName,
+                    AvatarUrl = r.User.Avatar
+                },
                 VideoUrl = r.VideoUrl,
                 Caption = r.Caption,
                 CreatedAt = r.CreatedAt,
@@ -95,7 +99,8 @@ public class ReelService : IReelService
             });
         }
 
-        var response = new ReelListResponse(reelList, totalCount, specParams.GetPage(), specParams.GetTake());
+        var totalPages = (int)Math.Ceiling((double)totalCount / specParams.GetTake());
+        var response = new PaginatedResultDto<ReelResponseDto>(reelList, specParams.GetPage(), specParams.GetTake(), totalPages, totalCount);
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Success", response);
     }
 
@@ -115,9 +120,12 @@ public class ReelService : IReelService
             reelList.Add(new ReelResponseDto
             {
                 Id = r.Id,
-                UserId = r.UserId,
-                UserFullName = r.User.FullName,
-                UserAvatar = r.User.Avatar,
+                Author = new ReelAuthorDto
+                {
+                    Id = r.UserId,
+                    FullName = r.User.FullName,
+                    AvatarUrl = r.User.Avatar
+                },
                 VideoUrl = r.VideoUrl,
                 Caption = r.Caption,
                 CreatedAt = r.CreatedAt,
@@ -127,7 +135,8 @@ public class ReelService : IReelService
             });
         }
 
-        var response = new ReelListResponse(reelList, totalCount, specParams.GetPage(), specParams.GetTake());
+        var totalPages = (int)Math.Ceiling((double)totalCount / specParams.GetTake());
+        var response = new PaginatedResultDto<ReelResponseDto>(reelList, specParams.GetPage(), specParams.GetTake(), totalPages, totalCount);
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Success", response);
     }
 
@@ -145,9 +154,12 @@ public class ReelService : IReelService
         var responseDto = new ReelResponseDto
         {
             Id = reel.Id,
-            UserId = reel.UserId,
-            UserFullName = reel.User.FullName,
-            UserAvatar = reel.User.Avatar,
+            Author = new ReelAuthorDto
+            {
+                Id = reel.UserId,
+                FullName = reel.User.FullName,
+                AvatarUrl = reel.User.Avatar
+            },
             VideoUrl = reel.VideoUrl,
             Caption = reel.Caption,
             CreatedAt = reel.CreatedAt,
@@ -206,10 +218,6 @@ public class ReelService : IReelService
         bool isLiked;
         if (existingLike != null)
         {
-            // GenericRepository.DeleteAsync(TKey) won't work for composite key easily
-            // We use the context directly or a specialized delete if available
-            // but since we have tracked entity, we can maybe use a Remove method if added to Repo
-            // Since GenericRepository doesn't have a plain Remove(entity), I'll use DeleteWithSpec
             await likeRepo.DeleteWithSpecAsync(spec);
             reel.LikeCount = Math.Max(0, reel.LikeCount - 1);
             isLiked = false;
@@ -306,7 +314,7 @@ public class ReelService : IReelService
         if (totalCount == 0)
         {
             return new ServiceResult(ResultCodeConst.SYS_Success0001, "Thành công", 
-                new ReelCommentListResponse(new List<ReelCommentResponseDto>(), 0, pageNumber, pageSize));
+                new PaginatedResultDto<ReelCommentResponseDto>(new List<ReelCommentResponseDto>(), pageNumber, pageSize, 0, 0));
         }
 
         var skip = (pageNumber - 1) * pageSize;
@@ -317,16 +325,20 @@ public class ReelService : IReelService
         {
             Id = c.Id,
             ReelId = c.ReelId,
-            UserId = c.UserId,
-            UserFullName = c.User.FullName,
-            UserAvatar = c.User.Avatar,
+            Author = new ReelAuthorDto
+            {
+                Id = c.UserId,
+                FullName = c.User.FullName,
+                AvatarUrl = c.User.Avatar
+            },
             Content = c.Content,
             CreatedAt = c.CreatedAt,
-            ParentCommentId = c.ParentCommentId,
-            SubCommentCount = c.SubComments.Count()
+            ParentId = c.ParentCommentId,
+            TotalReplies = c.SubComments.Count()
         }).ToList();
 
-        var response = new ReelCommentListResponse(dtos, totalCount, pageNumber, pageSize);
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+        var response = new PaginatedResultDto<ReelCommentResponseDto>(dtos, pageNumber, pageSize, totalPages, totalCount);
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Thành công", response);
     }
 
@@ -338,7 +350,7 @@ public class ReelService : IReelService
         if (totalCount == 0)
         {
             return new ServiceResult(ResultCodeConst.SYS_Success0001, "Thành công", 
-                new ReelCommentListResponse(new List<ReelCommentResponseDto>(), 0, pageNumber, pageSize));
+                new PaginatedResultDto<ReelCommentResponseDto>(new List<ReelCommentResponseDto>(), pageNumber, pageSize, 0, 0));
         }
 
         var skip = (pageNumber - 1) * pageSize;
@@ -349,16 +361,20 @@ public class ReelService : IReelService
         {
             Id = c.Id,
             ReelId = c.ReelId,
-            UserId = c.UserId,
-            UserFullName = c.User.FullName,
-            UserAvatar = c.User.Avatar,
+            Author = new ReelAuthorDto
+            {
+                Id = c.UserId,
+                FullName = c.User.FullName,
+                AvatarUrl = c.User.Avatar
+            },
             Content = c.Content,
             CreatedAt = c.CreatedAt,
-            ParentCommentId = c.ParentCommentId,
-            SubCommentCount = c.SubComments.Count() // Hỗ trợ nếu tiếp tục có cấp sâu hơn (đã ép về cùng cấp)
+            ParentId = c.ParentCommentId,
+            TotalReplies = c.SubComments.Count()
         }).ToList();
 
-        var response = new ReelCommentListResponse(dtos, totalCount, pageNumber, pageSize);
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+        var response = new PaginatedResultDto<ReelCommentResponseDto>(dtos, pageNumber, pageSize, totalPages, totalCount);
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Thành công", response);
     }
 
@@ -375,7 +391,6 @@ public class ReelService : IReelService
         comment.UpdatedAt = DateTime.UtcNow;
         repo.Update(comment);
 
-        // Tìm và ẩn tất cả sub-comments (nếu có)
         var subSpec = new ReelCommentSpecification(c => c.ParentCommentId == commentId && !c.IsDeleted);
         var subComments = await repo.GetAllWithSpecAsync(subSpec);
         int totalDeleted = 1 + subComments.Count();
@@ -416,9 +431,12 @@ public class ReelService : IReelService
         return new ReelResponseDto
         {
             Id = reel.Id,
-            UserId = reel.UserId,
-            UserFullName = userFullName,
-            UserAvatar = userAvatar,
+            Author = new ReelAuthorDto
+            {
+                Id = reel.UserId,
+                FullName = userFullName,
+                AvatarUrl = userAvatar
+            },
             VideoUrl = reel.VideoUrl,
             Caption = reel.Caption,
             CreatedAt = reel.CreatedAt,
@@ -448,14 +466,13 @@ public class ReelService : IReelService
         reel.ShareCount++;
         reelRepo.Update(reel);
         
-        // Create a NEW Post (SharedContent type) linked to this Reel
         var sharedPost = new ContentPost
         {
             Id = Guid.NewGuid(),
             AuthorId = userId,
             Type = PostType.SharedContent,
-            BodyContent = content, // Personal message
-            SharedReelId = reelId, // Link to the original Reel
+            BodyContent = content,
+            SharedReelId = reelId,
             IsPublished = true,
             Title = $"Shared reel from {reel.Id}",
             Slug = "share-r-" + Guid.NewGuid().ToString("N")[..10],
@@ -484,7 +501,6 @@ public class ReelService : IReelService
         repo.Update(reel);
         await _uow.SaveChangesAsync();
 
-        // Gửi thông báo cho tác giả
         await _notificationService.SendNotificationAsync(reel.UserId, "Thước phim bị ẩn", "Thước phim của bạn đã bị ẩn bởi quản trị viên do: " + reason, NotificationType.System, reel.Id);
 
         return new ServiceResult(ResultCodeConst.SYS_Success0001, "Ẩn thước phim thành công (Admin)");
