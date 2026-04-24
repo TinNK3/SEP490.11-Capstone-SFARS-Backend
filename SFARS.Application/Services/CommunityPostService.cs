@@ -655,9 +655,12 @@ public class CommunityPostService : ICommunityPostService
                         p.SharedReel != null ? new SFARS.Application.Dtos.Reels.ReelResponseDto
                         {
                             Id = p.SharedReel.Id,
-                            UserId = p.SharedReel.UserId,
-                            UserFullName = p.SharedReel.User?.FullName ?? "Unknown",
-                            UserAvatar = p.SharedReel.User?.Avatar,
+                            Author = new SFARS.Application.Dtos.Reels.ReelAuthorDto
+                            {
+                                Id = p.SharedReel.UserId,
+                                FullName = p.SharedReel.User?.FullName ?? "Unknown",
+                                AvatarUrl = p.SharedReel.User?.Avatar
+                            },
                             VideoUrl = p.SharedReel.VideoUrl,
                             Caption = p.SharedReel.Caption,
                             CreatedAt = p.SharedReel.CreatedAt,
@@ -756,9 +759,12 @@ public class CommunityPostService : ICommunityPostService
             p.SharedReel != null ? new SFARS.Application.Dtos.Reels.ReelResponseDto
             {
                 Id = p.SharedReel.Id,
-                UserId = p.SharedReel.UserId,
-                UserFullName = p.SharedReel.User?.FullName ?? "Unknown",
-                UserAvatar = p.SharedReel.User?.Avatar,
+                Author = new SFARS.Application.Dtos.Reels.ReelAuthorDto
+                {
+                    Id = p.SharedReel.UserId,
+                    FullName = p.SharedReel.User?.FullName ?? "Unknown",
+                    AvatarUrl = p.SharedReel.User?.Avatar
+                },
                 VideoUrl = p.SharedReel.VideoUrl,
                 Caption = p.SharedReel.Caption,
                 CreatedAt = p.SharedReel.CreatedAt,

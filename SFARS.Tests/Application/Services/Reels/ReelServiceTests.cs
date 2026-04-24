@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Moq;
 using SFARS.Application.Common;
+using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Reels;
 using SFARS.Application.Services;
 using SFARS.Domain.Entities;
@@ -66,11 +67,11 @@ public class ReelServiceTests
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
-        var data = result.Data as ReelListResponse;
+        var data = result.Data as PaginatedResultDto<ReelResponseDto>;
         data.Should().NotBeNull();
         data!.Items.Should().HaveCount(1);
-        data.Items[0].IsLikedByCurrentUser.Should().BeFalse();
-        data.TotalCount.Should().Be(1);
+        data.Items.First().IsLikedByCurrentUser.Should().BeFalse();
+        data.Pagination.TotalItems.Should().Be(1);
     }
 
     [Fact]
@@ -92,8 +93,8 @@ public class ReelServiceTests
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
-        var data = result.Data as ReelListResponse;
-        data!.Items[0].IsLikedByCurrentUser.Should().BeTrue();
+        var data = result.Data as PaginatedResultDto<ReelResponseDto>;
+        data!.Items.First().IsLikedByCurrentUser.Should().BeTrue();
     }
 
     [Fact]
@@ -114,11 +115,11 @@ public class ReelServiceTests
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
-        var data = result.Data as ReelListResponse;
+        var data = result.Data as PaginatedResultDto<ReelResponseDto>;
         data.Should().NotBeNull();
-        data!.TotalCount.Should().Be(1);
-        data.PageNumber.Should().Be(1);
-        data.PageSize.Should().Be(5);
+        data!.Pagination.TotalItems.Should().Be(1);
+        data.Pagination.Page.Should().Be(1);
+        data.Pagination.PageSize.Should().Be(5);
     }
 
     [Fact]
@@ -186,9 +187,10 @@ public class ReelServiceTests
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0001);
-        var data = result.Data as ReelCommentListResponse;
+        var data = result.Data as PaginatedResultDto<ReelCommentResponseDto>;
         data.Should().NotBeNull();
         data!.Items.Should().HaveCount(1);
+        data.Pagination.TotalItems.Should().Be(1);
     }
 
     [Fact]
