@@ -477,6 +477,7 @@ public class CommunityPostServiceTests
             }
         };
 
+        _postRepoMock.Setup(r => r.GetByIdAsync(postId)).ReturnsAsync(new ContentPost { Id = postId, CommentCount = 10 });
         _commentRepoMock.Setup(r => r.CountAsync(It.IsAny<ISpecification<PostComment>>())).ReturnsAsync(1);
         _commentRepoMock.Setup(r => r.GetAllWithSpecAsync(It.IsAny<ISpecification<PostComment>>(), false))
             .ReturnsAsync(comments);
@@ -486,11 +487,12 @@ public class CommunityPostServiceTests
 
         // Assert
         result.ResultCode.Should().Be(ResultCodeConst.SYS_Success0002);
-        var data = result.Data as PaginatedResultDto<PostCommentDto>;
+        var data = result.Data as CommentPaginatedResultDto<PostCommentDto>;
         data.Should().NotBeNull();
         data!.Items.Should().HaveCount(1);
         data.Items.First().TotalReplies.Should().Be(2); // Đếm đúng 2 replies
         data.Pagination.TotalItems.Should().Be(1);
+        data.TotalComments.Should().Be(10);
     }
 
     [Fact]
