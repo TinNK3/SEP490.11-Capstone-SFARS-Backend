@@ -24,5 +24,10 @@ namespace SFARS.Application.Dtos.Incident
         /// The raw string of symptoms sent by the FE (e.g. "Chảy máu ồ ạt, Sụp mí")
         /// </summary>
         public string? Notes { get; set; }
+
+        /// <summary>
+        /// The time (in minutes) since the bite occurred, as entered by the user.
+        /// </summary>
+        public int? MinutesSinceBite { get; set; }
     }
 }
