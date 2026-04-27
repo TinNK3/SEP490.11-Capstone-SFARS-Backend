@@ -1562,7 +1562,8 @@ namespace SFARS.Application.Services
                     Id = s.Id,
                     ReportedAt = s.ReportedAt,
                     ActiveSymptoms = activeSymptoms,
-                    Notes = s.Notes
+                    Notes = s.Notes,
+                    MinutesSinceBite = incident.MinutesSinceBite
                 };
             }).ToList();
 
@@ -1728,8 +1729,8 @@ namespace SFARS.Application.Services
 
             var parts = text.Substring(DispatchConstants.SmsSosPrefix.Length).Split(',', StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length != 2 || 
-                !double.TryParse(parts[0], out var lat) || 
-                !double.TryParse(parts[1], out var lng))
+                !double.TryParse(parts[0], System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var lat) || 
+                !double.TryParse(parts[1], System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var lng))
             {
                 return new ServiceResult(
                     ResultCodeConst.Incident_Warning0013, 
