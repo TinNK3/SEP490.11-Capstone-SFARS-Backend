@@ -270,6 +270,10 @@ namespace SFARS.Application.Common
         public const string FirstAid_Warning0005 = "FirstAid.Warning0005"; // Snake not found
         #endregion
 
+        #region MLOps
+        public const string MLOps_Success0001 = "Mlops.Success0001"; // Images excluded
+        #endregion
+
         // AI Voice Messages (Symptom Tracking)
         public const string Voice_BreathingDifficulty = "Voice.BreathingDifficulty";
         public const string Voice_Ptosis = "Voice.Ptosis";

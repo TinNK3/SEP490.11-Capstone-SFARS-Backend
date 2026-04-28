@@ -353,6 +353,7 @@ namespace SFARS.API.Payloads
             public const string GetRetrainHistory = Base + "/admin/mlops/snake/retrain-history";
             // [POST]
             public const string TriggerRetrain = Base + "/admin/mlops/snake/trigger-retrain";
+            public const string ExcludeImages = Base + "/admin/mlops/images/exclude";
 
             // Wound Classification Pipeline
             // [GET]

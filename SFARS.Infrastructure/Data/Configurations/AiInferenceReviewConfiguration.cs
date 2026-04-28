@@ -57,6 +57,10 @@ public class AiInferenceReviewConfiguration : IEntityTypeConfiguration<AiInferen
             .HasMaxLength(1000)
             .HasColumnName("admin_comment");
 
+        builder.Property(e => e.IsExcludedFromRetrain)
+            .HasColumnName("is_excluded_from_retrain")
+            .HasDefaultValue(false);
+
         builder.HasOne(e => e.AiInference)
             .WithMany()
             .HasForeignKey(e => e.AiInferenceId)
