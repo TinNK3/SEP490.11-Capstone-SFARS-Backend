@@ -470,12 +470,21 @@ System.Diagnostics.Debug.WriteLine($"Watchdog scheduled at {mission.Id}");
 
     public async Task<IServiceResult> UpdateStatusAsync(Guid missionId, Guid rescuerId, IncidentStatus newStatus)
     {
+        _logger.LogInformation(
+            "Mission status update requested | MissionId={MissionId} | RescuerId={RescuerId} | NewStatus={NewStatus}",
+            missionId, rescuerId, newStatus);
+
         var spec = new BaseSpecification<RescueMission>(m => m.Id == missionId && m.RescuerId == rescuerId);
         spec.ApplyInclude(q => q.Include(m => m.Incident));
         var mission = await _unitOfWork.Repository<RescueMission, Guid>().GetWithSpecAsync(spec);
 
-        if (mission == null) 
+        if (mission == null)
+        {
+            _logger.LogWarning(
+                "Mission status update denied | MissionId={MissionId} | RescuerId={RescuerId} | Reason=MissionNotFoundOrNotOwned",
+                missionId, rescuerId);
             return new ServiceResult(ResultCodeConst.SYS_Warning0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0001));
+        }
 
         if (mission.Status == RescueStatus.Completed || mission.Status == RescueStatus.Rejected || mission.Status == RescueStatus.Reassigned)
         {
@@ -486,7 +495,15 @@ System.Diagnostics.Debug.WriteLine($"Watchdog scheduled at {mission.Id}");
         var incident = mission.Incident;
 
         if (incident.CurrentStatus == IncidentStatus.Closed || incident.CurrentStatus == IncidentStatus.Cancelled)
+        {
+            _logger.LogWarning(
+                "Mission status update denied | MissionId={MissionId} | IncidentId={IncidentId} | RescuerId={RescuerId} | IncidentStatus={IncidentStatus}",
+                missionId, incident.Id, rescuerId, incident.CurrentStatus);
             return new ServiceResult(ResultCodeConst.Mission_Warning0001, await _msgService.GetMessageAsync(ResultCodeConst.Mission_Warning0001));
+        }
+
+        var isReviewMissing = newStatus == IncidentStatus.Closed &&
+                              incident.CurrentAiReviewStatus == AiReviewStatus.Pending;
 
         // Close incident — rescuer review is optional in the two-layer review flow
         if (newStatus == IncidentStatus.Closed)
@@ -517,6 +534,10 @@ System.Diagnostics.Debug.WriteLine($"Watchdog scheduled at {mission.Id}");
         incident.CurrentStatus = newStatus;
         incident.UpdatedAt = DateTime.UtcNow;
         mission.UpdatedAt = DateTime.UtcNow;
+
+        _logger.LogInformation(
+            "Mission status transition prepared | MissionId={MissionId} | IncidentId={IncidentId} | RescuerId={RescuerId} | OldStatus={OldStatus} | NewStatus={NewStatus} | ReviewMissing={IsReviewMissing}",
+            mission.Id, incident.Id, rescuerId, oldStatus, newStatus, isReviewMissing);
 
         // Audit Trail
         var reasonCode = newStatus switch
@@ -560,6 +581,10 @@ System.Diagnostics.Debug.WriteLine($"Watchdog scheduled at {mission.Id}");
 
         await _unitOfWork.SaveChangesAsync();
 
+        _logger.LogInformation(
+            "Mission status persisted | MissionId={MissionId} | IncidentId={IncidentId} | RescuerId={RescuerId} | OldStatus={OldStatus} | NewStatus={NewStatus}",
+            mission.Id, incident.Id, rescuerId, oldStatus, newStatus);
+
         // SignalR: Only broadcast status changes that are meaningful to the victim
         if (newStatus == IncidentStatus.Arrived || newStatus == IncidentStatus.Closed)
         {
@@ -568,12 +593,22 @@ System.Diagnostics.Debug.WriteLine($"Watchdog scheduled at {mission.Id}");
                 IncidentId = incident.Id,
                 MissionId = mission.Id,
                 OldStatus = oldStatus.ToString(),
-                NewStatus = newStatus.ToString()
+                NewStatus = newStatus.ToString(),
+                IsReviewMissing = isReviewMissing
             };
+            var signalRGroup = LocationConstants.SignalRGroupPrefix + incident.Id;
+
+            _logger.LogInformation(
+                "Sending SignalR mission status | Hub={Hub} | Group={Group} | Event={Event} | IncidentId={IncidentId} | MissionId={MissionId} | Payload={Payload}",
+                nameof(LocationTrackingHub), signalRGroup, LocationConstants.SignalRMissionStatusUpdated, incident.Id, mission.Id, payload);
 
             await _locationHub.Clients
-                .Group(LocationConstants.SignalRGroupPrefix + incident.Id)
+                .Group(signalRGroup)
                 .SendAsync(LocationConstants.SignalRMissionStatusUpdated, payload);
+
+            _logger.LogInformation(
+                "SignalR mission status sent | IncidentId={IncidentId} | MissionId={MissionId} | Group={Group} | Event={Event}",
+                incident.Id, mission.Id, signalRGroup, LocationConstants.SignalRMissionStatusUpdated);
 
             // FCM push to victim (app may be backgrounded during rescue)
             var fcmTitle = newStatus == IncidentStatus.Arrived

@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SFARS SignalR Debug</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --line: #d9e0ea;
+      --text: #122033;
+      --muted: #5f6f82;
+      --accent: #0f62fe;
+      --accent-2: #0f9d58;
+      --warn: #d93025;
+      --log-bg: #09111c;
+      --log-text: #dbe7ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      margin: 0 0 24px;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(18, 32, 51, 0.06);
+    }
+
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .field {
+      margin-bottom: 12px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .field input,
+    .field textarea,
+    .field select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: inherit;
+      color: var(--text);
+      background: #fff;
+    }
+
+    .field textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      color: #fff;
+      background: var(--accent);
+    }
+
+    button.secondary {
+      background: #5f6f82;
+    }
+
+    button.success {
+      background: var(--accent-2);
+    }
+
+    button.warn {
+      background: var(--warn);
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      background: #eef3ff;
+      color: #244a9a;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #8aa4da;
+    }
+
+    .status.connected .status-dot {
+      background: #0f9d58;
+    }
+
+    .status.reconnecting .status-dot {
+      background: #f29900;
+    }
+
+    .status.disconnected .status-dot {
+      background: #d93025;
+    }
+
+    .log {
+      margin-top: 16px;
+      background: var(--log-bg);
+      color: var(--log-text);
+      border-radius: 16px;
+      padding: 14px;
+      min-height: 320px;
+      max-height: 60vh;
+      overflow: auto;
+      font-family: Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>SFARS SignalR Debug Client</h1>
+    <p class="subtitle">
+      Standalone page to test <code>LocationTrackingHub</code>, mission status events, and rescue video-call events without running the Flutter app.
+    </p>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Connection</h2>
+        <div class="field">
+          <label for="baseUrl">Base URL</label>
+          <input id="baseUrl" type="text" placeholder="https://localhost:5001" />
+        </div>
+        <div class="field">
+          <label for="token">JWT Access Token</label>
+          <textarea id="token" placeholder="Paste bearer token here"></textarea>
+        </div>
+        <div class="actions">
+          <button id="connectBtn">Connect Hub</button>
+          <button id="disconnectBtn" class="secondary">Disconnect</button>
+        </div>
+        <div class="hint">Hub path: <code>/hubs/location-tracking</code></div>
+      </section>
+
+      <section class="card">
+        <h2>Tracking Room</h2>
+        <div class="field">
+          <label for="incidentId">Incident ID</label>
+          <input id="incidentId" type="text" placeholder="incident guid" />
+        </div>
+        <div class="actions">
+          <button id="joinBtn" class="success">JoinIncidentTracking</button>
+          <button id="leaveBtn" class="secondary">LeaveIncidentTracking</button>
+        </div>
+        <div class="hint">Required for room events like <code>sos:mission_status</code>, <code>CallAccepted</code>, <code>CallRejected</code>, <code>CallEnded</code>.</div>
+      </section>
+
+      <section class="card">
+        <h2>Mission Status API</h2>
+        <div class="field">
+          <label for="missionId">Mission ID</label>
+          <input id="missionId" type="text" placeholder="mission guid" />
+        </div>
+        <div class="field">
+          <label for="missionStatus">newStatus</label>
+          <select id="missionStatus">
+            <option value="assigned">assigned</option>
+            <option value="arrived" selected>arrived</option>
+            <option value="closed">closed</option>
+          </select>
+        </div>
+        <div class="actions">
+          <button id="updateStatusBtn">PATCH /api/missions/{id}/status</button>
+        </div>
+        <div class="hint">Use this to trigger backend mission-status SignalR from the same page.</div>
+      </section>
+
+      <section class="card">
+        <h2>Video Call API / Hub</h2>
+        <div class="actions">
+          <button id="initiateCallBtn">POST /api/video-call/initiate/{incidentId}</button>
+          <button id="acceptCallBtn" class="success">Invoke AcceptVideoCall</button>
+          <button id="rejectCallBtn" class="warn">Invoke RejectVideoCall</button>
+          <button id="endCallBtn" class="secondary">Invoke EndVideoCall</button>
+        </div>
+        <div class="field">
+          <label for="rejectReason">Reject reason</label>
+          <input id="rejectReason" type="text" value="busy" />
+        </div>
+        <div class="hint">Listen for <code>CallIncoming</code>, <code>CallAccepted</code>, <code>CallRejected</code>, <code>CallEnded</code>.</div>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top: 16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <h2 style="margin:0;">Runtime</h2>
+        <div id="connectionState" class="status disconnected">
+          <span class="status-dot"></span>
+          <span>Disconnected</span>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="clearLogBtn" class="secondary">Clear Log</button>
+      </div>
+      <div id="log" class="log"></div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+  <script>
+    const storageKey = "sfars-signalr-debug";
+    const defaultState = {
+      baseUrl: window.location.origin,
+      token: "",
+      incidentId: "",
+      missionId: "",
+      missionStatus: "arrived",
+      rejectReason: "busy"
+    };
+
+    const els = {
+      baseUrl: document.getElementById("baseUrl"),
+      token: document.getElementById("token"),
+      incidentId: document.getElementById("incidentId"),
+      missionId: document.getElementById("missionId"),
+      missionStatus: document.getElementById("missionStatus"),
+      rejectReason: document.getElementById("rejectReason"),
+      connectionState: document.getElementById("connectionState"),
+      log: document.getElementById("log")
+    };
+
+    let connection = null;
+
+    hydrateInputs();
+    bindPersistence();
+
+    document.getElementById("connectBtn").addEventListener("click", connectHub);
+    document.getElementById("disconnectBtn").addEventListener("click", disconnectHub);
+    document.getElementById("joinBtn").addEventListener("click", joinIncidentTracking);
+    document.getElementById("leaveBtn").addEventListener("click", leaveIncidentTracking);
+    document.getElementById("updateStatusBtn").addEventListener("click", updateMissionStatus);
+    document.getElementById("initiateCallBtn").addEventListener("click", initiateCall);
+    document.getElementById("acceptCallBtn").addEventListener("click", acceptCall);
+    document.getElementById("rejectCallBtn").addEventListener("click", rejectCall);
+    document.getElementById("endCallBtn").addEventListener("click", endCall);
+    document.getElementById("clearLogBtn").addEventListener("click", () => {
+      els.log.textContent = "";
+    });
+
+    function hydrateInputs() {
+      const saved = loadState();
+      els.baseUrl.value = saved.baseUrl;
+      els.token.value = saved.token;
+      els.incidentId.value = saved.incidentId;
+      els.missionId.value = saved.missionId;
+      els.missionStatus.value = saved.missionStatus;
+      els.rejectReason.value = saved.rejectReason;
+    }
+
+    function bindPersistence() {
+      Object.values(els).forEach((el) => {
+        if (!el || !("value" in el)) return;
+        el.addEventListener("input", persistState);
+        el.addEventListener("change", persistState);
+      });
+    }
+
+    function loadState() {
+      try {
+        return { ...defaultState, ...(JSON.parse(localStorage.getItem(storageKey) || "{}")) };
+      } catch {
+        return { ...defaultState };
+      }
+    }
+
+    function persistState() {
+      localStorage.setItem(storageKey, JSON.stringify({
+        baseUrl: els.baseUrl.value.trim(),
+        token: els.token.value.trim(),
+        incidentId: els.incidentId.value.trim(),
+        missionId: els.missionId.value.trim(),
+        missionStatus: els.missionStatus.value,
+        rejectReason: els.rejectReason.value.trim()
+      }));
+    }
+
+    function normalizeBaseUrl() {
+      return (els.baseUrl.value || window.location.origin).trim().replace(/\/+$/, "");
+    }
+
+    function authHeaders() {
+      const token = els.token.value.trim();
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    }
+
+    function log(message, payload) {
+      const time = new Date().toLocaleTimeString();
+      let line = `[${time}] ${message}`;
+      if (payload !== undefined) {
+        line += `\n${safeJson(payload)}`;
+      }
+      els.log.textContent += `${line}\n\n`;
+      els.log.scrollTop = els.log.scrollHeight;
+    }
+
+    function safeJson(value) {
+      if (typeof value === "string") return value;
+      try {
+        return JSON.stringify(value, null, 2);
+      } catch {
+        return String(value);
+      }
+    }
+
+    function setConnectionState(label) {
+      const normalized = label.toLowerCase();
+      els.connectionState.className = `status ${normalized}`;
+      els.connectionState.lastElementChild.textContent = label;
+    }
+
+    function ensureConnectionBuilt() {
+      if (connection) return connection;
+
+      const hubUrl = `${normalizeBaseUrl()}/hubs/location-tracking`;
+      connection = new signalR.HubConnectionBuilder()
+        .withUrl(hubUrl, {
+          accessTokenFactory: () => els.token.value.trim()
+        })
+        .withAutomaticReconnect([0, 2000, 5000, 10000])
+        .configureLogging(signalR.LogLevel.Information)
+        .build();
+
+      wireEvents(connection);
+      return connection;
+    }
+
+    function wireEvents(conn) {
+      conn.onreconnecting((error) => {
+        setConnectionState("Reconnecting");
+        log("Hub reconnecting", error?.message || error || null);
+      });
+
+      conn.onreconnected((connectionId) => {
+        setConnectionState("Connected");
+        log("Hub reconnected", { connectionId });
+      });
+
+      conn.onclose((error) => {
+        setConnectionState("Disconnected");
+        log("Hub closed", error?.message || error || null);
+      });
+
+      [
+        "sos:mission_status",
+        "CallIncoming",
+        "CallAccepted",
+        "CallRejected",
+        "CallEnded",
+        "ReceiveLocationUpdate",
+        "sos:assigned",
+        "sos:fallback",
+        "sos:ai_reviewed"
+      ].forEach((eventName) => {
+        conn.on(eventName, (...args) => {
+          log(`SignalR event: ${eventName}`, args);
+        });
+      });
+    }
+
+    async function connectHub() {
+      try {
+        const conn = ensureConnectionBuilt();
+        if (conn.state === signalR.HubConnectionState.Connected) {
+          log("Hub already connected");
+          setConnectionState("Connected");
+          return;
+        }
+
+        await conn.start();
+        setConnectionState("Connected");
+        log("Hub connected", {
+          hubUrl: `${normalizeBaseUrl()}/hubs/location-tracking`
+        });
+      } catch (error) {
+        setConnectionState("Disconnected");
+        log("Connect failed", error?.message || error);
+      }
+    }
+
+    async function disconnectHub() {
+      if (!connection) {
+        log("No hub connection to disconnect");
+        return;
+      }
+
+      try {
+        await connection.stop();
+        setConnectionState("Disconnected");
+        log("Hub disconnected");
+      } catch (error) {
+        log("Disconnect failed", error?.message || error);
+      }
+    }
+
+    async function joinIncidentTracking() {
+      const incidentId = els.incidentId.value.trim();
+      if (!incidentId) {
+        alert("Incident ID is required");
+        return;
+      }
+
+      try {
+        const conn = ensureConnectionBuilt();
+        if (conn.state !== signalR.HubConnectionState.Connected) {
+          await connectHub();
+        }
+        await conn.invoke("JoinIncidentTracking", incidentId);
+        log("JoinIncidentTracking success", { incidentId });
+      } catch (error) {
+        log("JoinIncidentTracking failed", error?.message || error);
+      }
+    }
+
+    async function leaveIncidentTracking() {
+      const incidentId = els.incidentId.value.trim();
+      if (!incidentId) {
+        alert("Incident ID is required");
+        return;
+      }
+
+      try {
+        const conn = ensureConnectionBuilt();
+        await conn.invoke("LeaveIncidentTracking", incidentId);
+        log("LeaveIncidentTracking success", { incidentId });
+      } catch (error) {
+        log("LeaveIncidentTracking failed", error?.message || error);
+      }
+    }
+
+    async function updateMissionStatus() {
+      const missionId = els.missionId.value.trim();
+      if (!missionId) {
+        alert("Mission ID is required");
+        return;
+      }
+
+      const url = `${normalizeBaseUrl()}/api/missions/${missionId}/status`;
+      const body = { newStatus: els.missionStatus.value };
+
+      try {
+        log("PATCH mission status request", { url, body });
+        const response = await fetch(url, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders()
+          },
+          body: JSON.stringify(body)
+        });
+
+        const text = await response.text();
+        let parsed = text;
+        try {
+          parsed = text ? JSON.parse(text) : null;
+        } catch {}
+
+        log(`PATCH mission status response: ${response.status}`, parsed);
+      } catch (error) {
+        log("PATCH mission status failed", error?.message || error);
+      }
+    }
+
+    async function initiateCall() {
+      const incidentId = els.incidentId.value.trim();
+      if (!incidentId) {
+        alert("Incident ID is required");
+        return;
+      }
+
+      const url = `${normalizeBaseUrl()}/api/video-call/initiate/${incidentId}`;
+
+      try {
+        log("POST initiate call request", { url });
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            ...authHeaders()
+          }
+        });
+
+        const text = await response.text();
+        let parsed = text;
+        try {
+          parsed = text ? JSON.parse(text) : null;
+        } catch {}
+
+        log(`POST initiate call response: ${response.status}`, parsed);
+      } catch (error) {
+        log("POST initiate call failed", error?.message || error);
+      }
+    }
+
+    async function acceptCall() {
+      await invokeHubMethod("AcceptVideoCall", [els.incidentId.value.trim()]);
+    }
+
+    async function rejectCall() {
+      await invokeHubMethod("RejectVideoCall", [
+        els.incidentId.value.trim(),
+        els.rejectReason.value.trim()
+      ]);
+    }
+
+    async function endCall() {
+      await invokeHubMethod("EndVideoCall", [els.incidentId.value.trim()]);
+    }
+
+    async function invokeHubMethod(methodName, args) {
+      if (!args[0]) {
+        alert("Incident ID is required");
+        return;
+      }
+
+      try {
+        const conn = ensureConnectionBuilt();
+        if (conn.state !== signalR.HubConnectionState.Connected) {
+          await connectHub();
+        }
+        log(`Invoke ${methodName}`, { args });
+        await conn.invoke(methodName, ...args);
+        log(`${methodName} success`);
+      } catch (error) {
+        log(`${methodName} failed`, error?.message || error);
+      }
+    }
+  </script>
+</body>
+</html>
