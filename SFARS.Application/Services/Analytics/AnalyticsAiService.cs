@@ -66,13 +66,18 @@ public class AnalyticsAiService : IAnalyticsAiService
             })
             .ToListAsync();
 
+        var totalSystemInferences = metrics.Sum(m => m.TotalInferences);
+
         var dtos = metrics
             .Select(m => new AiAccuracyDto
             {
                 SpeciesName = string.IsNullOrWhiteSpace(m.SpeciesName) ? "Unknown" : m.SpeciesName!,
                 TotalInferences = m.TotalInferences,
+                PercentageOfTotal = totalSystemInferences > 0 ? Math.Round((double)m.TotalInferences / totalSystemInferences * 100, 2) : 0,
                 AverageConfidence = m.AverageConfidence,
-                AccuracyRate = m.TotalReviewed > 0 ? (double)m.ConfirmedCorrect / m.TotalReviewed : 0
+                AccuracyRate = m.TotalReviewed > 0 ? (double)m.ConfirmedCorrect / m.TotalReviewed : 0,
+                ReviewedCases = m.TotalReviewed,
+                UnreviewedCases = m.TotalInferences - m.TotalReviewed
             })
             .OrderByDescending(x => x.TotalInferences)
             .ToList();
