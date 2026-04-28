@@ -36,6 +36,7 @@ public class DataSetExportService : IDataSetExportService
                 on ai.Id equals r.AiInferenceId
             where (r.ReviewStatus == AiReviewStatus.ConfirmedCorrect || r.ReviewStatus == AiReviewStatus.Corrected)
                   && r.AdminReviewerId != null
+                  && !r.IsExcludedFromRetrain
                   // Exclude reviews pointing to inactive (new/placeholder) snakes
                   && (r.ReviewStatus != AiReviewStatus.Corrected || r.CorrectedSnake == null || r.CorrectedSnake.IsActive)
                   && (specParams.CreatedFrom == null || r.ReviewedAt >= specParams.CreatedFrom)
@@ -103,6 +104,7 @@ public class DataSetExportService : IDataSetExportService
                 on ai.Id equals r.AiInferenceId
             where (r.ReviewStatus == AiReviewStatus.ConfirmedCorrect || r.ReviewStatus == AiReviewStatus.Corrected)
                   && r.AdminReviewerId != null
+                  && !r.IsExcludedFromRetrain
                   && (specParams.CreatedFrom == null || r.ReviewedAt >= specParams.CreatedFrom)
                   && (specParams.CreatedTo == null || r.ReviewedAt <= specParams.CreatedTo)
             select new { ai, r };
@@ -141,5 +143,30 @@ public class DataSetExportService : IDataSetExportService
 
         return new ServiceResult(ResultCodeConst.SYS_Success0001,
             await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0001), result);
+    }
+
+    /// <inheritdoc />
+    public async Task<IServiceResult> ExcludeImagesFromRetrainAsync(List<Guid> inferenceIds)
+    {
+        if (inferenceIds == null || !inferenceIds.Any())
+        {
+            return new ServiceResult(ResultCodeConst.SYS_Fail0002, 
+                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0002));
+        }
+
+        var reviews = await _unitOfWork.Repository<AiInferenceReview, Guid>()
+            .GetQueryable(tracked: true)
+            .Where(r => inferenceIds.Contains(r.AiInferenceId))
+            .ToListAsync();
+
+        foreach (var review in reviews)
+        {
+            review.IsExcludedFromRetrain = true;
+        }
+
+        await _unitOfWork.SaveChangesAsync();
+
+        return new ServiceResult(ResultCodeConst.MLOps_Success0001,
+            await _msgService.GetMessageAsync(ResultCodeConst.MLOps_Success0001));
     }
 }

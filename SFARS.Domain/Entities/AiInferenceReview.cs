@@ -45,5 +45,8 @@ namespace SFARS.Domain.Entities
 
         /// <summary>Admin's notes or feedback</summary>
         public string? AdminComment { get; set; }
+
+        /// <summary>Flag to exclude this image from MLOps retrain pipeline</summary>
+        public bool IsExcludedFromRetrain { get; set; } = false;
     }
 }

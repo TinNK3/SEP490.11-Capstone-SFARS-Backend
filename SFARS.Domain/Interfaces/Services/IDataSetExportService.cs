@@ -19,4 +19,9 @@ public interface IDataSetExportService
     /// Provides ground truth data (Snake_Bite / Non_Snake_Bite) for wound classifier retraining.
     /// </summary>
     Task<IServiceResult> ExportWoundTrainingDataAsync(BaseSpecParams specParams);
+
+    /// <summary>
+    /// Excludes one or more reviewed images from both MLOps retraining pipelines.
+    /// </summary>
+    Task<IServiceResult> ExcludeImagesFromRetrainAsync(List<Guid> inferenceIds);
 }

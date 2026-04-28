@@ -1132,5 +1132,11 @@
     "MsgContent": "The specified snake was not found.",
     "En": "The specified snake was not found.",
     "Vi": "Không tìm thấy loài rắn được chỉ định."
+  },
+  {
+    "MsgId": "Mlops.Success0001",
+    "MsgContent": "Images successfully excluded from the MLOps retrain pipeline.",
+    "En": "Images successfully excluded from the MLOps retrain pipeline.",
+    "Vi": "Các ảnh đã được loại bỏ khỏi luồng AI (MLOps retrain pipeline) thành công."
   }
 ]

@@ -83,6 +83,16 @@ namespace SFARS.API.Controller.Admin
             return Accepted(new { message = "Snake species retrain pipeline has been queued." });
         }
 
+        /// <summary>
+        /// [Admin] Exclude one or more images from being used in the MLOps retrain pipelines.
+        /// </summary>
+        [HttpPost(APIRoute.AdminMlops.ExcludeImages, Name = nameof(ExcludeImagesFromRetrainAsync))]
+        public async Task<IActionResult> ExcludeImagesFromRetrainAsync([FromBody] List<Guid> inferenceIds)
+        {
+            var result = await _exportService.ExcludeImagesFromRetrainAsync(inferenceIds);
+            return this.ToIActionResult(result);
+        }
+
         // Wound Classification Pipeline
 
         /// <summary>
