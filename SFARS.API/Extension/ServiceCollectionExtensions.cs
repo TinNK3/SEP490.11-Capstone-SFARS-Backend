@@ -8,6 +8,7 @@ using StackExchange.Redis;
 using System.Data.Common;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using SFARS.API.Converters;
 
 namespace SFARS.API.Extension
 {
@@ -22,6 +23,12 @@ namespace SFARS.API.Extension
             {
                 options.JsonSerializerOptions.Converters.Add(
                     new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
+                    
+                // Global Timezone Formatter - convert DateTime to Vietnam Time +07:00
+                options.JsonSerializerOptions.Converters.Add(new VietnamTimeConverter());
+                options.JsonSerializerOptions.Converters.Add(new VietnamNullableTimeConverter());
+                options.JsonSerializerOptions.Converters.Add(new VietnamTimeOffsetConverter());
+                options.JsonSerializerOptions.Converters.Add(new VietnamNullableTimeOffsetConverter());
             });
 
             // Increase form-data upload limit
