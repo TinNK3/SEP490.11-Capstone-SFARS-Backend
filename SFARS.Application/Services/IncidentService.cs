@@ -646,7 +646,7 @@ namespace SFARS.Application.Services
                 
                 dto.RescuerReviewData = new RescuerReviewDataDto
                 {
-                    ReviewerId = review.ReviewerId,
+                    ReviewerId = review.ReviewerId ?? Guid.Empty,
                     ReviewerName = review.Reviewer?.FullName,
                     ReviewStatus = incident.CurrentAiReviewStatus ?? AiReviewStatus.Pending,
                     CorrectedSnakeId = incident.HumanReviewedSnakeId,

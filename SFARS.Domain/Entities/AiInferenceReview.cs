@@ -16,8 +16,8 @@ namespace SFARS.Domain.Entities
         public virtual Incident Incident { get; set; } = null!;
 
         /// <summary>Rescuer who submitted this review</summary>
-        public Guid ReviewerId { get; set; }
-        public virtual User Reviewer { get; set; } = null!;
+        public Guid? ReviewerId { get; set; }
+        public virtual User? Reviewer { get; set; }
 
         public AiReviewStatus ReviewStatus { get; set; } = AiReviewStatus.Pending;
 
