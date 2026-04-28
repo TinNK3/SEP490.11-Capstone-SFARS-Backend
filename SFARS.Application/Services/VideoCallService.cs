@@ -22,7 +22,7 @@ public class VideoCallService : IVideoCallService
     private readonly IAgoraService _agoraService;
     private readonly IFcmPushService _fcmPushService;
     private readonly ISystemMessageService _msgService;
-    private readonly IHubContext<NotificationHub> _hubContext;
+    private readonly IHubContext<LocationTrackingHub> _hubContext;
     private readonly ILogger<VideoCallService> _logger;
     private readonly AgoraOptions _agoraOptions;
 
@@ -31,7 +31,7 @@ public class VideoCallService : IVideoCallService
         IAgoraService agoraService,
         IFcmPushService fcmPushService,
         ISystemMessageService msgService,
-        IHubContext<NotificationHub> hubContext,
+        IHubContext<LocationTrackingHub> hubContext,
         ILogger<VideoCallService> logger,
         IOptions<AgoraOptions> agoraOptions)
     {
@@ -121,9 +121,16 @@ public class VideoCallService : IVideoCallService
     {
         try
         {
+            _logger.LogInformation(
+                "Video call initiation requested | IncidentId={IncidentId} | CallerId={CallerId}",
+                incidentId, callerId);
+
             var incident = await _unitOfWork.Repository<Incident, Guid>().GetByIdAsync(incidentId);
             if (incident == null)
             {
+                _logger.LogWarning(
+                    "Video call initiation denied | IncidentId={IncidentId} | CallerId={CallerId} | Reason=IncidentNotFound",
+                    incidentId, callerId);
                 return new ServiceResult(
                     ResultCodeConst.SYS_Warning0002,
                     string.Format(await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0002), "Incident"));
@@ -148,6 +155,9 @@ public class VideoCallService : IVideoCallService
 
                 if (mission == null)
                 {
+                    _logger.LogWarning(
+                        "Video call initiation denied | IncidentId={IncidentId} | CallerId={CallerId} | Reason=ActiveMissionNotFound",
+                        incidentId, callerId);
                     return new ServiceResult(
                         ResultCodeConst.VideoCall_Warning0002,
                         await _msgService.GetMessageAsync(ResultCodeConst.VideoCall_Warning0002));
@@ -176,13 +186,33 @@ public class VideoCallService : IVideoCallService
 
             await _fcmPushService.SendToUserAsync(targetUserId, pushTitle, pushBody, pushData);
 
-            // Send SignalR IsIncoming event for real-time UI response while waiting for pickup
+            _logger.LogInformation(
+                "Video call FCM sent | IncidentId={IncidentId} | CallerId={CallerId} | TargetUserId={TargetUserId} | CallerRole={CallerRole}",
+                incidentId, callerId, targetUserId, callerRoleName);
+
+            // Send SignalR incoming-call event on the tracking hub so the client can
+            // handle the entire rescue-call lifecycle from a single hub contract.
+            var payload = new
+            {
+                IncidentId = incidentId,
+                CallerId = callerId,
+                CallerName = callerRoleName
+            };
+
+            _logger.LogInformation(
+                "Sending SignalR incoming video call | Hub={Hub} | Event={Event} | IncidentId={IncidentId} | CallerId={CallerId} | TargetUserId={TargetUserId} | Payload={Payload}",
+                nameof(LocationTrackingHub), VideoCallConstants.EventCallIncoming, incidentId, callerId, targetUserId, payload);
+
             await _hubContext.Clients.User(targetUserId.ToString()).SendAsync(VideoCallConstants.EventCallIncoming, new
             {
                 IncidentId = incidentId,
                 CallerId = callerId,
                 CallerName = callerRoleName
             });
+
+            _logger.LogInformation(
+                "SignalR incoming video call sent | IncidentId={IncidentId} | CallerId={CallerId} | TargetUserId={TargetUserId} | Event={Event}",
+                incidentId, callerId, targetUserId, VideoCallConstants.EventCallIncoming);
 
             return new ServiceResult(
                 ResultCodeConst.SYS_Success0001,
