@@ -204,22 +204,15 @@ public class MissionService : IMissionService
         if (incident == null) return new ServiceResult(ResultCodeConst.SYS_Fail0001, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Fail0001));
 
         // Initialize AI Review if there is an AI Inference
-        if (incident.CurrentAiInferenceId.HasValue && !incident.CurrentAiReviewId.HasValue)
+        if (incident.CurrentAiReviewId.HasValue && incident.CurrentAiReviewStatus == AiReviewStatus.Pending)
         {
-            var review = new AiInferenceReview
+            var review = await _unitOfWork.Repository<AiInferenceReview, Guid>().GetByIdAsync(incident.CurrentAiReviewId.Value);
+            if (review != null && review.ReviewerId == null)
             {
-                Id = Guid.NewGuid(),
-                IncidentId = incidentId,
-                AiInferenceId = incident.CurrentAiInferenceId.Value,
-                ReviewerId = rescuerId,
-                ReviewStatus = AiReviewStatus.Pending,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = rescuerId
-            };
-            await _unitOfWork.Repository<AiInferenceReview, Guid>().AddAsync(review);
-
-            incident.CurrentAiReviewId = review.Id;
-            incident.CurrentAiReviewStatus = AiReviewStatus.Pending;
+                review.ReviewerId = rescuerId;
+                review.UpdatedAt = DateTime.UtcNow;
+                review.UpdatedBy = rescuerId;
+            }
         }
 
         // Step 2: Create single RescueMission

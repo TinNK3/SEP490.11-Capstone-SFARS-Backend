@@ -43,6 +43,7 @@ public class AiInferenceServiceTests
     private readonly Mock<IGenericRepository<AiInferenceCandidate, Guid>> _candidateRepoMock;
     private readonly Mock<IGenericRepository<Snake, Guid>> _snakeRepoMock;
     private readonly Mock<IGenericRepository<FirstAidDetail, Guid>> _firstAidRepoMock;
+    private readonly Mock<IGenericRepository<AiInferenceReview, Guid>> _aiReviewRepoMock;
     private readonly Mock<Hangfire.IBackgroundJobClient> _backgroundJobClientMock;
 
     private readonly AiInferenceService _sut;
@@ -69,6 +70,7 @@ public class AiInferenceServiceTests
         _candidateRepoMock = new Mock<IGenericRepository<AiInferenceCandidate, Guid>>();
         _snakeRepoMock = new Mock<IGenericRepository<Snake, Guid>>();
         _firstAidRepoMock = new Mock<IGenericRepository<FirstAidDetail, Guid>>();
+        _aiReviewRepoMock = new Mock<IGenericRepository<AiInferenceReview, Guid>>();
 
 
         _unitOfWorkMock.Setup(x => x.Repository<Incident, Guid>()).Returns(_incidentRepoMock.Object);
@@ -77,6 +79,7 @@ public class AiInferenceServiceTests
         _unitOfWorkMock.Setup(x => x.Repository<AiInferenceCandidate, Guid>()).Returns(_candidateRepoMock.Object);
         _unitOfWorkMock.Setup(x => x.Repository<Snake, Guid>()).Returns(_snakeRepoMock.Object);
         _unitOfWorkMock.Setup(x => x.Repository<FirstAidDetail, Guid>()).Returns(_firstAidRepoMock.Object);
+        _unitOfWorkMock.Setup(x => x.Repository<AiInferenceReview, Guid>()).Returns(_aiReviewRepoMock.Object);
 
 
         var storageOptions = new StorageOptions

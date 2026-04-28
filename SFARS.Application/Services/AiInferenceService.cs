@@ -426,6 +426,22 @@ public class AiInferenceService : IAiInferenceService
             }
 
             incident.CurrentAiInferenceId = aiInference.Id;
+            
+            var aiReview = new AiInferenceReview
+            {
+                Id = Guid.NewGuid(),
+                IncidentId = incidentId,
+                AiInferenceId = aiInference.Id,
+                ReviewerId = null, // Will be claimed by rescuer later
+                ReviewStatus = AiReviewStatus.Pending,
+                CreatedAt = now,
+                CreatedBy = userId
+            };
+            await _unitOfWork.Repository<AiInferenceReview, Guid>().AddAsync(aiReview);
+
+            incident.CurrentAiReviewId = aiReview.Id;
+            incident.CurrentAiReviewStatus = AiReviewStatus.Pending;
+
             incident.SnakeId = primarySnake?.Id; // null if skipped or !isSnake
             incident.AiPredictionResult = isSkip ? AiInferenceConstants.UnknownSnake 
                                         : isBiteWoundPhoto && !isWoundDetected ? AiInferenceConstants.PredictionWoundNoDetection
