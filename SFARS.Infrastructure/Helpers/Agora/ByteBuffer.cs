@@ -12,7 +12,7 @@ namespace SFARS.Infrastructure.Helpers.Agora
 
         private int CURRENT_POSITION = 0;
 
-        private byte[] RETURN_ARRAY;
+        private byte[] RETURN_ARRAY = Array.Empty<byte>();
 
         public ByteBuffer()
         {

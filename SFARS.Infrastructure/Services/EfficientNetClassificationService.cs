@@ -25,6 +25,7 @@ public class EfficientNetClassificationService : ISpeciesClassificationService, 
     private readonly ReaderWriterLockSlim _speciesLock = new();
 
     private Dictionary<int, string> _speciesClassMapping;
+    private IReadOnlyList<string>? _cachedSupportedSpecies;
 
     // Resolved at startup from ONNX metadata
     private string _resolvedInputName = string.Empty;
@@ -50,6 +51,7 @@ public class EfficientNetClassificationService : ISpeciesClassificationService, 
                                ?? ParseClassMapping(_options.ClassMapping);
 
         _logger.LogInformation("Loaded {Count} species classes", _speciesClassMapping.Count);
+        _cachedSupportedSpecies = _speciesClassMapping.OrderBy(kv => kv.Key).Select(kv => kv.Value).ToList().AsReadOnly();
         ResolveInputMetadata(_speciesSession);
     }
 
@@ -145,6 +147,7 @@ public class EfficientNetClassificationService : ISpeciesClassificationService, 
                     if (newMapping != null)
                     {
                         _speciesClassMapping = newMapping;
+                        _cachedSupportedSpecies = _speciesClassMapping.OrderBy(kv => kv.Key).Select(kv => kv.Value).ToList().AsReadOnly();
                         _logger.LogInformation("Hot-Swap: Class mapping reloaded with {Count} classes", newMapping.Count);
                     }
                 }
@@ -170,7 +173,7 @@ public class EfficientNetClassificationService : ISpeciesClassificationService, 
         _speciesLock.EnterReadLock();
         try
         {
-            return _speciesClassMapping.OrderBy(kv => kv.Key).Select(kv => kv.Value).ToList().AsReadOnly();
+            return _cachedSupportedSpecies ?? new List<string>().AsReadOnly();
         }
         finally
         {

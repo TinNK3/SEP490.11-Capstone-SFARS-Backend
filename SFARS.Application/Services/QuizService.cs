@@ -236,7 +236,7 @@ public class QuizService : ReadOnlyService<Quiz, QuizListItemDto, Guid>, IQuizSe
 
             var history = (await _unitOfWork.Repository<QuizHistory, Guid>().GetAllWithSpecAsync(spec)).FirstOrDefault();
 
-            if (history == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, "History not found");
+            if (history == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
 
             var dto = _mapper.Map<QuizHistoryDetailDto>(history);
 
@@ -353,7 +353,7 @@ public class QuizService : ReadOnlyService<Quiz, QuizListItemDto, Guid>, IQuizSe
             var spec = QuizSpecification.WithDetails(id);
             var quiz = (await _unitOfWork.Repository<Quiz, Guid>().GetAllWithSpecAsync(spec)).FirstOrDefault();
 
-            if (quiz == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Quiz not found");
+            if (quiz == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
 
             quiz.Title = dto.Title;
             quiz.Description = dto.Description;

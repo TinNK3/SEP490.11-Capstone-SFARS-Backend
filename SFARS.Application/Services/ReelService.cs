@@ -19,12 +19,14 @@ public class ReelService : IReelService
     private readonly IUnitOfWork _uow;
     private readonly IFileStorageService _fileStorageService;
     private readonly INotificationService _notificationService;
+    private readonly ISystemMessageService _msgService;
 
-    public ReelService(IUnitOfWork uow, IFileStorageService fileStorageService, INotificationService notificationService)
+    public ReelService(IUnitOfWork uow, IFileStorageService fileStorageService, INotificationService notificationService, ISystemMessageService msgService)
     {
         _uow = uow;
         _fileStorageService = fileStorageService;
         _notificationService = notificationService;
+        _msgService = msgService;
     }
 
     public async Task<IServiceResult> CreateReelAsync(Guid currentUserId, string? caption, Stream videoStream, string fileName, string contentType, long contentLength)
@@ -147,7 +149,7 @@ public class ReelService : IReelService
 
         var reel = await _uow.Repository<Reel, Guid>().GetWithSpecAsync(spec, tracked: false);
 
-        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel not found");
+        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
 
         var isLiked = currentUserId.HasValue && await _uow.Repository<ReelLike, object>().AnyAsync(l => l.ReelId == reel.Id && l.UserId == currentUserId.Value);
 
@@ -175,7 +177,7 @@ public class ReelService : IReelService
     {
         var repo = _uow.Repository<Reel, Guid>();
         var reel = await repo.GetByIdAsync(reelId);
-        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel not found");
+        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
 
         if (reel.UserId != currentUserId)
             return new ServiceResult(ResultCodeConst.SYS_Warning0007, "Not authorized to hide this reel");
@@ -191,7 +193,7 @@ public class ReelService : IReelService
     {
         var repo = _uow.Repository<Reel, Guid>();
         var reel = await repo.GetByIdAsync(reelId);
-        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel not found");
+        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
 
         if (!isAdmin && reel.UserId != currentUserId)
             return new ServiceResult(ResultCodeConst.SYS_Warning0007, "Not authorized to delete this reel");
@@ -209,7 +211,7 @@ public class ReelService : IReelService
     {
         var reelRepo = _uow.Repository<Reel, Guid>();
         var reel = await reelRepo.GetByIdAsync(reelId);
-        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel not found");
+        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
 
         var likeRepo = _uow.Repository<ReelLike, object>();
         var spec = new BaseSpecification<ReelLike>(l => l.ReelId == reelId && l.UserId == currentUserId);
@@ -244,7 +246,7 @@ public class ReelService : IReelService
     {
         var reelRepo = _uow.Repository<Reel, Guid>();
         var reel = await reelRepo.GetByIdAsync(reelId);
-        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel không tồn tại.");
+        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
 
         var commentRepo = _uow.Repository<ReelComment, Guid>();
         Guid? actualParentId = parentCommentId;
@@ -312,7 +314,7 @@ public class ReelService : IReelService
         var totalCount = await repo.CountAsync(ReelCommentSpecification.ForCount(reelId));
         
         var reel = await _uow.Repository<Reel, Guid>().GetByIdAsync(reelId);
-        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel không tồn tại.");
+        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
 
         var totalAbsoluteCount = await repo.CountAsync(new ReelCommentSpecification(c => c.ReelId == reelId && !c.IsDeleted));
 
@@ -395,7 +397,7 @@ public class ReelService : IReelService
     {
         var repo = _uow.Repository<ReelComment, Guid>();
         var comment = await repo.GetByIdAsync(commentId);
-        if (comment == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Comment not found");
+        if (comment == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
 
         if (comment.UserId != currentUserId)
             return new ServiceResult(ResultCodeConst.SYS_Warning0007, "Not authorized to delete this comment");
@@ -472,7 +474,7 @@ public class ReelService : IReelService
     {
         var reelRepo = _uow.Repository<Reel, Guid>();
         var reel = await reelRepo.GetByIdAsync(reelId);
-        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel không tồn tại.");
+        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
 
         var shareLog = new ShareLog
         {
@@ -513,7 +515,7 @@ public class ReelService : IReelService
     {
         var repo = _uow.Repository<Reel, Guid>();
         var reel = await repo.GetByIdAsync(reelId);
-        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel không tồn tại.");
+        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
 
         reel.IsHiddenByAdmin = true;
         reel.AdminNote = reason;
@@ -532,7 +534,7 @@ public class ReelService : IReelService
     {
         var repo = _uow.Repository<Reel, Guid>();
         var reel = await repo.GetByIdAsync(reelId);
-        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0001, "Reel không tồn tại.");
+        if (reel == null) return new ServiceResult(ResultCodeConst.SYS_Warning0004, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
 
         reel.IsHiddenByAdmin = false;
         reel.AdminNote = null;

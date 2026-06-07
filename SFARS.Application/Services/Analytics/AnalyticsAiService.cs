@@ -214,7 +214,7 @@ public class AnalyticsAiService : IAnalyticsAiService
                     reviewDto = new SnakeRescuerReviewDto
                     {
                         ReviewerId = review.ReviewerId ?? Guid.Empty,
-                        ReviewerName = review.Reviewer.FullName,
+                        ReviewerName = review.Reviewer?.FullName,
                         ReviewStatus = review.ReviewStatus.ToString(),
                         CorrectedSnakeName = review.CorrectedSnake?.CommonName,
                         CorrectedSnakeId = review.CorrectedSnakeId,

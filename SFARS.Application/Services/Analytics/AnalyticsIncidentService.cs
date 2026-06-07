@@ -81,7 +81,7 @@ public class AnalyticsIncidentService : IAnalyticsIncidentService
                 Date = g.Key,
                 TotalIncidents = g.Count(),
                 CriticalCount = g.Count(x => x.PriorityLevel == SeverityLevel.Critical),
-                ResolvedPercent = g.Count() > 0
+                ResolvedPercent = g.Any()
                     ? (double)g.Count(x => x.CurrentStatus == IncidentStatus.Closed) / g.Count() * 100
                     : 0,
                 AvgResponseTimeMinutes = missionAvgByDate.GetValueOrDefault(g.Key, 0),
@@ -172,7 +172,7 @@ public class AnalyticsIncidentService : IAnalyticsIncidentService
                     Medium = g.Count(x => x.PriorityLevel == SeverityLevel.Medium),
                     Low = g.Count(x => x.PriorityLevel == SeverityLevel.Low)
                 },
-                ResolvedPercent = g.Count() > 0
+                ResolvedPercent = g.Any()
                     ? (double)g.Count(x => x.CurrentStatus == IncidentStatus.Closed) / g.Count() * 100
                     : 0,
                 AvgResponseTimeMinutes = missionData

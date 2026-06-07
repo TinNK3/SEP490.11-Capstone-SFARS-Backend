@@ -2,10 +2,10 @@ namespace SFARS.Infrastructure.Helpers.Agora
 {
     public class PackContent : IPackable
     {
-        public byte[] signature;
+        public byte[] signature = Array.Empty<byte>();
         public uint crcChannelName;
         public uint crcUid;
-        public byte[] rawMessage;
+        public byte[] rawMessage = Array.Empty<byte>();
 
         public PackContent()
         {

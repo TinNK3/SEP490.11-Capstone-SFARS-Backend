@@ -61,7 +61,7 @@ namespace SFARS.Domain.Specifications.Reels
         {
             return new ReelSpecification(r => (!targetUserId.HasValue || r.UserId == targetUserId) &&
                                               !r.IsHidden && !r.IsHiddenByAdmin &&
-                                              (string.IsNullOrEmpty(specParams.Search) || r.Caption.ToLower().Contains(specParams.Search.ToLower())) &&
+                                              (string.IsNullOrEmpty(specParams.Search) || (r.Caption != null && r.Caption.ToLower().Contains(specParams.Search.ToLower()))) &&
                                               (!specParams.CreatedFrom.HasValue || r.CreatedAt >= specParams.CreatedFrom) &&
                                               (!specParams.CreatedTo.HasValue || r.CreatedAt <= specParams.CreatedTo));
         }

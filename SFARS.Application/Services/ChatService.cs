@@ -557,7 +557,7 @@ public class ChatService : IChatService
             .Where(x => x.Score >= 0.5)
             .OrderByDescending(x => x.Score)
             .Take(3)
-            .Select(x => (x.Snake.CommonName, x.Snake.ScientificName, x.Snake.Description, 
+            .Select(x => (x.Snake.CommonName, (string?)x.Snake.ScientificName, x.Snake.Description, 
                 ToxinGroup: x.Snake.ToxinGroup.ToString(), x.Snake.TypicalSymptoms, x.Score))
             .ToList();
 
@@ -591,7 +591,7 @@ public class ChatService : IChatService
         var matchedSnakes = activeSnakes.Where(s =>
             msgLower.Contains(s.CommonName.ToLowerInvariant()) ||
             (!string.IsNullOrEmpty(s.ScientificName) && msgLower.Contains(s.ScientificName.ToLowerInvariant()))
-        ).Select(s => (s.CommonName, s.ScientificName, s.Description, 
+        ).Select(s => (s.CommonName, (string?)s.ScientificName, s.Description, 
             ToxinGroup: s.ToxinGroup.ToString(), s.TypicalSymptoms, Score: 1.0))
         .ToList();
 

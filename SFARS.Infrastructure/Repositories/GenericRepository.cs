@@ -231,6 +231,11 @@ namespace SFARS.Infrastructure.Repositories
         #endregion
 
         #region OTHERS
+        private static readonly System.Reflection.PropertyInfo[] _cachedProperties = typeof(TEntity)
+            .GetProperties()
+            .Where(p => p.CanRead && p.CanWrite)
+            .ToArray();
+
         public bool HasChanges(TEntity original, TEntity modified)
         {
             if (original == null || modified == null)
@@ -238,13 +243,8 @@ namespace SFARS.Infrastructure.Repositories
                 throw new ArgumentNullException("Entities cannot be null.");
             }
 
-            // Compare each property in the entity
-            var properties = typeof(TEntity).GetProperties();
-            foreach (var property in properties)
+            foreach (var property in _cachedProperties)
             {
-                // Ignore properties without "get" or "set" accessors
-                if (!property.CanRead || !property.CanWrite) continue;
-
                 var originalValue = property.GetValue(original);
                 var modifiedValue = property.GetValue(modified);
 

@@ -387,9 +387,9 @@ namespace SFARS.Application.Services
             spec.ApplyInclude(q => q.Include(i => i.Victim));
             spec.ApplyInclude(q => q.Include(i => i.Medias));
             spec.ApplyInclude(q => q.Include(i => i.Missions));
-            spec.ApplyInclude(q => q.Include(i => i.CurrentAiInference)
+            spec.ApplyInclude(q => q.Include(i => i.CurrentAiInference!)
                                      .ThenInclude(ai => ai.Candidates)
-                                     .ThenInclude(c => c.Snake));
+                                     .ThenInclude(c => c.Snake!));
 
             var incident = await _unitOfWork.Repository<Incident, Guid>()
                 .GetWithSpecAsync(spec, tracked: false);
