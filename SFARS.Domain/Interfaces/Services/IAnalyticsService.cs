@@ -9,7 +9,7 @@ public interface IAnalyticsService
     Task<IServiceResult> GetIncidentTrendsAsync(AnalyticsSpecParams filter);
     Task<IServiceResult> GetHeatmapDataAsync(AnalyticsSpecParams filter);
     Task<IServiceResult> GetRescuerLeaderboardAsync(AnalyticsSpecParams filter);
-    Task<IServiceResult> GetRescuerMissionHistoryAsync(Guid rescuerId, AnalyticsSpecParams filter);
+    Task<IServiceResult> GetRescuerMissionHistoryAsync(AnalyticsSpecParams filter);
     Task<IServiceResult> GetAiAccuracyMetricsAsync(AnalyticsSpecParams filter);
     Task<IServiceResult> GetSnakeIncidentTrackingAsync(Guid snakeId, AnalyticsSpecParams filter);
     Task<IServiceResult> ExportCsvAsync(string exportType, AnalyticsSpecParams filter);
