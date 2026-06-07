@@ -56,8 +56,8 @@ public class AnalyticsService : IAnalyticsService
     public Task<IServiceResult> GetRescuerLeaderboardAsync(AnalyticsSpecParams filter)
         => _rescuerService.GetRescuerLeaderboardAsync(filter);
 
-    public Task<IServiceResult> GetRescuerMissionHistoryAsync(Guid rescuerId, AnalyticsSpecParams filter)
-        => _rescuerService.GetRescuerMissionHistoryAsync(rescuerId, filter);
+    public Task<IServiceResult> GetRescuerMissionHistoryAsync(AnalyticsSpecParams filter)
+        => _rescuerService.GetRescuerMissionHistoryAsync(filter);
 
     public Task<IServiceResult> GetAiAccuracyMetricsAsync(AnalyticsSpecParams filter)
         => _aiService.GetAiAccuracyMetricsAsync(filter);

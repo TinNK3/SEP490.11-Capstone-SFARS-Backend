@@ -50,9 +50,9 @@ namespace SFARS.API.Controller
         }
 
         [HttpGet(APIRoute.Analytics.RescuerMissionHistory, Name = nameof(GetRescuerMissionHistoryAsync))]
-        public async Task<IActionResult> GetRescuerMissionHistoryAsync([FromRoute] Guid rescuerId, [FromQuery] AnalyticsSpecParams filter)
+        public async Task<IActionResult> GetRescuerMissionHistoryAsync([FromQuery] AnalyticsSpecParams filter)
         {
-            var result = await _analyticsService.GetRescuerMissionHistoryAsync(rescuerId, filter);
+            var result = await _analyticsService.GetRescuerMissionHistoryAsync(filter);
             return this.ToIActionResult(result);
         }
 

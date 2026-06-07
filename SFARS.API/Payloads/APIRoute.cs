@@ -416,7 +416,7 @@ namespace SFARS.API.Payloads
             public const string Overview = Base + "/admin/analytics/overview";
             public const string Incidents = Base + "/admin/analytics/incidents";
             public const string Rescuers = Base + "/admin/analytics/rescuers";
-            public const string RescuerMissionHistory = Base + "/admin/analytics/rescuers/{rescuerId}/missions";
+            public const string RescuerMissionHistory = Base + "/admin/analytics/missions";
             public const string Ai = Base + "/admin/analytics/ai";
             public const string Heatmap = Base + "/admin/analytics/heatmap";
             public const string SnakeIncidentTracking = Base + "/admin/analytics/snakes/{snakeId}/incidents";

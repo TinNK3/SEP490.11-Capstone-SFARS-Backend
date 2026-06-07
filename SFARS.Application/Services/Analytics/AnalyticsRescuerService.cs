@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SFARS.Application.Common;
+using SFARS.Application.Dtos;
 using SFARS.Application.Dtos.Analytics;
 using SFARS.Domain.Common.Enum;
 using SFARS.Domain.Entities;
@@ -13,7 +14,7 @@ namespace SFARS.Application.Services.Analytics;
 public interface IAnalyticsRescuerService
 {
     Task<IServiceResult> GetRescuerLeaderboardAsync(AnalyticsSpecParams filter);
-    Task<IServiceResult> GetRescuerMissionHistoryAsync(Guid rescuerId, AnalyticsSpecParams filter);
+    Task<IServiceResult> GetRescuerMissionHistoryAsync(AnalyticsSpecParams filter);
 }
 
 public class AnalyticsRescuerService : IAnalyticsRescuerService
@@ -69,21 +70,40 @@ public class AnalyticsRescuerService : IAnalyticsRescuerService
             dtos);
     }
 
-    public async Task<IServiceResult> GetRescuerMissionHistoryAsync(Guid rescuerId, AnalyticsSpecParams filter)
+    public async Task<IServiceResult> GetRescuerMissionHistoryAsync(AnalyticsSpecParams filter)
     {
-        var rescuer = await _userRepo.GetByIdAsync(rescuerId);
-        if (rescuer == null)
-            return new ServiceResult(
-                ResultCodeConst.SYS_Warning0004,
-                await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004),
-                null);
+        User rescuer = null;
+        if (filter.RescuerId.HasValue)
+        {
+            rescuer = await _userRepo.GetByIdAsync(filter.RescuerId.Value);
+            if (rescuer == null)
+                return new ServiceResult(
+                    ResultCodeConst.SYS_Warning0004,
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004),
+                    null);
+        }
 
         var missionQuery = AnalyticsQueryHelper.ApplyCreatedAtUtcRange(_rescueRepo.GetQueryable(false), filter);
+        if (filter.RescuerId.HasValue)
+        {
+            missionQuery = missionQuery.Where(x => x.RescuerId == filter.RescuerId.Value);
+        }
+
+        var totalItems = await missionQuery.CountAsync();
+        var successCount = await missionQuery.CountAsync(x => x.Status == RescueStatus.Completed);
+        
+        var limit = filter.GetTake();
+        var page = filter.GetPage();
+        var totalPages = limit > 0 ? (int)Math.Ceiling(totalItems / (double)limit) : 0;
+
         var missions = await missionQuery
-            .Where(x => x.RescuerId == rescuerId)
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip(filter.GetSkip())
+            .Take(limit)
             .Select(x => new
             {
                 x.Id,
+                x.RescuerId,
                 x.Status,
                 x.CreatedAt,
                 x.StartedAt,
@@ -102,21 +122,24 @@ public class AnalyticsRescuerService : IAnalyticsRescuerService
             .ToListAsync();
 
         if (missions.Count == 0)
+        {
+            var emptyPagedResult = new PaginatedResultDto<MissionDetailDto>(new List<MissionDetailDto>(), page, limit, totalPages, totalItems);
             return new ServiceResult(
                 ResultCodeConst.SYS_Success0002,
                 await _msgService.GetMessageAsync(ResultCodeConst.SYS_Success0002),
                 new RescuerMissionHistoryDto
                 {
-                    RescuerId = rescuerId,
-                    RescuerName = rescuer.FullName,
-                    TotalMissions = 0,
+                    RescuerId = filter.RescuerId,
+                    RescuerName = rescuer?.FullName,
+                    TotalMissions = totalItems,
                     SuccessRate = 0,
-                    Missions = new()
+                    Missions = emptyPagedResult
                 });
+        }
 
         var missionIds = missions.Select(m => m.Id).ToList();
         var trackingMetrics = await _rescueRepo.GetQueryable(false)
-            .Where(x => x.RescuerId == rescuerId && missionIds.Contains(x.Id))
+            .Where(x => missionIds.Contains(x.Id))
             .SelectMany(x => x.TrackingLogs)
             .GroupBy(x => x.MissionId)
             .Select(g => new
@@ -180,19 +203,18 @@ public class AnalyticsRescuerService : IAnalyticsRescuerService
                 }
             };
         })
-        .OrderByDescending(x => x.Timeline.MissionAcceptedAt)
         .ToList();
 
-        var completedMissions = missionDtos.Count(x => x.Status == RescueStatus.Completed.ToString());
-        var successRate = missionDtos.Count > 0 ? (double)completedMissions / missionDtos.Count : 0;
+        var successRate = totalItems > 0 ? (double)successCount / totalItems : 0;
+        var pagedResult = new PaginatedResultDto<MissionDetailDto>(missionDtos, page, limit, totalPages, totalItems);
 
         var result = new RescuerMissionHistoryDto
         {
-            RescuerId = rescuerId,
-            RescuerName = rescuer.FullName,
-            TotalMissions = missionDtos.Count,
+            RescuerId = filter.RescuerId,
+            RescuerName = rescuer?.FullName,
+            TotalMissions = totalItems,
             SuccessRate = Math.Round(successRate, 2),
-            Missions = missionDtos
+            Missions = pagedResult
         };
 
         return new ServiceResult(

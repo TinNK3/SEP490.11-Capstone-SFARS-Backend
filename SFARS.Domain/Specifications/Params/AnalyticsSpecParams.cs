@@ -2,8 +2,10 @@ using System;
 
 namespace SFARS.Domain.Specifications.Params;
 
-public class AnalyticsSpecParams
+public class AnalyticsSpecParams : BaseSpecParams
 {
+    public Guid? RescuerId { get; set; }
+
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
 
