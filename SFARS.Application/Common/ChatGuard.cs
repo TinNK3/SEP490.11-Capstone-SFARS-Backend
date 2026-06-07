@@ -66,7 +66,7 @@ public static class ChatGuard
         // 2. Check Contextual Bans (Drugs + Administration)
         string sanitizedOutput = aiResponse;
         bool hasContextualViolation = false;
-        string firstViolation = null;
+        string? firstViolation = null;
 
         foreach (var pattern in ContextualBannedPatterns)
         {

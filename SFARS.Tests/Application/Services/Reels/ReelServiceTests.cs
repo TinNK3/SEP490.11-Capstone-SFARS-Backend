@@ -26,6 +26,7 @@ public class ReelServiceTests
     private readonly Mock<IGenericRepository<ReelComment, Guid>> _commentRepoMock;
     private readonly Mock<IGenericRepository<ContentPost, Guid>> _postRepoMock;
     private readonly Mock<INotificationService> _notificationServiceMock;
+    private readonly Mock<ISystemMessageService> _systemMessageServiceMock;
 
     private readonly ReelService _sut;
 
@@ -39,6 +40,7 @@ public class ReelServiceTests
         _commentRepoMock = new Mock<IGenericRepository<ReelComment, Guid>>();
         _postRepoMock = new Mock<IGenericRepository<ContentPost, Guid>>();
         _notificationServiceMock = new Mock<INotificationService>();
+        _systemMessageServiceMock = new Mock<ISystemMessageService>();
 
         _uowMock.Setup(u => u.Repository<Reel, Guid>()).Returns(_reelRepoMock.Object);
         _uowMock.Setup(u => u.Repository<ReelLike, object>()).Returns(_likeRepoMock.Object);
@@ -46,7 +48,7 @@ public class ReelServiceTests
         _uowMock.Setup(u => u.Repository<ReelComment, Guid>()).Returns(_commentRepoMock.Object);
         _uowMock.Setup(u => u.Repository<ContentPost, Guid>()).Returns(_postRepoMock.Object);
  
-        _sut = new ReelService(_uowMock.Object, _fileStorageMock.Object, _notificationServiceMock.Object);
+        _sut = new ReelService(_uowMock.Object, _fileStorageMock.Object, _notificationServiceMock.Object, _systemMessageServiceMock.Object);
     }
 
     [Fact]

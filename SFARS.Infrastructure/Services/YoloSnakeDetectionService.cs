@@ -47,108 +47,111 @@ public class YoloSnakeDetectionService : ISnakeDetectionService, IDisposable
     /// <inheritdoc />
     public async Task<SnakeDetectionResult> DetectAsync(byte[] imageBytes)
     {
-        try
+        return await Task.Run(() =>
         {
-            using var image = Image.Load<Rgb24>(imageBytes);
-            int origW = image.Width;
-            int origH = image.Height;
-            int inputSize = _options.InputSize;
-
-            // Letterbox resize: maintain aspect ratio + pad
-            float scale = Math.Min((float)inputSize / origW, (float)inputSize / origH);
-            int newW = (int)(origW * scale);
-            int newH = (int)(origH * scale);
-            int padX = (inputSize - newW) / 2;
-            int padY = (inputSize - newH) / 2;
-
-            using var resized = image.Clone(ctx => ctx.Resize(newW, newH));
-
-            // Build NCHW tensor [1, 3, 640, 640] normalized to [0, 1]
-            var tensor = new DenseTensor<float>(new[] { 1, 3, inputSize, inputSize });
-
-            for (int y = 0; y < inputSize; y++)
-            {
-                for (int x = 0; x < inputSize; x++)
-                {
-                    int srcX = x - padX;
-                    int srcY = y - padY;
-
-                    if (srcX >= 0 && srcX < newW && srcY >= 0 && srcY < newH)
-                    {
-                        var pixel = resized[srcX, srcY];
-                        tensor[0, 0, y, x] = pixel.R / 255f;
-                        tensor[0, 1, y, x] = pixel.G / 255f;
-                        tensor[0, 2, y, x] = pixel.B / 255f;
-                    }
-                    // else: stays 0 (black padding)
-                }
-            }
-
-            var inputs = new List<NamedOnnxValue>
-            {
-                NamedOnnxValue.CreateFromTensor(_resolvedInputName, tensor)
-            };
-
-            float[] outputData;
-            int[] outputDims;
-
-            _sessionLock.EnterReadLock();
             try
             {
-                using var results = _session.Run(inputs);
-                var firstOutput = results.First();
-                outputData = firstOutput.AsEnumerable<float>().ToArray();
-                outputDims = firstOutput.AsTensor<float>().Dimensions.ToArray();
+                using var image = Image.Load<Rgb24>(imageBytes);
+                int origW = image.Width;
+                int origH = image.Height;
+                int inputSize = _options.InputSize;
+
+                // Letterbox resize: maintain aspect ratio + pad
+                float scale = Math.Min((float)inputSize / origW, (float)inputSize / origH);
+                int newW = (int)(origW * scale);
+                int newH = (int)(origH * scale);
+                int padX = (inputSize - newW) / 2;
+                int padY = (inputSize - newH) / 2;
+
+                using var resized = image.Clone(ctx => ctx.Resize(newW, newH));
+
+                // Build NCHW tensor [1, 3, 640, 640] normalized to [0, 1]
+                var tensor = new DenseTensor<float>(new[] { 1, 3, inputSize, inputSize });
+
+                for (int y = 0; y < inputSize; y++)
+                {
+                    for (int x = 0; x < inputSize; x++)
+                    {
+                        int srcX = x - padX;
+                        int srcY = y - padY;
+
+                        if (srcX >= 0 && srcX < newW && srcY >= 0 && srcY < newH)
+                        {
+                            var pixel = resized[srcX, srcY];
+                            tensor[0, 0, y, x] = pixel.R / 255f;
+                            tensor[0, 1, y, x] = pixel.G / 255f;
+                            tensor[0, 2, y, x] = pixel.B / 255f;
+                        }
+                        // else: stays 0 (black padding)
+                    }
+                }
+
+                var inputs = new List<NamedOnnxValue>
+                {
+                    NamedOnnxValue.CreateFromTensor(_resolvedInputName, tensor)
+                };
+
+                float[] outputData;
+                int[] outputDims;
+
+                _sessionLock.EnterReadLock();
+                try
+                {
+                    using var results = _session.Run(inputs);
+                    var firstOutput = results.First();
+                    outputData = firstOutput.AsEnumerable<float>().ToArray();
+                    outputDims = firstOutput.AsTensor<float>().Dimensions.ToArray();
+                }
+                finally
+                {
+                    _sessionLock.ExitReadLock();
+                }
+
+                // YOLOv8 output: [1, 5, N] where 5 = [x_center, y_center, w, h, confidence]
+                // For single-class detection: [1, 5, 8400]
+                var detections = DecodeYoloOutput(outputData, outputDims, inputSize);
+
+                // Apply NMS
+                var nmsDetections = ApplyNms(detections, _options.NmsIouThreshold);
+
+                if (nmsDetections.Count == 0)
+                {
+                    _logger.LogInformation("YOLO: No snake detected in image");
+                    return new SnakeDetectionResult(false, 0f, null);
+                }
+
+                // Take highest confidence detection
+                var best = nmsDetections[0];
+
+                // Convert from letterbox coords back to original image coords
+                int xMin = (int)((best.XCenter - best.Width / 2 - padX) / scale);
+                int yMin = (int)((best.YCenter - best.Height / 2 - padY) / scale);
+                int xMax = (int)((best.XCenter + best.Width / 2 - padX) / scale);
+                int yMax = (int)((best.YCenter + best.Height / 2 - padY) / scale);
+
+                // Clamp to image bounds
+                xMin = Math.Max(0, xMin);
+                yMin = Math.Max(0, yMin);
+                xMax = Math.Min(origW, xMax);
+                yMax = Math.Min(origH, yMax);
+
+                var box = new BoundingBox(xMin, yMin, xMax, yMax);
+
+                _logger.LogInformation(
+                    "YOLO: Snake detected with confidence {Confidence:P}, Box: ({X1},{Y1})-({X2},{Y2})",
+                    best.Confidence, xMin, yMin, xMax, yMax);
+
+                return new SnakeDetectionResult(
+                    best.Confidence >= _options.ConfidenceThreshold,
+                    best.Confidence,
+                    box);
             }
-            finally
+            catch (Exception ex)
             {
-                _sessionLock.ExitReadLock();
+                _logger.LogError(ex, "YOLO snake detection failed");
+                throw new InvalidOperationException("Snake detection failed. Please try again.", ex);
             }
-
-            // YOLOv8 output: [1, 5, N] where 5 = [x_center, y_center, w, h, confidence]
-            // For single-class detection: [1, 5, 8400]
-            var detections = DecodeYoloOutput(outputData, outputDims, inputSize);
-
-            // Apply NMS
-            var nmsDetections = ApplyNms(detections, _options.NmsIouThreshold);
-
-            if (nmsDetections.Count == 0)
-            {
-                _logger.LogInformation("YOLO: No snake detected in image");
-                return new SnakeDetectionResult(false, 0f, null);
-            }
-
-            // Take highest confidence detection
-            var best = nmsDetections[0];
-
-            // Convert from letterbox coords back to original image coords
-            int xMin = (int)((best.XCenter - best.Width / 2 - padX) / scale);
-            int yMin = (int)((best.YCenter - best.Height / 2 - padY) / scale);
-            int xMax = (int)((best.XCenter + best.Width / 2 - padX) / scale);
-            int yMax = (int)((best.YCenter + best.Height / 2 - padY) / scale);
-
-            // Clamp to image bounds
-            xMin = Math.Max(0, xMin);
-            yMin = Math.Max(0, yMin);
-            xMax = Math.Min(origW, xMax);
-            yMax = Math.Min(origH, yMax);
-
-            var box = new BoundingBox(xMin, yMin, xMax, yMax);
-
-            _logger.LogInformation(
-                "YOLO: Snake detected with confidence {Confidence:P}, Box: ({X1},{Y1})-({X2},{Y2})",
-                best.Confidence, xMin, yMin, xMax, yMax);
-
-            return new SnakeDetectionResult(
-                best.Confidence >= _options.ConfidenceThreshold,
-                best.Confidence,
-                box);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "YOLO snake detection failed");
-            throw new InvalidOperationException("Snake detection failed. Please try again.", ex);
-        }
+        });
     }
 
     /// <inheritdoc />

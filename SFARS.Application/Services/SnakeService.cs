@@ -50,7 +50,7 @@ namespace SFARS.Application.Services
             {
                 return new ServiceResult(
                     ResultCodeConst.SYS_Warning0004,
-                    "Snake not found");
+                    await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
             }
 
             return result;
@@ -407,7 +407,7 @@ namespace SFARS.Application.Services
 
             if (snake == null)
             {
-                return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Snake not found");
+                return new ServiceResult(ResultCodeConst.SYS_Warning0004, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
             }
 
             keepImageIds ??= new List<Guid>();
@@ -509,7 +509,7 @@ namespace SFARS.Application.Services
             var snake = await _unitOfWork.Repository<Snake, Guid>().GetByIdAsync(snakeId);
             if (snake == null)
             {
-                return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Snake not found");
+                return new ServiceResult(ResultCodeConst.SYS_Warning0004, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
             }
 
             var allLogs = (await _unitOfWork.Repository<SnakeChangeLog, Guid>().GetAllAsync(false))
@@ -549,13 +549,13 @@ namespace SFARS.Application.Services
             var changeLog = await _unitOfWork.Repository<SnakeChangeLog, Guid>().GetByIdAsync(changeLogId);
             if (changeLog == null)
             {
-                return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Change log entry not found");
+                return new ServiceResult(ResultCodeConst.SYS_Warning0004, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
             }
 
             var snake = await _unitOfWork.Repository<Snake, Guid>().GetByIdAsync(changeLog.SnakeId);
             if (snake == null)
             {
-                return new ServiceResult(ResultCodeConst.SYS_Warning0004, "Snake not found");
+                return new ServiceResult(ResultCodeConst.SYS_Warning0004, await _msgService.GetMessageAsync(ResultCodeConst.SYS_Warning0004));
             }
 
             // Get current value of the field
