@@ -1,0 +1,135 @@
+name: "🔧 Feature Request: Admin xóa bài đăng / Reel của User"
+description: "Admin hiện không có quyền xóa bài đăng (Post) và Reel của user. Cần bổ sung logic xử lý."
+title: "[Feature] Admin - Thêm quyền xóa bài đăng / Reel của User"
+labels: ["enhancement", "admin", "community"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Mô tả vấn đề
+
+        Hiện tại, Admin **chỉ có quyền ẩn (hide) / bỏ ẩn (unhide)** bài đăng (Post) và Reel của user, nhưng **không thể xóa** chúng.
+
+        ### Trạng thái hiện tại
+
+        | Hành động | Post (Community) | Reel |
+        |---|---|---|
+        | Admin ẩn (hide) | ✅ `AdminHidePostAsync` | ✅ `AdminHideReelAsync` |
+        | Admin bỏ ẩn (unhide) | ✅ `AdminUnhidePostAsync` | ✅ `AdminUnhideReelAsync` |
+        | Admin xóa (delete) | ❌ Chưa có | ❌ Chưa có |
+
+        ### Các file liên quan
+
+        **Controller:**
+        - `SFARS.API/Controller/CommunityController.cs` — `DeletePostAsync` chỉ cho phép tác giả (author) xóa
+        - `SFARS.API/Controller/ReelController.cs` — `DeleteReelAsync` chỉ cho phép tác giả (author) xóa
+
+        **Service:**
+        - `SFARS.Application/Services/CommunityPostService.cs` — `DeletePostAsync()` kiểm tra `post.AuthorId != requesterId`
+        - `SFARS.Application/Services/ReelService.cs` — `DeleteReelAsync()` kiểm tra `reel.UserId != currentUserId`
+
+        **Interface:**
+        - `SFARS.Domain/Interfaces/Services/ICommunityPostService.cs`
+        - `SFARS.Domain/Interfaces/Services/IReelService.cs`
+
+        **Route:**
+        - `SFARS.API/Payloads/APIRoute.cs` — Chưa có route `AdminDeletePost` / `AdminDeleteReel`
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Hành vi mong muốn
+      description: Mô tả chi tiết hành vi mong muốn sau khi cập nhật
+      value: |
+        1. Admin có thể xóa bất kỳ bài đăng (Post) nào của user thông qua API endpoint riêng.
+        2. Admin có thể xóa bất kỳ Reel nào của user thông qua API endpoint riêng.
+        3. Khi Admin xóa, cần gửi thông báo (notification) cho tác giả kèm lý do xóa.
+        4. Với Reel: cần xóa cả video trên Cloudinary (giải phóng tài nguyên).
+        5. Ghi log hành động xóa của Admin (audit log).
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Giải pháp đề xuất
+      description: Các bước triển khai cần thực hiện
+      value: |
+        ### 1. Thêm API Route (APIRoute.cs)
+        - `AdminDeletePost = AdminBase + "/posts/{id}"` trong class `Community`
+        - `AdminDeleteReel = AdminBase + "/{id}"` trong class `Reels`
+
+        ### 2. Thêm Service Method
+
+        **ICommunityPostService / CommunityPostService:**
+        - Thêm method `AdminDeletePostAsync(Guid postId, Guid adminId, string reason)`
+        - Không kiểm tra `AuthorId == requesterId`, chỉ cần quyền Admin
+        - Xóa bài đăng + media liên quan
+        - Gửi notification cho tác giả
+
+        **IReelService / ReelService:**
+        - Thêm method `AdminDeleteReelAsync(Guid reelId, Guid adminId, string reason)`
+        - Không kiểm tra `UserId == currentUserId`, chỉ cần quyền Admin
+        - Xóa video trên Cloudinary + xóa Reel trong DB
+        - Gửi notification cho tác giả
+
+        ### 3. Thêm Controller Endpoint
+
+        **CommunityController:**
+        ```
+        [HttpDelete(APIRoute.Community.AdminDeletePost)]
+        [Authorize(Roles = "Admin")]
+        AdminDeletePostAsync(Guid id, AdminModerationRequest req)
+        ```
+
+        **ReelController:**
+        ```
+        [HttpDelete(APIRoute.Reels.AdminDeleteReel)]
+        [Authorize(Roles = "Admin")]
+        AdminDeleteReelAsync(Guid id, AdminModerationRequest req)
+        ```
+
+        ### 4. Unit Tests
+        - Test Admin xóa Post thành công
+        - Test Admin xóa Reel thành công (kèm Cloudinary cleanup)
+        - Test non-Admin bị từ chối (403)
+        - Test xóa Post/Reel không tồn tại (404)
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Mức độ ưu tiên
+      options:
+        - "🔴 Cao (High) - Cần thiết cho quản trị hệ thống"
+        - "🟡 Trung bình (Medium)"
+        - "🟢 Thấp (Low)"
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Thông tin bổ sung
+      description: Bất kỳ thông tin nào khác liên quan đến yêu cầu này
+      placeholder: Ví dụ - link Figma, tài liệu API spec, v.v.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist triển khai
+      description: Đánh dấu các bước cần hoàn thành
+      options:
+        - label: "Thêm route `AdminDeletePost` và `AdminDeleteReel` trong `APIRoute.cs`"
+        - label: "Thêm method `AdminDeletePostAsync` trong `ICommunityPostService` và `CommunityPostService`"
+        - label: "Thêm method `AdminDeleteReelAsync` trong `IReelService` và `ReelService`"
+        - label: "Thêm endpoint `AdminDeletePostAsync` trong `CommunityController`"
+        - label: "Thêm endpoint `AdminDeleteReelAsync` trong `ReelController`"
+        - label: "Gửi notification cho tác giả khi Admin xóa"
+        - label: "Viết Unit Tests cho các method mới"
+        - label: "Cập nhật Swagger / API documentation"
